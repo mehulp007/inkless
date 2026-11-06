@@ -2,9 +2,9 @@
 
 **The ledger that writes itself.**
 
-Inkless is an Android expense tracker built around how students in India actually pay: lots of small UPI payments — chai, canteen, autos, Swiggy, recharges — spread across GPay, PhonePe, Paytm and bank apps. Every payment is filed into a category tab, so you can see at a glance where the month's money went.
+Inkless is an Android expense tracker built around how students in India actually pay: lots of small UPI payments — chai, canteen, autos, Swiggy, recharges — spread across GPay, PhonePe, Paytm and bank apps. Inkless reads the SMS your bank already sends for every UPI payment and adds the payment for you, so the ledger fills itself with zero typing. Every payment is filed into a category tab, so you can see at a glance where the month's money went.
 
-It's local-first: your ledger lives in a database on your phone. The internet is only used to sign in.
+It's local-first: your ledger lives in a database on your phone, and the SMS text never leaves it. The internet is only used to sign in.
 
 <p align="center">
   <img src="docs/screenshots/home-all.png" width="260" alt="Month view with every payment grouped by day" />
@@ -16,14 +16,42 @@ It's local-first: your ledger lives in a database on your phone. The internet is
 
 ## What it does
 
+- **Auto-capture from bank SMS** — payments show up within seconds of paying, from any UPI app. See [below](#auto-capture).
 - **Category tabs** — swipe between *All* and 13 categories (Food & Canteen, Food Delivery, Travel, Recharge & Subscriptions, Laundry & Hostel, Lent to Friends, …), each with its own monthly total and payment list.
 - **Month at a glance** — the total spent this month up top; step back through previous months.
 - **Day-by-day list** — payments grouped by day with a daily total, merchant name, time and UPI ID.
 - **Refunds handled properly** — a refund is subtracted from the category it came back to, and money coming in (like the monthly allowance) never counts as spending.
+- **Transaction details** — tap any payment to set its category, add a note, or delete it (for anything that wasn't really a payment).
+- **Cash quick-add** — the *Cash* button on the home screen, for spends no SMS will ever mention.
 - **Demo mode** — *Try the demo* on the welcome screen opens a few months of made-up hostel spending, no account needed. The data is seeded, so it comes out the same every time.
 - **Material 3** with light/dark theme and dynamic colour on Android 12+.
 
 All amounts are stored as whole paise (`Long`), never floating point, and shown with Indian digit grouping (₹1,23,456.50).
+
+## Auto-capture
+
+<p align="center">
+  <img src="docs/screenshots/sms-setup.png" width="260" alt="Auto-capture setup explaining what is and isn't read" />
+  <img src="docs/screenshots/transaction.png" width="260" alt="A captured payment waiting for a category" />
+</p>
+
+UPI apps have no API, but every bank sends an SMS for every UPI payment, whichever app was used. Inkless reads those:
+
+- **Live** — a `BroadcastReceiver` picks up each bank SMS as it arrives and turns it into a transaction.
+- **History** — on setup it can import the last 1, 3 or 6 months from the SMS inbox. This runs in WorkManager with a progress bar, and the same SMS is never saved twice.
+- **Catch-up** — after logging back in, it quietly picks up any bank SMS that arrived in the meantime.
+- **Bank-specific parsers** for SBI, HDFC, ICICI and Axis, built from real (masked) alerts, plus a generic UPI parser for everything else: amount, debit/credit, payee, UPI ID, account (last 4 digits), UPI reference and balance.
+- **Refunds and reversals** are recognised (including SBI's `UPI/DRC` and `UPI/ONRF` codes) so they offset spending instead of counting as income.
+- **Couldn't read these** — bank messages that look financial but no parser understood are kept in a list in Settings, so formats can be fixed instead of silently lost.
+
+What it refuses to read matters just as much. A filter runs before any parsing and drops:
+
+- **OTPs**, always and from any sender — they are never stored, not even as a hash.
+- **Promotions and loan offers**, including anything from a promotional (`-P`) sender.
+- **Failed payments, collect requests, mandate set-ups, balance reminders and telecom recharges** — money didn't actually move.
+- **Personal messages and non-bank senders** — only bank-style sender IDs (`VM-HDFCBK`, `JK-SBIUPI-S`, …) are considered.
+
+Each account turns capture on separately, nothing is captured in demo mode or while signed out, and the parsers live in the pure-Kotlin `:parsing` module with table-driven tests: every sample message in [`parsing/src/test/resources/parser-fixtures/`](parsing/src/test/resources/parser-fixtures/) states what it should be read as.
 
 ## Accounts
 
@@ -43,6 +71,7 @@ Error messages are deliberately vague about whether an account exists: a wrong p
 ## Privacy
 
 - Your transactions are stored in a Room database on the device, one file per account (`inkless_<id>.db`). Demo data lives in its own file and never mixes with anything else.
+- SMS access is asked for in plain language first, and can be revoked any time from Android settings. Only bank transaction alerts are kept; the original text stays on the phone so it can be re-read if a parser improves, and is never uploaded.
 - The only network traffic is Firebase: Authentication for sign-in, and Cloud Firestore for your username and profile. No analytics or ads SDKs.
 - Firestore security rules let each account read and write only its own data. A username can be looked up one at a time (that's how logging in with a username finds the email), but usernames can't be listed.
 - Inkless opts out of Android's automatic cloud backup and device-to-device transfer, so your spending data isn't copied anywhere behind your back.
@@ -57,6 +86,7 @@ Error messages are deliberately vague about whether an account exists: a wrong p
 | DI | Hilt |
 | Storage | Room (schema exported to `app/schemas/`) |
 | Accounts | Firebase Authentication, Cloud Firestore, Credential Manager (Sign in with Google) |
+| Capture | `BroadcastReceiver` (SMS_RECEIVED), SMS content provider, WorkManager |
 | Async | Kotlin Coroutines & Flow |
 | Tests | JUnit, Truth, Turbine; Room tests on a device/emulator; Firestore rules tests on the Firebase emulator |
 | Build | Gradle 9 (Kotlin DSL + version catalog), AGP 9, KSP |
@@ -66,8 +96,8 @@ minSdk 26 · targetSdk 37
 ## Project layout
 
 ```
-app/        Android app — UI, Room database, accounts, Hilt wiring, demo data
-parsing/    Pure Kotlin module (no Android dependencies) for reading amounts out of bank messages
+app/        Android app — UI, Room database, accounts, SMS capture, Hilt wiring, demo data
+parsing/    Pure Kotlin module (no Android dependencies): SMS filter, bank parsers, test fixtures
 firebase/   Firestore security rules, their tests, and Firebase setup steps
 docs/       Screenshots
 ```
@@ -77,6 +107,7 @@ Inside `app/src/main/java/com/mehul/inkless/`:
 ```
 auth/         Firebase sign-in, usernames, Google ID tokens, input validation
 session/      Who's using the app (signed out, demo, an account) and which database is open
+capture/      SMS receiver, inbox import worker, and the filter → parse → save pipeline
 data/db/      Room entities, DAOs, DatabaseProvider (one database file per account)
 data/repo/    Repositories the UI reads from
 data/seed/    Default categories
@@ -97,7 +128,7 @@ The app needs an `app/google-services.json` from a Firebase project. It isn't co
 # Unit tests (JVM)
 ./gradlew test
 
-# Room tests (needs a running emulator or connected phone)
+# Room and capture-pipeline tests (needs a running emulator or connected phone)
 ./gradlew connectedDebugAndroidTest
 
 # Firestore rules tests (needs Node and Java 21+)
