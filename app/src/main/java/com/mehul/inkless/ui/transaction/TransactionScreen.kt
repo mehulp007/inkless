@@ -131,7 +131,10 @@ private fun Details(
 ) {
     var renaming by rememberSaveable { mutableStateOf(false) }
     // Keyed by id so the fields reset if the screen is reused for another entry.
-    var categoryId by rememberSaveable(txn.id) { mutableStateOf(txn.categoryId) }
+    // A payment waiting for a category starts on the model's guess, so a right guess is one tap.
+    var categoryId by rememberSaveable(txn.id) {
+        mutableStateOf(state.guess?.categoryId?.takeIf { txn.status == TransactionStatus.NEEDS_REVIEW } ?: txn.categoryId)
+    }
     var note by rememberSaveable(txn.id) { mutableStateOf(txn.note.orEmpty()) }
     val changed = categoryId != txn.categoryId || note.trim() != txn.note.orEmpty() ||
         (txn.status == TransactionStatus.NEEDS_REVIEW && categoryId != null)
@@ -183,8 +186,10 @@ private fun Details(
         } else if (takesCategory) {
             if (txn.status == TransactionStatus.NEEDS_REVIEW) {
                 Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = MaterialTheme.shapes.small) {
+                    val guessed = state.guess?.let { g -> state.categories.firstOrNull { it.id == g.categoryId } }
                     Text(
-                        "Captured automatically — pick what this was.",
+                        guessed?.let { "Captured automatically. Looks like ${it.emoji} ${it.name} — tap Save if that's right, or pick another." }
+                            ?: "Captured automatically — pick what this was.",
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onTertiaryContainer,

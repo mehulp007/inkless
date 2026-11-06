@@ -19,6 +19,7 @@ import com.mehul.inkless.data.db.InklessDatabase
 import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.db.entity.TransactionEntity
 import com.mehul.inkless.data.repo.LedgerRepository
+import com.mehul.inkless.ml.CategoryModel
 import com.mehul.inkless.ui.format.Money
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -26,7 +27,8 @@ import javax.inject.Singleton
 
 /**
  * At most one notification per freshly captured payment (see [AfterPayment]):
- * - "₹45 to SHARMA CANTEEN: what was this?" with the user's top categories as buttons, and a
+ * - "₹45 to SHARMA CANTEEN: what was this?" with the model's best guesses (then the user's most
+ *   used categories) as buttons, and a
  *   Break down button for payments over the user's limit;
  * - "₹450 → 🍜 Food Delivery" for payments over the limit that were filed on their own, with
  *   Looks right / Break down / Change.
@@ -38,6 +40,7 @@ class ReviewNotifier @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: LedgerRepository,
     private val breakdownPrefs: BreakdownPrefs,
+    private val model: CategoryModel,
 ) {
     private val manager = NotificationManagerCompat.from(context)
 
@@ -60,7 +63,13 @@ class ReviewNotifier @Inject constructor(
         for ((txn, ask) in asks) {
             val builder = when (ask) {
                 AfterPayment.CHECK_IN -> checkIn(txn, txn.categoryId?.let(categories::get))
-                else -> whatWasThis(txn, picks, withBreakDown = ask == AfterPayment.WHAT_WAS_THIS_OR_BREAK_DOWN)
+                else -> {
+                    // The model's likely answers first, as long as they're at least plausible.
+                    val guessed = model.guesses(db, txn.vpa, txn.payeeRaw, txn.amountPaise, txn.timestamp)
+                        .filter { it.confidence >= PLAUSIBLE }
+                        .mapNotNull { categories[it.categoryId] }
+                    whatWasThis(txn, (guessed + picks).distinctBy { it.id }, withBreakDown = ask == AfterPayment.WHAT_WAS_THIS_OR_BREAK_DOWN)
+                }
             }
             builder
                 .setSmallIcon(R.drawable.ic_stat_inkless)
@@ -137,6 +146,7 @@ class ReviewNotifier @Inject constructor(
         const val TAG = "review"
         // Android shows at most three buttons on a notification.
         const val MAX_BUTTONS = 3
+        const val PLAUSIBLE = 0.15f
 
         const val OPEN = 0
         const val BREAK_DOWN = 1
