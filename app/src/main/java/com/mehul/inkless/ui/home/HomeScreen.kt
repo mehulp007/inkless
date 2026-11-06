@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -28,6 +30,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,6 +46,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mehul.inkless.R
 import com.mehul.inkless.ui.format.Money
@@ -60,11 +64,21 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val account by viewModel.account.collectAsStateWithLifecycle()
+
+    // Coming back from the email app is the moment the verification link was likely clicked.
+    LifecycleResumeEffect(Unit) {
+        viewModel.refreshAccount()
+        onPauseOrDispose {}
+    }
+
     HomeContent(
         state = state,
+        account = account,
         onPreviousMonth = viewModel::previousMonth,
         onNextMonth = viewModel::nextMonth,
         onOpenSettings = onOpenSettings,
+        onResendVerification = viewModel::resendVerification,
     )
 }
 
@@ -72,9 +86,11 @@ fun HomeScreen(
 @Composable
 private fun HomeContent(
     state: HomeUiState,
+    account: HomeAccount,
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onOpenSettings: () -> Unit,
+    onResendVerification: () -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -82,8 +98,10 @@ private fun HomeContent(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Inkless", fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.width(8.dp))
-                        DemoBadge()
+                        if (account.isDemo) {
+                            Spacer(Modifier.width(8.dp))
+                            DemoBadge()
+                        }
                     }
                 },
                 actions = {
@@ -98,7 +116,11 @@ private fun HomeContent(
             HomeUiState.Loading -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) {
                 CircularProgressIndicator()
             }
-            is HomeUiState.Ready -> ReadyContent(state, padding, onPreviousMonth, onNextMonth)
+            is HomeUiState.Ready -> ReadyContent(state, padding, onPreviousMonth, onNextMonth) {
+                account.unverifiedEmail?.let { email ->
+                    VerifyEmailBanner(email, account.verificationSent, onResendVerification)
+                }
+            }
         }
     }
 }
@@ -109,11 +131,13 @@ private fun ReadyContent(
     padding: PaddingValues,
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
+    banner: @Composable () -> Unit,
 ) {
     val pagerState = rememberPagerState { state.tabs.size }
     val scope = rememberCoroutineScope()
 
     Column(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
+        banner()
         MonthHeader(
             month = state.month,
             isCurrentMonth = !state.canGoForward,
@@ -296,6 +320,41 @@ private fun EmojiBadge(emoji: String, color: Color, size: Dp = 40.dp) {
         contentAlignment = Alignment.Center,
     ) {
         Text(emoji, fontSize = (size.value * 0.48f).sp)
+    }
+}
+
+@Composable
+private fun VerifyEmailBanner(email: String, sent: Boolean, onResend: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painterResource(R.drawable.ic_mail),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Verify your email",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+                Text(
+                    if (sent) "Sent again to $email" else "We sent a link to $email",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            TextButton(onClick = onResend, enabled = !sent) { Text("Resend") }
+        }
     }
 }
 

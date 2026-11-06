@@ -2,7 +2,11 @@ package com.mehul.inkless.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mehul.inkless.auth.AuthException
+import com.mehul.inkless.auth.AuthRepository
 import com.mehul.inkless.data.repo.LedgerRepository
+import com.mehul.inkless.session.Session
+import com.mehul.inkless.session.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,6 +16,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.time.Clock
 import java.time.LocalDate
 import java.time.YearMonth
@@ -21,8 +26,23 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: LedgerRepository,
+    private val sessions: SessionManager,
+    private val auth: AuthRepository,
     private val clock: Clock,
 ) : ViewModel() {
+
+    private val verificationSent = MutableStateFlow(false)
+
+    val account: StateFlow<HomeAccount> = combine(sessions.session, verificationSent) { session, sent ->
+        when (session) {
+            Session.Demo -> HomeAccount(isDemo = true)
+            is Session.SignedIn -> HomeAccount(
+                unverifiedEmail = session.user.email.takeUnless { session.user.emailVerified },
+                verificationSent = sent,
+            )
+            else -> HomeAccount()
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeAccount())
 
     private val selectedMonth = MutableStateFlow(YearMonth.now(clock))
 
@@ -48,6 +68,21 @@ class HomeViewModel @Inject constructor(
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState.Loading)
+
+    fun refreshAccount() {
+        if (account.value.unverifiedEmail != null) viewModelScope.launch { sessions.refreshUser() }
+    }
+
+    fun resendVerification() {
+        verificationSent.value = true
+        viewModelScope.launch {
+            try {
+                auth.sendVerificationEmail()
+            } catch (e: AuthException) {
+                verificationSent.value = false
+            }
+        }
+    }
 
     fun previousMonth() = selectedMonth.update { it.minusMonths(1) }
 

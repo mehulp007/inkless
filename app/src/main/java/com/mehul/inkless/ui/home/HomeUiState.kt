@@ -9,6 +9,14 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 
+/** Account bits the home screen shows around the ledger. */
+data class HomeAccount(
+    val isDemo: Boolean = false,
+    /** Set while the signed-in user hasn't clicked the verification link yet. */
+    val unverifiedEmail: String? = null,
+    val verificationSent: Boolean = false,
+)
+
 sealed interface HomeUiState {
     data object Loading : HomeUiState
 
