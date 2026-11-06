@@ -238,7 +238,7 @@ describe('backup', () => {
     await assertFails(setDoc(ref(alice()), txn({ amountPaise: '45' })));
   });
 
-  test('categories, merchants, rules and my accounts hold only their own fields', async () => {
+  test('categories, merchants, rules, my accounts and budgets hold only their own fields', async () => {
     const db = alice();
     await assertSucceeds(setDoc(ref(db, 'categories', 'food_canteen'), synced({
       name: 'Food & Canteen', emoji: '🍔', colorArgb: 4294090040, monthlyBudgetPaise: null, sortOrder: 0, isSystem: true,
@@ -252,6 +252,10 @@ describe('backup', () => {
     await assertSucceeds(setDoc(ref(db, 'myAccounts', 'a1'), synced({
       match: 'UPI_ID', value: 'alice@oksbi', role: 'MINE', label: null,
     })));
+    await assertSucceeds(setDoc(ref(db, 'budgets', 'monthly'), synced({
+      period: 'MONTH', amountPaise: 1200000, allowanceDay: 1, dailyFoodCapPaise: 20000,
+    })));
+    await assertFails(setDoc(ref(db, 'budgets', 'monthly'), synced({ period: 'MONTH', amountPaise: '12000', allowanceDay: 1 })));
     await assertFails(setDoc(ref(db, 'merchants', 'm2'), synced({ vpa: 'x@ybl', displayName: 'X', timesSeen: 1, sms: 'hi' })));
   });
 

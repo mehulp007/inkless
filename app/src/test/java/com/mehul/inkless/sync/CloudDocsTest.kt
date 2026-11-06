@@ -1,6 +1,8 @@
 package com.mehul.inkless.sync
 
 import com.google.common.truth.Truth.assertThat
+import com.mehul.inkless.data.db.entity.BudgetPeriod
+import com.mehul.inkless.data.db.entity.BudgetEntity
 import com.mehul.inkless.categorize.RuleField
 import com.mehul.inkless.categorize.RuleMatch
 import com.mehul.inkless.data.db.entity.AccountMatch
@@ -119,5 +121,13 @@ class CloudDocsTest {
     fun `rows that come down are stored as already synced`() {
         val doc = TransactionDoc(transaction.copy(syncState = SyncState.DIRTY)).toMap()
         assertThat(TransactionDoc.fromMap("t1", asFirestore(doc), "u1")?.transaction?.syncState).isEqualTo(SyncState.SYNCED)
+    }
+
+    @Test
+    fun `a budget round trips`() {
+        val budget = BudgetEntity("monthly", BudgetPeriod.MONTH, 1_200_000, 5, 20_000, "u1", 9, syncState = SyncState.SYNCED)
+        assertThat(CloudDocs.budget("monthly", asFirestore(CloudDocs.budget(budget)), "u1")).isEqualTo(budget)
+        val noDay = budget.copy(allowanceDay = null, dailyFoodCapPaise = null)
+        assertThat(CloudDocs.budget("monthly", asFirestore(CloudDocs.budget(noDay)), "u1")).isEqualTo(noDay)
     }
 }

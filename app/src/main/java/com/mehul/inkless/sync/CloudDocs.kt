@@ -4,6 +4,8 @@ import com.mehul.inkless.categorize.RuleField
 import com.mehul.inkless.categorize.RuleMatch
 import com.mehul.inkless.data.db.entity.AccountMatch
 import com.mehul.inkless.data.db.entity.AccountRole
+import com.mehul.inkless.data.db.entity.BudgetEntity
+import com.mehul.inkless.data.db.entity.BudgetPeriod
 import com.mehul.inkless.data.db.entity.CaptureSource
 import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.db.entity.Direction
@@ -122,6 +124,29 @@ object CloudDocs {
             value = string("value"),
             role = AccountRole.valueOf(string("role")),
             label = stringOrNull("label"),
+            ownerUid = ownerUid,
+            updatedAt = long(UPDATED_AT),
+            deleted = bool(DELETED),
+            syncState = SyncState.SYNCED,
+        )
+    }
+
+    fun budget(b: BudgetEntity): Map<String, Any?> = mapOf(
+        "period" to b.period.name,
+        "amountPaise" to b.amountPaise,
+        "allowanceDay" to b.allowanceDay?.toLong(),
+        "dailyFoodCapPaise" to b.dailyFoodCapPaise,
+        UPDATED_AT to b.updatedAt,
+        DELETED to b.deleted,
+    )
+
+    fun budget(id: String, data: Map<String, Any?>, ownerUid: String): BudgetEntity? = read(data) {
+        BudgetEntity(
+            id = id,
+            period = BudgetPeriod.valueOf(string("period")),
+            amountPaise = long("amountPaise"),
+            allowanceDay = longOrNull("allowanceDay")?.toInt(),
+            dailyFoodCapPaise = longOrNull("dailyFoodCapPaise"),
             ownerUid = ownerUid,
             updatedAt = long(UPDATED_AT),
             deleted = bool(DELETED),

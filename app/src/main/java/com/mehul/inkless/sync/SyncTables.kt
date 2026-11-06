@@ -93,6 +93,19 @@ object SyncTables {
         markAllDirty = { markAccountsDirty() },
     )
 
+    internal val budgets = SyncTable(
+        collection = "budgets",
+        id = { it.id },
+        updatedAt = { it.updatedAt },
+        toDoc = CloudDocs::budget,
+        fromDoc = CloudDocs::budget,
+        dirty = { dirtyBudgets(it) },
+        markSynced = { id, at -> budgetSynced(id, at) },
+        local = { budgets(it) },
+        save = { saveBudgets(it) },
+        markAllDirty = { markBudgetsDirty() },
+    )
+
     internal val transactions = SyncTable(
         collection = "transactions",
         id = { it.transaction.id },
@@ -113,7 +126,7 @@ object SyncTables {
     )
 
     /** In upload and download order: what a transaction points at arrives before the transaction. */
-    val all: List<SyncTable<*>> = listOf(categories, merchants, rules, myAccounts, transactions)
+    val all: List<SyncTable<*>> = listOf(categories, merchants, rules, myAccounts, budgets, transactions)
 
     val collections: List<String> = all.map { it.collection }
 }

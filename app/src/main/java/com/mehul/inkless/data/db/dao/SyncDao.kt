@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Upsert
+import com.mehul.inkless.data.db.entity.BudgetEntity
 import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.db.entity.MerchantEntity
 import com.mehul.inkless.data.db.entity.MyAccountEntity
@@ -29,6 +30,7 @@ interface SyncDao {
              + (SELECT COUNT(*) FROM merchants WHERE syncState = 'DIRTY')
              + (SELECT COUNT(*) FROM rules WHERE syncState = 'DIRTY')
              + (SELECT COUNT(*) FROM my_accounts WHERE syncState = 'DIRTY')
+             + (SELECT COUNT(*) FROM budgets WHERE syncState = 'DIRTY')
         """,
     )
     fun observePending(): Flow<Int>
@@ -128,4 +130,21 @@ interface SyncDao {
 
     @Query("UPDATE my_accounts SET syncState = 'DIRTY'")
     suspend fun markAccountsDirty()
+
+    // Budgets
+
+    @Query("SELECT * FROM budgets WHERE syncState = 'DIRTY' LIMIT :limit")
+    suspend fun dirtyBudgets(limit: Int): List<BudgetEntity>
+
+    @Query("UPDATE budgets SET syncState = 'SYNCED' WHERE id = :id AND updatedAt = :updatedAt")
+    suspend fun budgetSynced(id: String, updatedAt: Long)
+
+    @Query("SELECT * FROM budgets WHERE id IN (:ids)")
+    suspend fun budgets(ids: List<String>): List<BudgetEntity>
+
+    @Upsert
+    suspend fun saveBudgets(rows: List<BudgetEntity>)
+
+    @Query("UPDATE budgets SET syncState = 'DIRTY'")
+    suspend fun markBudgetsDirty()
 }

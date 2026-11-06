@@ -15,6 +15,8 @@ import com.mehul.inkless.categorize.RuleMatch
 import com.mehul.inkless.data.db.InklessDatabase
 import com.mehul.inkless.data.db.entity.AccountMatch
 import com.mehul.inkless.data.db.entity.AccountRole
+import com.mehul.inkless.data.db.entity.BudgetEntity
+import com.mehul.inkless.data.db.entity.BudgetPeriod
 import com.mehul.inkless.data.db.entity.CaptureSource
 import com.mehul.inkless.data.db.entity.Direction
 import com.mehul.inkless.data.db.entity.MerchantEntity
@@ -199,6 +201,16 @@ class SyncFlowTest {
         // The new phone's SMS inbox came back too, and its history import reads the same message.
         assertThat(processor.process(phoneB.db, uid, sms).outcome).isEqualTo(CaptureOutcome.DUPLICATE)
         assertThat(phoneB.db.transactionDao().count()).isEqualTo(1)
+    }
+
+    @Test
+    fun theBudgetReachesTheNewPhone() = runTest {
+        phoneA.db.budgetDao().save(BudgetEntity(BudgetEntity.MONTHLY_ID, BudgetPeriod.MONTH, 1_200_000, 5, 20_000, uid, 1_000))
+        phoneA.db.categoryDao().setBudget("food_canteen", 300_000, 2_000)
+        phoneA.sync()
+        phoneB.sync()
+        assertThat(phoneB.db.budgetDao().get()?.allowanceDay).isEqualTo(5)
+        assertThat(phoneB.db.categoryDao().getAll().first { it.id == "food_canteen" }.monthlyBudgetPaise).isEqualTo(300_000)
     }
 
     @Test

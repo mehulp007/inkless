@@ -99,6 +99,13 @@ service cloud.firestore {
         allow create, update: if isUser(uid)
           && synced(['match', 'value', 'role', 'label']);
       }
+
+      match /budgets/{id} {
+        allow read, delete: if isUser(uid);
+        allow create, update: if isUser(uid)
+          && synced(['period', 'amountPaise', 'allowanceDay', 'dailyFoodCapPaise'])
+          && request.resource.data.amountPaise is int;
+      }
     }
 
     // A synced document: only the given fields plus the sync ones, and stamped with the server's
