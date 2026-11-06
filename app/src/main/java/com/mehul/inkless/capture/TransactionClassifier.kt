@@ -1,5 +1,7 @@
 package com.mehul.inkless.capture
 
+import com.mehul.inkless.breakdown.Breakdown
+import com.mehul.inkless.breakdown.DraftItem
 import com.mehul.inkless.data.db.InklessDatabase
 import com.mehul.inkless.data.db.entity.AccountMatch
 import com.mehul.inkless.data.db.entity.AccountRole
@@ -24,7 +26,10 @@ class TransactionClassifier @Inject constructor() {
         } else {
             null
         }
-        return Classification.apply(draft, accounts, earlier)
+        val earlierItems = earlier?.let { payment ->
+            db.transactionItemDao().get(payment.id).map { DraftItem(it.amountPaise, it.categoryId, it.note) }
+        }.orEmpty()
+        return Classification.apply(draft, accounts, earlier, earlierItems)
     }
 
     companion object {
@@ -39,7 +44,13 @@ object Classification {
 
     private val word = Regex("[a-z0-9]+")
 
-    fun apply(draft: TransactionEntity, accounts: List<MyAccountEntity>, earlierDebit: TransactionEntity?): TransactionEntity {
+    /** [earlierItems] is [earlierDebit]'s breakdown, if it has one. */
+    fun apply(
+        draft: TransactionEntity,
+        accounts: List<MyAccountEntity>,
+        earlierDebit: TransactionEntity?,
+        earlierItems: List<DraftItem> = emptyList(),
+    ): TransactionEntity {
         // Something the user already decided is left alone.
         if (draft.status == TransactionStatus.CONFIRMED) return draft
 
@@ -63,9 +74,14 @@ object Classification {
         }
 
         // Money back from a merchant paid at least as much in the last 30 days counts against
-        // what that payment was for.
+        // what that payment was for. For a broken-down payment that's the item of the same amount,
+        // and if no item clearly matches, the user is asked.
         if (draft.direction == Direction.CREDIT && earlierDebit != null && draft.amountPaise <= earlierDebit.amountPaise) {
-            val category = earlierDebit.categoryId
+            val category = if (earlierItems.isEmpty()) {
+                earlierDebit.categoryId
+            } else {
+                Breakdown.refundCategory(draft.amountPaise, earlierItems)
+            }
             return draft.copy(
                 type = TransactionType.REFUND,
                 categoryId = category ?: draft.categoryId,

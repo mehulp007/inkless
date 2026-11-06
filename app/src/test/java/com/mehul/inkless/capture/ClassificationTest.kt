@@ -1,6 +1,7 @@
 package com.mehul.inkless.capture
 
 import com.google.common.truth.Truth.assertThat
+import com.mehul.inkless.breakdown.DraftItem
 import com.mehul.inkless.data.db.entity.AccountMatch
 import com.mehul.inkless.data.db.entity.AccountRole
 import com.mehul.inkless.data.db.entity.CaptureSource
@@ -83,5 +84,28 @@ class ClassificationTest {
     fun `what the user confirmed is left alone`() {
         val confirmed = txn(Direction.DEBIT, payee = "MEHUL PATIL", status = TransactionStatus.CONFIRMED)
         assertThat(Classification.apply(confirmed, accounts, null)).isEqualTo(confirmed)
+    }
+
+    @Test
+    fun `money back for one item of a broken-down order goes to that item's category`() {
+        val order = txn(Direction.DEBIT, amount = 500_000).copy(status = TransactionStatus.CONFIRMED, categoryId = CategoryIds.SHOPPING)
+        val items = listOf(
+            DraftItem(300_000, CategoryIds.SHOPPING),
+            DraftItem(150_000, CategoryIds.COLLEGE),
+            DraftItem(50_000, CategoryIds.HEALTH),
+        )
+        val refund = Classification.apply(txn(Direction.CREDIT, amount = 150_000), accounts, order, items)
+        assertThat(refund.type).isEqualTo(TransactionType.REFUND)
+        assertThat(refund.categoryId).isEqualTo(CategoryIds.COLLEGE)
+        assertThat(refund.status).isEqualTo(TransactionStatus.AUTO)
+    }
+
+    @Test
+    fun `money back that matches no item of a broken-down order is asked about`() {
+        val order = txn(Direction.DEBIT, amount = 500_000).copy(status = TransactionStatus.CONFIRMED, categoryId = CategoryIds.SHOPPING)
+        val items = listOf(DraftItem(300_000, CategoryIds.SHOPPING), DraftItem(200_000, CategoryIds.COLLEGE))
+        val refund = Classification.apply(txn(Direction.CREDIT, amount = 120_000), accounts, order, items)
+        assertThat(refund.type).isEqualTo(TransactionType.REFUND)
+        assertThat(refund.status).isEqualTo(TransactionStatus.NEEDS_REVIEW)
     }
 }
