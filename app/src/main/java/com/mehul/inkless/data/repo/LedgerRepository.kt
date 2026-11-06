@@ -102,7 +102,7 @@ class LedgerRepository @Inject constructor(
     private suspend fun rememberFor(db: InklessDatabase, txn: TransactionEntity, categoryId: String, now: Long) {
         val merchantId = txn.merchantId
             ?: MerchantMemory.findOrCreate(db, txn.vpa, txn.payeeRaw, txn.ownerUid, now)
-                ?.also { db.transactionDao().linkMerchant(txn.id, it.id) }?.id
+                ?.also { db.transactionDao().linkMerchant(txn.id, it.id, now) }?.id
             ?: return
         MerchantMemory.learn(db, merchantId, categoryId, now)
     }

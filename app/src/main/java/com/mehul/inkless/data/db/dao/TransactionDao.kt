@@ -120,8 +120,8 @@ interface TransactionDao {
     )
     suspend fun unlinked(): List<UnlinkedPayment>
 
-    @Query("UPDATE transactions SET merchantId = :merchantId WHERE id = :id")
-    suspend fun linkMerchant(id: String, merchantId: String)
+    @Query("UPDATE transactions SET merchantId = :merchantId, updatedAt = :now, syncState = 'DIRTY' WHERE id = :id")
+    suspend fun linkMerchant(id: String, merchantId: String, now: Long)
 
     @Query("SELECT * FROM transactions WHERE deleted = 0 AND status != 'CONFIRMED' AND timestamp >= :since")
     suspend fun recentUnconfirmed(since: Long): List<TransactionEntity>
@@ -165,7 +165,11 @@ interface TransactionDao {
     )
     fun observeBetween(startMillis: Long, endMillis: Long): Flow<List<TransactionListItem>>
 
-    /** Spend per category in a time range. Refunds count against the category they came back to. */
+    /**
+     * Spend per category in a time range. Refunds count against the category they came back to.
+     * This is the only place category totals are worked out; anything showing spend per category
+     * reads it (through LedgerRepository.categoryTotalsBetween) rather than adding up payments itself.
+     */
     @Query(
         """
         SELECT categoryId,

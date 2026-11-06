@@ -23,7 +23,7 @@ class Recategorizer @Inject constructor(
             // Older captures only had a merchant when the SMS carried a UPI ID; give the rest one by name.
             for (payment in transactions.unlinked()) {
                 MerchantMemory.findOrCreate(db, payment.vpa, payment.payeeRaw, ownerUid, now)
-                    ?.let { transactions.linkMerchant(payment.id, it.id) }
+                    ?.let { transactions.linkMerchant(payment.id, it.id, now) }
             }
 
             val rules = db.ruleDao().getAll().map { it.toRule() }
