@@ -1,0 +1,53 @@
+# HDFC Bank. Real alert layouts; names, numbers and references replaced with made-up ones.
+
+---
+sender: JX-HDFCBK-T
+expect: DEBIT 110.00 acct=5521 ref=132400011122 payee=RAVI KUMAR
+Sent Rs.110.00
+From HDFC Bank A/C *5521
+To RAVI KUMAR
+On 05/11/26
+Ref 132400011122
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+---
+sender: JX-HDFCBK-T
+expect: DEBIT 450.00 acct=5521 ref=132400022233 payee=ANIKET SURESH PATIL
+Sent Rs.450.00
+From HDFC Bank A/C *5521
+To ANIKET SURESH PATIL
+On 05/11/26
+Ref 132400022233
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+---
+sender: JX-HDFCBK-T
+expect: DEBIT 200.00 acct=5521 ref=132400033344 payee=Ram Lal
+Sent Rs.200.00
+From HDFC Bank A/C *5521
+To Ram Lal
+On 06/11/26
+Ref 132400033344
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+---
+sender: AX-HDFCBK-S
+expect: DEBIT 1.00 acct=5521 ref=185700099911 payee=Moj
+UPI Mandate:
+Sent Rs.1.00
+from HDFC Bank A/c 5521
+To Moj
+23/10/26
+Ref 185700099911
+Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+---
+sender: AX-HDFCBK-S
+expect: CREDIT 20.00 acct=5521 vpa=*4410@upi ref=160500022233
+Credit Alert!
+Rs.20.00 credited to HDFC Bank A/c XX5521 on 31-10-26 from VPA *4410@upi (UPI 160500022233)
+---
+sender: AX-HDFCBK-S
+expect: CREDIT 1.00 acct=5521 vpa=*kr09@ybl ref=226700033344
+Credit Alert!
+Rs.1.00 credited to HDFC Bank A/c XX5521 on 06-11-26 from VPA *kr09@ybl (UPI 226700033344)
+---

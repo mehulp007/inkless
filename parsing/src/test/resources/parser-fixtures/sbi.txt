@@ -1,0 +1,32 @@
+# State Bank of India. Real alert layouts; names, numbers and references replaced with made-up ones.
+
+---
+sender: VM-SBIUPI-S
+expect: DEBIT 40.00 acct=8813 ref=497500066677 payee=BIKANERWALA JAIPU
+Dear UPI user A/C X8813 debited by 40.00 on date 02Sep26 trf to BIKANERWALA JAIPU Refno 497500066677 If not u? call-1800111109 for other services-18001234-SBI
+---
+# SBI sometimes gives a 15-digit reference.
+sender: JK-SBIUPI-S
+expect: DEBIT 356.00 acct=7310 ref=260200011122233 payee=Swiggy
+Dear UPI user A/C X7310 debited by 356.00 on date 26Oct26 trf to Swiggy Refno 260200011122233 If not u? call-1800111109-SBI
+---
+# "UPI/DRC" and "UPI/ONRF" in the narration are SBI's codes for money returned to the account.
+sender: JK-CBSSBI-S
+expect: CREDIT 280.00 acct=1207 ref=912000077788 bal=6,412.80 refund=true
+Your A/C XXXXX551207 has credit for UPI/DRC/912000077788/07102026/ of Rs 280.00 on 08/10/26. Avl Bal Rs 6,412.80.-SBI
+---
+sender: JK-CBSSBI-S
+expect: CREDIT 30.00 acct=1207 ref=175400088899 bal=8,599.80 refund=true
+Your A/C XXXXX551207 has credit for UPI/ONRF/175400088899/261026/2 of Rs 30.00 on 29/10/26. Avl Bal Rs 8,599.80.-SBI
+---
+
+# Mandates being set up or cancelled: no money moves.
+---
+sender: VM-SBIUPI-S
+expect: REJECT NOT_A_TRANSACTION
+Your UPI-Mandate for Rs.649.00 is successfully created towards NETFLIX from A/c No: XXXXXX8813. UMN:1a2b3c4d5e6f708192a3b4c5d6e7f809@ibl. If not you, kindly report on 18001234. -SBI
+---
+sender: VM-SBIUPI-S
+expect: REJECT NOT_A_TRANSACTION
+Your UPI-Mandate is successfully cancelled towards Sony Pictures Networks India Private Limited for 399.00 from A/c No.XXXXXX8813. UMN: 9f8e7d6c5b4a39281706f5e4d3c2b1a0@upi -SBI
+---

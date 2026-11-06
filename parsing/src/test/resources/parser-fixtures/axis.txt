@@ -1,0 +1,25 @@
+# Axis Bank. Real alert layouts; names, numbers and references replaced with made-up ones.
+
+---
+sender: AD-AXISBK-S
+expect: DEBIT 20.00 acct=4471 ref=667410012345 payee=BALAJI ENTERPRISE
+INR 20.00 debited
+A/c no. XX4471
+04-11-26, 17:20:55
+UPI/P2M/667410012345/BALAJI ENTERPRISE
+Not you? SMS BLOCKUPI Cust ID to 919951860002
+Axis Bank
+---
+sender: AD-AXISBK-S
+expect: DEBIT 470.00 acct=4471 ref=014430098765 payee=CRUST AND CO CAFE
+INR 470.00 debited
+A/c no. XX4471
+06-11-26, 01:44:37
+UPI/P2M/014430098765/CRUST AND CO CAFE
+Not you? SMS BLOCKUPI Cust ID to 919951860002
+Axis Bank
+---
+sender: AX-AXISBK-S
+expect: CREDIT 2,000.00 acct=2290 payee=SHARMA
+INR 2000.00 credited to Axis Bank A/c XX2290 on 22-08-26 at 18:05:57 IST. Ref: NEFT/SBIN126200011122/SHARMA.View bal: https://ccm.axis.bank.in/AXISBK/q81LmZ2P
+---

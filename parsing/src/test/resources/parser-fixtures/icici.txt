@@ -1,0 +1,15 @@
+# ICICI Bank. Real alert layouts; names, numbers and references replaced with made-up ones.
+
+---
+sender: VM-ICICIT-S
+expect: DEBIT 40.00 acct=742 ref=667500044455 payee=FRIENDS 2025 07
+ICICI Bank Acct XX742 debited for Rs 40.00 on 05-Nov-26; FRIENDS 2025 07 credited. UPI:667500044455. Call 18002662 for dispute. SMS BLOCK 742 to 9215676766.
+---
+sender: VM-ICICIT-S
+expect: DEBIT 70.00 acct=742 ref=667500055566 payee=Chai Sutta Techn
+ICICI Bank Acct XX742 debited for Rs 70.00 on 05-Nov-26; Chai Sutta Techn credited. UPI:667500055566. Call 18002662 for dispute. SMS BLOCK 742 to 9215676766.
+---
+sender: JD-ICICIB-S
+expect: CREDIT 160.00 acct=742 ref=667300055566 payee=ROHIT VERMA
+Dear Customer, Acct XX742 is credited with Rs 160.00 on 03-Nov-26 from ROHIT VERMA. UPI:667300055566-ICICI Bank.
+---
