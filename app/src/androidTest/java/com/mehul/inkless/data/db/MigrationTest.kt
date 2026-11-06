@@ -38,6 +38,7 @@ class MigrationTest {
         helper.runMigrationsAndValidate(dbName, 4, true).close()
         helper.runMigrationsAndValidate(dbName, 5, true).close()
         helper.runMigrationsAndValidate(dbName, 6, true).close()
+        helper.runMigrationsAndValidate(dbName, 7, true).close()
 
         val db = Room.databaseBuilder(ApplicationProvider.getApplicationContext(), InklessDatabase::class.java, dbName).build()
         try {
@@ -51,6 +52,9 @@ class MigrationTest {
             assertThat(db.budgetDao().get()).isNull()
             assertThat(db.friendDao().friends()).isEmpty()
             assertThat(db.friendDao().splitFor("t1")).isNull()
+            assertThat(db.insightDao().counts()).isEmpty()
+            // The old payment has no guess logged, but it's there for the model to learn from once sorted.
+            assertThat(db.insightDao().paymentsSince(0).map { it.id }).containsExactly("t1")
             // The old payment shows up in the new spending view.
             assertThat(db.spendDao().between(0, 2_000).map { it.amountPaise }).containsExactly(4500L)
         } finally {
