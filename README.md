@@ -17,11 +17,12 @@ It's local-first: your ledger lives in a database on your phone, and the SMS tex
 ## What it does
 
 - **Auto-capture from bank SMS** — payments show up within seconds of paying, from any UPI app. See [below](#auto-capture).
+- **Files itself** — known merchants go straight into the right category, and anything new is a one-tap question. See [Smart categories](#smart-categories).
 - **Category tabs** — swipe between *All* and 13 categories (Food & Canteen, Food Delivery, Travel, Recharge & Subscriptions, Laundry & Hostel, Lent to Friends, …), each with its own monthly total and payment list.
 - **Month at a glance** — the total spent this month up top; step back through previous months.
 - **Day-by-day list** — payments grouped by day with a daily total, merchant name, time and UPI ID.
 - **Refunds handled properly** — a refund is subtracted from the category it came back to, and money coming in (like the monthly allowance) never counts as spending.
-- **Transaction details** — tap any payment to set its category, add a note, or delete it (for anything that wasn't really a payment).
+- **Transaction details** — tap any payment to set its category, add a note, rename the merchant ("q8291…@ybl" → "Tapri near Block C"), or delete it.
 - **Cash quick-add** — the *Cash* button on the home screen, for spends no SMS will ever mention.
 - **Demo mode** — *Try the demo* on the welcome screen opens a few months of made-up hostel spending, no account needed. The data is seeded, so it comes out the same every time.
 - **Material 3** with light/dark theme and dynamic colour on Android 12+.
@@ -52,6 +53,24 @@ What it refuses to read matters just as much. A filter runs before any parsing a
 - **Personal messages and non-bank senders** — only bank-style sender IDs (`VM-HDFCBK`, `JK-SBIUPI-S`, …) are considered.
 
 Each account turns capture on separately, nothing is captured in demo mode or while signed out, and the parsers live in the pure-Kotlin `:parsing` module with table-driven tests: every sample message in [`parsing/src/test/resources/parser-fixtures/`](parsing/src/test/resources/parser-fixtures/) states what it should be read as.
+
+## Smart categories
+
+<p align="center">
+  <img src="docs/screenshots/category-question.png" width="520" alt="Notification asking what a ₹30 payment was, with category buttons" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/review.png" width="260" alt="To-sort list with one-tap category chips" />
+</p>
+
+Every captured payment goes through a small categoriser, most specific knowledge first:
+
+1. **Your rules** — Settings → Categorising rules, e.g. *UPI ID contains `canteen` → Food & Canteen*. They match the UPI ID, the payee name or either, by *contains*, *is exactly* or a regex, and run in the order you put them.
+2. **Merchant memory** — once you've said what a merchant is, every later payment to it is filed the same way. This is what handles opaque QR handles like `q829154@ybl` and SMS that only carry a name ("trf to RAMU BHAIYA"), which no keyword can guess.
+3. **Built-in keywords** — Swiggy/Zomato → Food Delivery, Blinkit/Zepto/Instamart → Groceries, Uber/Rapido/IRCTC → Travel, Jio/Airtel/Netflix → Recharge & Subscriptions, and so on. Short keywords must be a whole word, so "ola" files *Ola* but not *Kolapur Stores*.
+4. **Otherwise it asks.** A notification — *"₹30 to RAMU BHAIYA — what was this?"* — carries your three most-used categories as buttons; tapping one files the payment and teaches the merchant without opening the app. Anything still unsorted waits on the home screen under *N payments to sort*, where one tap per merchant clears it.
+
+Teaching a merchant also files its other waiting payments, and payments captured before a rule or a merchant was known get re-sorted the next time the app opens. Anything you've categorised yourself is never changed.
 
 ## Accounts
 
@@ -84,9 +103,10 @@ Error messages are deliberately vague about whether an account exists: a wrong p
 | UI | Jetpack Compose, Material 3, Navigation Compose (type-safe routes) |
 | Architecture | MVVM, unidirectional data flow with `StateFlow` |
 | DI | Hilt |
-| Storage | Room (schema exported to `app/schemas/`) |
+| Storage | Room (schema exported to `app/schemas/`, migrations tested against every past schema) |
 | Accounts | Firebase Authentication, Cloud Firestore, Credential Manager (Sign in with Google) |
 | Capture | `BroadcastReceiver` (SMS_RECEIVED), SMS content provider, WorkManager |
+| Notifications | Notification actions handled by a `BroadcastReceiver`, deep link into the payment |
 | Async | Kotlin Coroutines & Flow |
 | Tests | JUnit, Truth, Turbine; Room tests on a device/emulator; Firestore rules tests on the Firebase emulator |
 | Build | Gradle 9 (Kotlin DSL + version catalog), AGP 9, KSP |
@@ -108,6 +128,7 @@ Inside `app/src/main/java/com/mehul/inkless/`:
 auth/         Firebase sign-in, usernames, Google ID tokens, input validation
 session/      Who's using the app (signed out, demo, an account) and which database is open
 capture/      SMS receiver, inbox import worker, and the filter → parse → save pipeline
+categorize/   Rules → merchant memory → keywords, re-sorting, and the "what was this?" notification
 data/db/      Room entities, DAOs, DatabaseProvider (one database file per account)
 data/repo/    Repositories the UI reads from
 data/seed/    Default categories
@@ -128,7 +149,7 @@ The app needs an `app/google-services.json` from a Firebase project. It isn't co
 # Unit tests (JVM)
 ./gradlew test
 
-# Room and capture-pipeline tests (needs a running emulator or connected phone)
+# Room, migration, capture and categorising tests (needs a running emulator or connected phone)
 ./gradlew connectedDebugAndroidTest
 
 # Firestore rules tests (needs Node and Java 21+)
