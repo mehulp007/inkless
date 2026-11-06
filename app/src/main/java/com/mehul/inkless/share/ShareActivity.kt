@@ -4,7 +4,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -37,14 +36,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mehul.inkless.MainActivity
+import com.mehul.inkless.lock.AppLock
+import com.mehul.inkless.lock.LockGate
 import com.mehul.inkless.ui.format.Money
 import com.mehul.inkless.ui.theme.InklessTheme
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import javax.inject.Inject
 
 /**
  * "Share to Inkless": an order's text or a screenshot of it, shared from any app. Reads the items
@@ -52,7 +55,9 @@ import java.time.format.DateTimeFormatter
  * saved here; the user checks the breakdown and saves it in the editor.
  */
 @AndroidEntryPoint
-class ShareActivity : ComponentActivity() {
+class ShareActivity : FragmentActivity() {
+
+    @Inject lateinit var appLock: AppLock
 
     private val viewModel: ShareViewModel by viewModels()
 
@@ -65,7 +70,7 @@ class ShareActivity : ComponentActivity() {
         viewModel.start(text, image)
         setContent {
             InklessTheme {
-                ShareScreen(viewModel, onClose = ::finish, onContinue = ::openEditor)
+                LockGate(appLock) { ShareScreen(viewModel, onClose = ::finish, onContinue = ::openEditor) }
             }
         }
     }

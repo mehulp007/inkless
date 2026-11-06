@@ -81,6 +81,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.tesseract4android)
     implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.biometric)
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)

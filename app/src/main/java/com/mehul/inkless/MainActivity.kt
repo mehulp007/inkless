@@ -2,19 +2,25 @@ package com.mehul.inkless
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.fragment.app.FragmentActivity
+import com.mehul.inkless.lock.AppLock
+import com.mehul.inkless.lock.LockGate
 import com.mehul.inkless.ui.home.QuickAddRequests
 import com.mehul.inkless.ui.navigation.InklessRoot
 import com.mehul.inkless.ui.theme.InklessTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
+// A FragmentActivity (a ComponentActivity that can host Android's own dialogs) because the
+// fingerprint/PIN sheet of the app lock needs one.
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     @Inject lateinit var quickAdd: QuickAddRequests
+
+    @Inject lateinit var appLock: AppLock
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -22,7 +28,7 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) handle(intent)
         setContent {
             InklessTheme {
-                InklessRoot()
+                LockGate(appLock) { InklessRoot() }
             }
         }
     }
