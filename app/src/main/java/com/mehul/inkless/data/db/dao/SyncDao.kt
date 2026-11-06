@@ -53,6 +53,10 @@ interface SyncDao {
     @Query("SELECT * FROM transactions WHERE id IN (:ids)")
     suspend fun transactions(ids: List<String>): List<TransactionEntity>
 
+    /** Every row, deleted ones too, for the backup file. */
+    @Query("SELECT * FROM transactions")
+    suspend fun allTransactions(): List<TransactionEntity>
+
     @Upsert
     suspend fun saveTransactions(rows: List<TransactionEntity>)
 
@@ -81,6 +85,10 @@ interface SyncDao {
     @Query("SELECT * FROM categories WHERE id IN (:ids)")
     suspend fun categories(ids: List<String>): List<CategoryEntity>
 
+    /** Every row, deleted ones too, for the backup file. */
+    @Query("SELECT * FROM categories")
+    suspend fun allCategories(): List<CategoryEntity>
+
     @Upsert
     suspend fun saveCategories(rows: List<CategoryEntity>)
 
@@ -97,6 +105,10 @@ interface SyncDao {
 
     @Query("SELECT * FROM merchants WHERE id IN (:ids)")
     suspend fun merchants(ids: List<String>): List<MerchantEntity>
+
+    /** Every row, deleted ones too, for the backup file. */
+    @Query("SELECT * FROM merchants")
+    suspend fun allMerchants(): List<MerchantEntity>
 
     @Upsert
     suspend fun saveMerchants(rows: List<MerchantEntity>)
@@ -115,6 +127,10 @@ interface SyncDao {
     @Query("SELECT * FROM rules WHERE id IN (:ids)")
     suspend fun rules(ids: List<String>): List<RuleEntity>
 
+    /** Every row, deleted ones too, for the backup file. */
+    @Query("SELECT * FROM rules")
+    suspend fun allRules(): List<RuleEntity>
+
     @Upsert
     suspend fun saveRules(rows: List<RuleEntity>)
 
@@ -131,6 +147,10 @@ interface SyncDao {
 
     @Query("SELECT * FROM my_accounts WHERE id IN (:ids)")
     suspend fun accounts(ids: List<String>): List<MyAccountEntity>
+
+    /** Every row, deleted ones too, for the backup file. */
+    @Query("SELECT * FROM my_accounts")
+    suspend fun allAccounts(): List<MyAccountEntity>
 
     @Upsert
     suspend fun saveAccounts(rows: List<MyAccountEntity>)
@@ -149,6 +169,10 @@ interface SyncDao {
     @Query("SELECT * FROM budgets WHERE id IN (:ids)")
     suspend fun budgets(ids: List<String>): List<BudgetEntity>
 
+    /** Every row, deleted ones too, for the backup file. */
+    @Query("SELECT * FROM budgets")
+    suspend fun allBudgets(): List<BudgetEntity>
+
     @Upsert
     suspend fun saveBudgets(rows: List<BudgetEntity>)
 
@@ -166,6 +190,10 @@ interface SyncDao {
     @Query("SELECT * FROM friends WHERE id IN (:ids)")
     suspend fun friendsById(ids: List<String>): List<FriendEntity>
 
+    /** Every row, deleted ones too, for the backup file. */
+    @Query("SELECT * FROM friends")
+    suspend fun allFriends(): List<FriendEntity>
+
     @Upsert
     suspend fun saveFriends(rows: List<FriendEntity>)
 
@@ -182,6 +210,10 @@ interface SyncDao {
 
     @Query("SELECT * FROM splits WHERE id IN (:ids)")
     suspend fun splitsById(ids: List<String>): List<SplitEntity>
+
+    /** Every row, deleted ones too, for the backup file. */
+    @Query("SELECT * FROM splits")
+    suspend fun allSplits(): List<SplitEntity>
 
     @Upsert
     suspend fun saveSplits(rows: List<SplitEntity>)
@@ -208,6 +240,10 @@ interface SyncDao {
 
     @Query("SELECT * FROM ious WHERE id IN (:ids)")
     suspend fun iousById(ids: List<String>): List<IouEntity>
+
+    /** Every row, deleted ones too, for the backup file. */
+    @Query("SELECT * FROM ious")
+    suspend fun allIous(): List<IouEntity>
 
     @Upsert
     suspend fun saveIous(rows: List<IouEntity>)

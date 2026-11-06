@@ -20,6 +20,8 @@ class SyncTable<E>(
     val local: suspend SyncDao.(ids: List<String>) -> List<E>,
     val save: suspend SyncDao.(rows: List<E>) -> Unit,
     val markAllDirty: suspend SyncDao.() -> Unit,
+    /** Every row, for the backup file. */
+    val all: suspend SyncDao.() -> List<E>,
     /** Puts back fields that never leave the phone when a row is replaced by the cloud's copy. */
     val keepLocal: (remote: E, local: E) -> E = { remote, _ -> remote },
 ) {
@@ -53,6 +55,7 @@ object SyncTables {
         local = { categories(it) },
         save = { saveCategories(it) },
         markAllDirty = { markCategoriesDirty() },
+        all = { allCategories() },
     )
 
     internal val merchants = SyncTable(
@@ -66,6 +69,7 @@ object SyncTables {
         local = { merchants(it) },
         save = { saveMerchants(it) },
         markAllDirty = { markMerchantsDirty() },
+        all = { allMerchants() },
     )
 
     internal val rules = SyncTable(
@@ -79,6 +83,7 @@ object SyncTables {
         local = { rules(it) },
         save = { saveRules(it) },
         markAllDirty = { markRulesDirty() },
+        all = { allRules() },
     )
 
     internal val myAccounts = SyncTable(
@@ -92,6 +97,7 @@ object SyncTables {
         local = { accounts(it) },
         save = { saveAccounts(it) },
         markAllDirty = { markAccountsDirty() },
+        all = { allAccounts() },
     )
 
     internal val budgets = SyncTable(
@@ -105,6 +111,7 @@ object SyncTables {
         local = { budgets(it) },
         save = { saveBudgets(it) },
         markAllDirty = { markBudgetsDirty() },
+        all = { allBudgets() },
     )
 
     internal val friends = SyncTable(
@@ -118,6 +125,7 @@ object SyncTables {
         local = { friendsById(it) },
         save = { saveFriends(it) },
         markAllDirty = { markFriendsDirty() },
+        all = { allFriends() },
     )
 
     internal val splits = SyncTable(
@@ -135,6 +143,7 @@ object SyncTables {
             insertShares(docs.flatMap { it.shares })
         },
         markAllDirty = { markSplitsDirty() },
+        all = { withShares(allSplits()) },
         // Which shared document it went out as is this phone's business; keep it if the cloud copy has none.
         keepLocal = { remote, local -> remote.copy(split = remote.split.copy(sharedSplitId = remote.split.sharedSplitId ?: local.split.sharedSplitId)) },
     )
@@ -150,6 +159,7 @@ object SyncTables {
         local = { iousById(it) },
         save = { saveIous(it) },
         markAllDirty = { markIousDirty() },
+        all = { allIous() },
     )
 
     internal val transactions = SyncTable(
@@ -167,6 +177,7 @@ object SyncTables {
             insertItems(docs.flatMap { it.items })
         },
         markAllDirty = { markTransactionsDirty() },
+        all = { withItems(allTransactions()) },
         // A receipt photo is a file on this phone; the cloud copy doesn't carry it.
         keepLocal = { remote, local -> remote.copy(transaction = remote.transaction.copy(receiptUri = local.transaction.receiptUri)) },
     )
@@ -178,11 +189,12 @@ object SyncTables {
 }
 
 private suspend fun SyncDao.withItems(transactions: List<TransactionEntity>): List<TransactionDoc> {
-    val items = itemsOf(transactions.map { it.id }).groupBy { it.transactionId }
+    // Chunked: older Androids allow at most 999 values in one query.
+    val items = transactions.map { it.id }.chunked(500).flatMap { itemsOf(it) }.groupBy { it.transactionId }
     return transactions.map { TransactionDoc(it, items[it.id].orEmpty()) }
 }
 
 private suspend fun SyncDao.withShares(splits: List<SplitEntity>): List<SplitDoc> {
-    val shares = sharesOf(splits.map { it.id }).groupBy { it.splitId }
+    val shares = splits.map { it.id }.chunked(500).flatMap { sharesOf(it) }.groupBy { it.splitId }
     return splits.map { SplitDoc(it, shares[it.id].orEmpty()) }
 }
