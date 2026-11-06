@@ -1,0 +1,6 @@
+{
+  "payments": 554,
+  "holdout_test_size": 139,
+  "holdout_accuracy": 0.9928057553956835,
+  "replay_accuracy": 0.9314079422382672
+}

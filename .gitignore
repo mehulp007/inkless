@@ -36,3 +36,8 @@ node_modules/
 firebase-debug*.log
 firestore-debug.log
 ui-debug.log
+
+# Python (ml/)
+.venv/
+.ipynb_checkpoints/
+__pycache__/
