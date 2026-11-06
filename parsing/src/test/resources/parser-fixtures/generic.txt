@@ -1,0 +1,123 @@
+# Made-up messages in the shapes common Indian banks use. They test the filter and the generic
+# parser; real samples from each bank go in their own <bank>.txt next to this file.
+#
+# Each case: "sender:", "expect:", then the message on the following line(s), ending at the next "---".
+# expect is REJECT <reason>, UNPARSED, or DEBIT/CREDIT <amount> followed by any of
+# vpa= ref= acct= payee= bal= refund=true (payee runs to the end of the line, so put it last).
+
+---
+sender: VM-SBIUPI
+expect: DEBIT 45.00 acct=1234 ref=512345678901 payee=SHARMA CANTEEN
+Dear UPI user A/C X1234 debited by 45.0 on date 05Nov26 trf to SHARMA CANTEEN Refno 512345678901. If not u? call 1800111109. -SBI
+---
+sender: AD-ICICIT-S
+expect: DEBIT 120.00 acct=123 ref=512345678902 payee=ZOMATO
+ICICI Bank Acct XX123 debited for Rs 120.00 on 05-Nov-26; ZOMATO credited. UPI:512345678902. Call 18002662 for dispute. SMS BLOCK 123 to 9215676766.
+---
+sender: JD-AXISBK-S
+expect: DEBIT 30.00 acct=1234 ref=512345678903 payee=RAJU TEA STALL
+INR 30.00 debited A/c no. XX1234 05-11-26 16:42:10 UPI/P2M/512345678903/RAJU TEA STALL Not you? SMS BLOCKUPI Cust ID to 919951860002 Axis Bank
+---
+sender: VM-KOTAKB
+expect: DEBIT 249.00 vpa=swiggy@icici acct=1234 ref=512345678904
+Sent Rs.249.00 from Kotak Bank AC X1234 to swiggy@icici on 05-11-26.UPI Ref 512345678904. Not you, https://kotak.com/KBANKT/Fraud
+---
+sender: VM-HDFCBK
+expect: DEBIT 60.00 acct=1234 ref=512345678905 payee=CHAI POINT
+Sent Rs.60.00 From HDFC Bank A/C *1234 To CHAI POINT On 05/11/26 Ref 512345678905 Not You? Call 18002586161/SMS BLOCK UPI to 7308080808
+---
+sender: VM-HDFCBK
+expect: DEBIT 1,499.00 vpa=amazonpay@apl acct=1234 ref=512345678906 bal=2,301.50
+Rs.1499.00 debited from a/c **1234 on 05-11-26 to VPA amazonpay@apl (UPI Ref No 512345678906). Avl bal Rs.2,301.50
+---
+sender: VM-SBIUPI
+expect: CREDIT 500.00 vpa=rohan.k@okaxis acct=1234 ref=512345678907
+Dear SBI User, your A/c X1234-credited by Rs.500 on 05Nov26 transfer from rohan.k@okaxis Ref No 512345678907 -SBI
+---
+sender: VM-HDFCBK
+expect: CREDIT 12,000.00 acct=1234 ref=512345678908
+Received Rs.12000.00 in your A/C XX1234 from PAPA via UPI on 01-11-26. Ref 512345678908. -HDFC Bank
+---
+sender: AX-ICICIB
+expect: CREDIT 799.00 acct=123 ref=512345678909 refund=true
+Dear Customer, Rs 799.00 has been credited to your Acct XX123 on 07-Nov-26 as refund for your order. UPI Ref 512345678909.
+---
+sender: BP-PAYTMB-S
+expect: CREDIT 40.00 acct=1234 ref=512345678910 refund=true
+Rs.40 reversed to your Paytm Payments Bank a/c 1234 for failed-then-reversed UPI txn. Ref no 512345678910
+---
+sender: JK-NEWBNK
+expect: DEBIT 75.00 vpa=q829154@ybl acct=4321
+Rs 75.00 debited from your a/c XX4321 towards q829154@ybl on 05-11-26.
+---
+
+# Rejected: OTPs (no matter who sends them)
+---
+sender: VM-HDFCBK
+expect: REJECT OTP
+482193 is the OTP for your transaction of Rs.1499.00 at AMAZON on HDFC Bank Card ending 1234. Valid for 5 mins. Do not share it with anyone.
+---
+sender: AD-SBIINB
+expect: REJECT OTP
+Your OTP for UPI registration is 7741. Never share it with anyone, SBI never asks for it.
+---
+sender: VM-ICICIB
+expect: REJECT OTP
+Dear Customer, the one time password sent to you for login is 5528. Do not share.
+---
+sender: +919876543210
+expect: REJECT OTP
+Your verification code is 228411
+---
+
+# Rejected: promos and loan offers
+---
+sender: VM-HDFCBK
+expect: REJECT PROMO
+Congrats! You are eligible for a pre-approved personal loan of Rs 5,00,000 at lowest EMI. Apply now: hdfc.bank/pl T&C apply
+---
+sender: AD-AXISBK
+expect: REJECT PROMO
+Get up to Rs.2,000 cashback on your first UPI payment with Axis Bank! Click here to know more. T&C apply
+---
+
+# Rejected: money didn't move
+---
+sender: VM-SBIUPI
+expect: REJECT FAILED
+Your UPI transaction of Rs.150.00 to canteen@ybl has failed. If debited, amount will be refunded in 3 working days. -SBI
+---
+sender: VM-ICICIT
+expect: REJECT NOT_A_TRANSACTION
+priya.s@okicici has requested money of Rs 200 from you on Google Pay. Approve only if you know the sender.
+---
+sender: VM-HDFCBK
+expect: REJECT NOT_A_TRANSACTION
+Available balance in your A/c XX1234 is Rs.3,412.00 as on 05-11-26.
+---
+sender: AD-KOTAKB
+expect: REJECT NOT_A_TRANSACTION
+Rs 500 will be debited from your A/c X1234 on 10-11-26 towards your SIP. Keep sufficient balance.
+---
+
+# Rejected: not a bank
+---
+sender: +919876543210
+expect: REJECT UNKNOWN_SENDER
+bro sent you Rs 500 for the movie, got it?
+---
+sender: 9876543210
+expect: REJECT UNKNOWN_SENDER
+Rs 200 credited to your account by dad
+---
+sender: VM-ZOMATO
+expect: REJECT UNKNOWN_SENDER
+Your order is on the way! You paid Rs 249. Enjoy your meal.
+---
+
+# Looks like a bank alert but nothing can read it
+---
+sender: VM-HDFCBK
+expect: UNPARSED
+Your UPI-Lite balance was topped up successfully. Transaction credited to wallet.
+---
