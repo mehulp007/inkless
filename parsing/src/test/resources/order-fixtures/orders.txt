@@ -1,0 +1,172 @@
+# Shared orders: text read off order-page screenshots, and lists typed by hand.
+# Layouts follow what Amazon, Flipkart and Blinkit order pages show; items and numbers are made up.
+# The 450.00 case with blank lines is exactly what Tesseract read off a test screenshot on the
+# emulator: "₹" comes out as "%", "=" or a leading "7".
+# Each case: "total:" (or "total: none"), one "item: name | rupees" per item, then "text:" and the text.
+
+---
+total: 2058.00
+item: Classmate Notebook Pack of 6 - Single Line | 360.00
+item: boAt Rockerz 450 Bluetooth Headphones | 1499.00
+item: Dettol Original Soap 125g Pack of 4 | 199.00
+text:
+Order Details
+Order placed 2 November 2026
+Order number 408-1234567-1234567
+Shipment details
+Delivered 4 Nov
+Classmate Notebook Pack of 6 - Single Line
+₹360.00
+Qty: 1
+Sold by: Cocoblu Retail
+boAt Rockerz 450 Bluetooth Headphones
+₹1,499.00
+Qty: 1
+Dettol Original Soap 125g Pack of 4
+₹199.00
+Payment information
+Item(s) Subtotal: ₹2,058.00
+Shipping: ₹40.00
+Promotion Applied: -₹40.00
+Order Total: ₹2,058.00
+Grand Total: ₹2,058.00
+---
+total: 1299.00
+item: Wildcraft Unisex Backpack 35L | 1299.00
+text:
+Wildcraft Unisex Backpack 35L
+%1,299.00
+Quantity: 1
+Order Total %1,299.00
+---
+total: 162.00
+item: Amul Taaza Toned Fresh Milk | 54.00
+item: Britannia Brown Bread | 50.00
+item: Maggi 2-Minute Masala Noodles | 56.00
+text:
+Order summary
+Arrived in 9 minutes
+6 items in this order
+Amul Taaza Toned Fresh Milk
+500 ml x 2
+₹54
+Britannia Brown Bread
+400 g x 1
+₹50 ₹55
+Maggi 2-Minute Masala Noodles
+4 x 70 g x 1
+₹56
+Bill details
+Item total ₹160
+Handling charge ₹2
+Delivery charge ₹25 FREE
+Bill total ₹162
+---
+total: 450.00
+item: Amul Taaza Toned Fresh Milk | 54.00
+item: Classmate Notebook Pack of 4 | 280.00
+text:
+Order summary
+Amul Taaza Toned Fresh Milk
+500 ml x 2
+₹54
+Classmate Notebook Pack of 4
+1 unit
+₹280
+Bill details
+Item total ₹334
+Handling charge ₹10
+Bill total ₹450
+---
+total: 1848.00
+item: Allen Solly Men Solid Polo Neck T-Shirt | 649.00
+item: Campus Running Shoes For Men | 1199.00
+text:
+Order ID - OD43012345678901234
+Allen Solly Men Solid Polo Neck T-Shirt
+Size: L
+Seller: RetailNet
+₹649
+Delivered on Nov 03
+Campus Running Shoes For Men
+Size: 9
+₹1,199
+Price details
+Price (2 items) ₹2,898
+Discount - ₹1,050
+Delivery Charges FREE
+Total Amount ₹1,848
+---
+total: 1050.00
+item: Fevicol MR 200g | 75.00
+item: Casio FX-991ES Plus Calculator | 975.00
+text:
+Fevicol MR 200g ₹75
+Casio FX-991ES Plus Calculator ₹975
+Total
+₹1,050
+---
+total: none
+item: Shirt | 1000.00
+item: Shoes | 1500.00
+item: Notebook | 300.00
+text:
+Shirt 1000
+Shoes - 1500
+Notebook: 300
+---
+total: none
+text:
+Check out this deal on Amazon: Classmate Notebook Pack of 6 https://amzn.in/d/2kXy9Pq
+---
+total: 450.00
+item: Amul Taaza Toned Fresh Milk | 54.00
+item: Britannia Brown Bread | 50.00
+item: Classmate Notebook Pack of 4 | 280.00
+item: Maggi Masala Noodles | 56.00
+text:
+Order summary
+
+Arrived in 11 minutes
+
+Amul Taaza Toned Fresh Milk
+
+500 ml x 2
+
+754
+
+Britannia Brown Bread
+
+400gx1
+
+=50
+
+Classmate Notebook Pack of 4
+
+1 unit
+
+%280
+
+Maggi Masala Noodles
+
+4x70g
+
+=56
+
+Bill details
+
+Item total %440
+Handling charge 710
+Bill total %450
+---
+total: 899.00
+item: Puma Running Socks | 100.00
+item: Skullcandy Earphones | 799.00
+text:
+Puma Running Socks
+=100
+Skullcandy Earphones
+799
+Item total %899
+Bill total %899
+---
