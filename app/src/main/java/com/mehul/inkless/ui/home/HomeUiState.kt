@@ -4,6 +4,7 @@ import com.mehul.inkless.data.db.dao.CategoryTotal
 import com.mehul.inkless.data.db.dao.TransactionListItem
 import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.db.entity.Direction
+import com.mehul.inkless.ui.format.Titles
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -78,7 +79,7 @@ internal object HomeStateBuilder {
         val rows = transactions.map { txn ->
             val category = txn.categoryId?.let(categoriesById::get)
             val isCredit = txn.direction == Direction.CREDIT
-            val title = txn.merchantName ?: txn.payeeRaw ?: txn.vpa ?: "Unknown"
+            val title = txn.merchantName ?: txn.payeeRaw ?: txn.vpa ?: Titles.fallback(txn.type)
             TransactionRow(
                 id = txn.id,
                 title = title,

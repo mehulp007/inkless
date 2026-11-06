@@ -46,6 +46,7 @@ import com.mehul.inkless.data.db.entity.TransactionStatus
 import com.mehul.inkless.data.db.entity.TransactionType
 import com.mehul.inkless.ui.components.CategoryPicker
 import com.mehul.inkless.ui.format.Money
+import com.mehul.inkless.ui.format.Titles
 import com.mehul.inkless.ui.theme.LocalInklessColors
 import java.time.Instant
 import java.time.ZoneId
@@ -139,7 +140,7 @@ private fun Details(
                 fontWeight = FontWeight.SemiBold,
                 color = if (isCredit) LocalInklessColors.current.credit else MaterialTheme.colorScheme.onSurface,
             )
-            Text(txn.payeeRaw ?: txn.vpa ?: "Unknown", style = MaterialTheme.typography.titleMedium)
+            Text(txn.payeeRaw ?: txn.vpa ?: Titles.fallback(txn.type), style = MaterialTheme.typography.titleMedium)
             Text(
                 Instant.ofEpochMilli(txn.timestamp).atZone(ZoneId.systemDefault()).format(WHEN_FORMAT),
                 style = MaterialTheme.typography.bodyMedium,

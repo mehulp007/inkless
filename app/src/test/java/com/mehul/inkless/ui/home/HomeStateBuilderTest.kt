@@ -111,4 +111,15 @@ class HomeStateBuilderTest {
         val october = HomeStateBuilder.build(YearMonth.of(2026, 10), today, zone, categories, emptyList(), emptyList())
         assertThat(october.canGoForward).isTrue()
     }
+
+    @Test
+    fun `entries the bank named nobody for get a title from their type`() {
+        val refund = txn("r", 28000, at(6, 12), CategoryIds.OTHER, Direction.CREDIT, vpa = null)
+            .copy(type = TransactionType.REFUND)
+        val income = txn("i", 50000, at(6, 11), null, Direction.CREDIT, vpa = null)
+        val built = HomeStateBuilder.build(YearMonth.of(2026, 11), today, zone, categories, listOf(refund, income), emptyList())
+
+        assertThat(built.tabs.first().days.flatMap { it.rows }.map { it.title })
+            .containsExactly("Refund", "Money in").inOrder()
+    }
 }
