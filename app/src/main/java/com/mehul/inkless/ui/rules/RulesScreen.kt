@@ -3,6 +3,8 @@ package com.mehul.inkless.ui.rules
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -208,6 +210,7 @@ private fun describe(rule: RuleEntity): String {
     return "$field $match \"${rule.pattern}\""
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AddRuleDialog(
     categories: List<CategoryEntity>,
@@ -230,13 +233,13 @@ private fun AddRuleDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text("Look at", style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(RuleField.EITHER to "Either", RuleField.UPI_ID to "UPI ID", RuleField.PAYEE to "Name").forEach { (value, label) ->
                         FilterChip(selected = field == value, onClick = { field = value }, label = { Text(label) })
                     }
                 }
                 Text("Match when it", style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(RuleMatch.CONTAINS to "Contains", RuleMatch.EXACT to "Is exactly", RuleMatch.REGEX to "Pattern").forEach { (value, label) ->
                         FilterChip(selected = match == value, onClick = { match = value }, label = { Text(label) })
                     }
