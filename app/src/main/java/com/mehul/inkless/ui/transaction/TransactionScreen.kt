@@ -91,6 +91,7 @@ fun TransactionScreen(
                 state = state,
                 modifier = Modifier.padding(padding).consumeWindowInsets(padding),
                 onSave = { category, note -> viewModel.save(category, note, then = onBack) },
+                onRename = viewModel::renameMerchant,
             )
         }
     }
@@ -116,7 +117,9 @@ private fun Details(
     state: TransactionScreenState,
     modifier: Modifier,
     onSave: (categoryId: String?, note: String) -> Unit,
+    onRename: (String) -> Unit,
 ) {
+    var renaming by rememberSaveable { mutableStateOf(false) }
     // Keyed by id so the fields reset if the screen is reused for another entry.
     var categoryId by rememberSaveable(txn.id) { mutableStateOf(txn.categoryId) }
     var note by rememberSaveable(txn.id) { mutableStateOf(txn.note.orEmpty()) }
@@ -140,7 +143,18 @@ private fun Details(
                 fontWeight = FontWeight.SemiBold,
                 color = if (isCredit) LocalInklessColors.current.credit else MaterialTheme.colorScheme.onSurface,
             )
-            Text(txn.payeeRaw ?: txn.vpa ?: Titles.fallback(txn.type), style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    state.merchant?.displayName ?: txn.payeeRaw ?: txn.vpa ?: Titles.fallback(txn.type),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                // Renaming changes the name on every payment to this merchant.
+                if (state.merchant != null) {
+                    IconButton(onClick = { renaming = true }) {
+                        Icon(painterResource(R.drawable.ic_edit), contentDescription = "Rename merchant")
+                    }
+                }
+            }
             Text(
                 Instant.ofEpochMilli(txn.timestamp).atZone(ZoneId.systemDefault()).format(WHEN_FORMAT),
                 style = MaterialTheme.typography.bodyMedium,
@@ -179,6 +193,41 @@ private fun Details(
         HorizontalDivider()
         InfoRows(txn)
     }
+
+    if (renaming && state.merchant != null) {
+        RenameDialog(
+            current = state.merchant.displayName,
+            onRename = { onRename(it); renaming = false },
+            onDismiss = { renaming = false },
+        )
+    }
+}
+
+@Composable
+private fun RenameDialog(current: String, onRename: (String) -> Unit, onDismiss: () -> Unit) {
+    var name by rememberSaveable { mutableStateOf(current) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename merchant") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Changes the name on every payment to them, e.g. \"q8291…@ybl\" → \"Tapri near Block C\".",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(40) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onRename(name) }, enabled = name.isNotBlank() && name.trim() != current) { Text("Rename") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable

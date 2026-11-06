@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -48,6 +49,10 @@ class HomeViewModel @Inject constructor(
                 else -> HomeAccount()
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeAccount())
+
+    /** Payments waiting for a category, for the "to sort" card. */
+    val toSort: StateFlow<Int> = repository.needsReview().map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     val categories: StateFlow<List<CategoryEntity>> = repository.categories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

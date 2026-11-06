@@ -8,6 +8,8 @@ import androidx.navigation.navDeepLink
 import com.mehul.inkless.ui.capture.SmsSetupScreen
 import com.mehul.inkless.ui.capture.UnreadScreen
 import com.mehul.inkless.ui.home.HomeScreen
+import com.mehul.inkless.ui.review.ReviewScreen
+import com.mehul.inkless.ui.rules.RulesScreen
 import com.mehul.inkless.ui.settings.SettingsScreen
 import com.mehul.inkless.ui.transaction.TransactionScreen
 import kotlinx.serialization.Serializable
@@ -27,6 +29,12 @@ object SmsSetupRoute
 @Serializable
 object UnreadRoute
 
+@Serializable
+object ReviewRoute
+
+@Serializable
+object RulesRoute
+
 @Composable
 fun InklessNavHost() {
     val navController = rememberNavController()
@@ -37,6 +45,13 @@ fun InklessNavHost() {
                 onOpenSettings = { navController.navigate(SettingsRoute) },
                 onOpenTransaction = { navController.navigate(TransactionRoute(it)) },
                 onOpenSmsSetup = { navController.navigate(SmsSetupRoute) },
+                onOpenReview = { navController.navigate(ReviewRoute) },
+            )
+        }
+        composable<ReviewRoute> {
+            ReviewScreen(
+                onBack = { navController.popBackStack() },
+                onOpenTransaction = { navController.navigate(TransactionRoute(it)) },
             )
         }
         composable<SettingsRoute> {
@@ -44,7 +59,11 @@ fun InklessNavHost() {
                 onBack = { navController.popBackStack() },
                 onOpenSmsSetup = { navController.navigate(SmsSetupRoute) },
                 onOpenUnread = { navController.navigate(UnreadRoute) },
+                onOpenRules = { navController.navigate(RulesRoute) },
             )
+        }
+        composable<RulesRoute> {
+            RulesScreen(onBack = { navController.popBackStack() })
         }
         // The "what was this?" notification opens a payment through inkless://transaction/<id>.
         composable<TransactionRoute>(deepLinks = listOf(navDeepLink<TransactionRoute>(basePath = "inkless://transaction"))) {

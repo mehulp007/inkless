@@ -49,6 +49,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenSmsSetup: () -> Unit,
     onOpenUnread: () -> Unit,
+    onOpenRules: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val capture by viewModel.capture.collectAsStateWithLifecycle()
@@ -146,6 +147,11 @@ fun SettingsScreen(
                         "Bank SMS",
                         supporting = if (capture.smsOn) "On — payments are added from your bank's SMS" else "Off — tap to set up",
                         onClick = onOpenSmsSetup,
+                    )
+                    ActionItem(
+                        "Categorising rules",
+                        supporting = "Always file a UPI ID or name under a category",
+                        onClick = onOpenRules,
                     )
                     ActionItem(
                         "Couldn't read these" + if (capture.unreadCount > 0) " (${capture.unreadCount})" else "",

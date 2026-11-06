@@ -68,8 +68,10 @@ fun HomeScreen(
     onOpenSettings: () -> Unit,
     onOpenTransaction: (String) -> Unit,
     onOpenSmsSetup: () -> Unit,
+    onOpenReview: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
+    val toSort by viewModel.toSort.collectAsStateWithLifecycle()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val account by viewModel.account.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
@@ -91,6 +93,8 @@ fun HomeScreen(
         onOpenTransaction = onOpenTransaction,
         onOpenSmsSetup = onOpenSmsSetup,
         onAddCash = { addingCash = true },
+        toSort = toSort,
+        onOpenReview = onOpenReview,
     )
 
     if (addingCash) {
@@ -117,6 +121,8 @@ private fun HomeContent(
     onOpenTransaction: (String) -> Unit,
     onOpenSmsSetup: () -> Unit,
     onAddCash: () -> Unit,
+    toSort: Int,
+    onOpenReview: () -> Unit,
 ) {
     Scaffold(
         floatingActionButton = {
@@ -156,6 +162,7 @@ private fun HomeContent(
                     VerifyEmailBanner(email, account.verificationSent, onResendVerification)
                 }
                 if (account.offerSmsSetup) SmsSetupCard(onClick = onOpenSmsSetup)
+                if (toSort > 0) ToSortCard(count = toSort, onClick = onOpenReview)
             }
         }
     }
@@ -399,6 +406,30 @@ private fun VerifyEmailBanner(email: String, sent: Boolean, onResend: () -> Unit
                 )
             }
             TextButton(onClick = onResend, enabled = !sent) { Text("Resend") }
+        }
+    }
+}
+
+@Composable
+private fun ToSortCard(count: Int, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                if (count == 1) "1 payment to sort" else "$count payments to sort",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Text("Sort", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            Icon(
+                painterResource(R.drawable.ic_chevron_right),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
         }
     }
 }

@@ -24,7 +24,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
 import java.time.Clock
 import java.util.UUID
 import javax.inject.Inject
@@ -103,7 +102,7 @@ class LedgerRepository @Inject constructor(
         MerchantMemory.learn(db, merchantId, categoryId, now)
     }
 
-    fun merchant(id: String): Flow<MerchantEntity?> = fromCurrentDb { db -> flow { emit(db.merchantDao().get(id)) } }
+    fun merchant(id: String): Flow<MerchantEntity?> = fromCurrentDb { it.merchantDao().observe(id) }
 
     suspend fun renameMerchant(id: String, name: String) {
         val trimmed = name.trim().take(40).ifEmpty { return }

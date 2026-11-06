@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.mehul.inkless.data.db.entity.MerchantEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MerchantDao {
@@ -23,6 +24,9 @@ interface MerchantDao {
 
     @Query("SELECT * FROM merchants WHERE id = :id")
     suspend fun get(id: String): MerchantEntity?
+
+    @Query("SELECT * FROM merchants WHERE id = :id")
+    fun observe(id: String): Flow<MerchantEntity?>
 
     /** Merchant memory: what this merchant's payments should be filed under from now on. */
     @Query("UPDATE merchants SET defaultCategoryId = :categoryId, updatedAt = :now, syncState = 'DIRTY' WHERE id = :id")

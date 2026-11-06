@@ -157,7 +157,11 @@ fun SmsSetupScreen(
                 }
                 NotificationsSection(
                     allowed = notificationsAllowed,
-                    onAllow = { notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) },
+                    onAllow = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    },
                 )
                 ImportSection(
                     state = importState,
