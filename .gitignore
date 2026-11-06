@@ -28,3 +28,11 @@ google-services.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Firebase
+node_modules/
+.firebaserc
+.firebase/
+firebase-debug*.log
+firestore-debug.log
+ui-debug.log
