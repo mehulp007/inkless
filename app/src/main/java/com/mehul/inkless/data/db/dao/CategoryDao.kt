@@ -16,6 +16,13 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE deleted = 0 ORDER BY sortOrder")
     suspend fun getAll(): List<CategoryEntity>
 
+    @Query("SELECT * FROM categories WHERE id = :id")
+    fun observe(id: String): Flow<CategoryEntity?>
+
+    /** Null clears the budget. */
+    @Query("UPDATE categories SET monthlyBudgetPaise = :paise, updatedAt = :now, syncState = 'DIRTY' WHERE id = :id")
+    suspend fun setBudget(id: String, paise: Long?, now: Long)
+
     @Query("SELECT COUNT(*) FROM categories")
     suspend fun count(): Int
 

@@ -10,6 +10,10 @@ import com.mehul.inkless.categorize.RuleField
 import com.mehul.inkless.categorize.RuleMatch
 import com.mehul.inkless.data.db.DatabaseProvider
 import com.mehul.inkless.data.db.InklessDatabase
+import com.mehul.inkless.data.db.SpendPart
+import com.mehul.inkless.data.db.dao.MerchantSpend
+import com.mehul.inkless.data.db.entity.BudgetEntity
+import com.mehul.inkless.data.db.entity.BudgetPeriod
 import com.mehul.inkless.data.db.dao.CategoryTotal
 import com.mehul.inkless.data.db.dao.TransactionListItem
 import com.mehul.inkless.data.db.entity.CaptureSource
@@ -58,6 +62,41 @@ class LedgerRepository @Inject constructor(
 
     fun categoryTotalsBetween(startMillis: Long, endMillis: Long): Flow<List<CategoryTotal>> =
         fromCurrentDb { it.transactionDao().observeCategoryTotals(startMillis, endMillis) }
+
+    /** Spending as categories and budgets count it; see [SpendPart]. */
+    fun spendBetween(startMillis: Long, endMillis: Long): Flow<List<SpendPart>> =
+        fromCurrentDb { it.spendDao().observeBetween(startMillis, endMillis) }
+
+    fun topMerchants(categoryId: String, startMillis: Long, endMillis: Long, limit: Int): Flow<List<MerchantSpend>> =
+        fromCurrentDb { it.spendDao().observeTopMerchants(categoryId, startMillis, endMillis, limit) }
+
+    fun category(id: String): Flow<CategoryEntity?> = fromCurrentDb { it.categoryDao().observe(id) }
+
+    /** Null clears the category's budget. */
+    suspend fun setCategoryBudget(id: String, paise: Long?) = db().categoryDao().setBudget(id, paise, clock.millis())
+
+    fun budget(): Flow<BudgetEntity?> = fromCurrentDb { it.budgetDao().observe() }
+
+    suspend fun saveBudget(amountPaise: Long, allowanceDay: Int?, dailyFoodCapPaise: Long?, ownerUid: String) {
+        db().budgetDao().save(
+            BudgetEntity(
+                id = BudgetEntity.MONTHLY_ID,
+                period = BudgetPeriod.MONTH,
+                amountPaise = amountPaise,
+                allowanceDay = allowanceDay,
+                dailyFoodCapPaise = dailyFoodCapPaise,
+                ownerUid = ownerUid,
+                updatedAt = clock.millis(),
+            ),
+        )
+    }
+
+    /** Stops budgeting; the row stays as a deletion so other phones stop too. */
+    suspend fun removeBudget() {
+        val db = db()
+        val current = db.budgetDao().get() ?: return
+        db.budgetDao().save(current.copy(deleted = true, updatedAt = clock.millis(), syncState = SyncState.DIRTY))
+    }
 
     fun transaction(id: String): Flow<TransactionEntity?> =
         fromCurrentDb { it.transactionDao().observe(id) }

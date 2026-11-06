@@ -180,27 +180,16 @@ interface TransactionDao {
     fun observeBetween(startMillis: Long, endMillis: Long): Flow<List<TransactionListItem>>
 
     /**
-     * Spend per category in a time range. Refunds count against the category they came back to,
-     * and a broken-down payment counts each item in its own category.
+     * Spend per category in a time range, from the `spend_parts` view: refunds count against the
+     * category they came back to, and a broken-down payment counts each item in its own category.
      * This is the only place category totals are worked out; anything showing spend per category
      * reads it (through LedgerRepository.categoryTotalsBetween) rather than adding up payments itself.
      */
     @Query(
         """
-        SELECT categoryId,
-               SUM(CASE WHEN direction = 'DEBIT' THEN amountPaise ELSE -amountPaise END) AS totalPaise,
-               COUNT(DISTINCT transactionId) AS count
-        FROM (
-            SELECT t.id AS transactionId, t.direction,
-                   COALESCE(i.categoryId, t.categoryId) AS categoryId,
-                   COALESCE(i.amountPaise, t.amountPaise) AS amountPaise
-            FROM transactions t
-            LEFT JOIN transaction_items i ON i.transactionId = t.id
-            WHERE t.deleted = 0
-              AND t.type IN ('EXPENSE', 'REFUND')
-              AND t.timestamp >= :startMillis AND t.timestamp < :endMillis
-        )
-        WHERE categoryId IS NOT NULL
+        SELECT categoryId, SUM(amountPaise) AS totalPaise, COUNT(DISTINCT transactionId) AS count
+        FROM spend_parts
+        WHERE categoryId IS NOT NULL AND timestamp >= :startMillis AND timestamp < :endMillis
         GROUP BY categoryId
         """,
     )

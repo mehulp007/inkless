@@ -154,4 +154,30 @@ class TransactionDaoTest {
             assertThat(awaitItem().associate { it.categoryId to it.totalPaise }[CategoryIds.SHOPPING]).isEqualTo(4000_00L)
         }
     }
+
+    @Test
+    fun theSpendViewSplitsItemsAndLeavesOutWhatIsNotSpending() = runTest {
+        db.transactionDao().insertAll(
+            listOf(
+                txn("order", 5000_00, 100, CategoryIds.SHOPPING),
+                txn("back", 1000_00, 200, CategoryIds.SHOPPING, Direction.CREDIT, TransactionType.REFUND),
+                txn("home", 12000_00, 300, null, Direction.CREDIT, TransactionType.INCOME),
+                txn("mine", 2000_00, 400, null, type = TransactionType.SELF_TRANSFER),
+                txn("gone", 99_00, 500, CategoryIds.FOOD_CANTEEN, deleted = true),
+            ),
+        )
+        db.transactionItemDao().replace(
+            "order",
+            listOf(
+                TransactionItemEntity("i1", "order", 3000_00, CategoryIds.SHOPPING, null, 0, "test"),
+                TransactionItemEntity("i2", "order", 2000_00, CategoryIds.COLLEGE, null, 1, "test"),
+            ),
+        )
+        val parts = db.spendDao().between(0, 1000)
+        assertThat(parts.map { it.categoryId to it.amountPaise }).containsExactly(
+            CategoryIds.SHOPPING to 3000_00L,
+            CategoryIds.COLLEGE to 2000_00L,
+            CategoryIds.SHOPPING to -1000_00L,
+        )
+    }
 }
