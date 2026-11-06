@@ -185,7 +185,8 @@ private fun ImportSection(
         }
         started && state is ImportState.Finished -> {
             val found = if (state.saved == 1) "1 payment" else "${state.saved} payments"
-            Text("Found $found in ${state.scanned} messages.", style = MaterialTheme.typography.bodyLarge)
+            val scanned = if (state.scanned == 1) "1 message" else "${state.scanned} messages"
+            Text("Found $found in $scanned.", style = MaterialTheme.typography.bodyLarge)
             if (state.unparsed > 0) {
                 Text(
                     "${state.unparsed} bank messages couldn't be read. You'll find them in Settings → Couldn't read these.",
