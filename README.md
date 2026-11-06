@@ -4,7 +4,7 @@
 
 Inkless is an Android expense tracker built around how students in India actually pay: lots of small UPI payments — chai, canteen, autos, Swiggy, recharges — spread across GPay, PhonePe, Paytm and bank apps. Inkless reads the SMS your bank already sends for every UPI payment and adds the payment for you, so the ledger fills itself with zero typing. Every payment is filed into a category tab, so you can see at a glance where the month's money went.
 
-It's local-first: your ledger lives in a database on your phone, and the SMS text never leaves it. The internet is only used to sign in.
+It's local-first: your ledger lives in a database on your phone, and the SMS text never leaves it. The internet is only used for Firebase: signing in, and the cloud backup you can switch off.
 
 <p align="center">
   <img src="docs/screenshots/home-all.png" width="260" alt="Month view with every payment grouped by day" />
@@ -20,6 +20,7 @@ It's local-first: your ledger lives in a database on your phone, and the SMS tex
 - **One payment, one entry** — the bank SMS and the GPay/PhonePe/Paytm notification for the same payment are merged. See [UPI app notifications](#upi-app-notifications).
 - **Transfers aren't spending** — money moved between your own accounts shows as 🔁 and stays out of the totals; money from home is tagged as allowance.
 - **Files itself** — known merchants go straight into the right category, and anything new is a one-tap question. See [Smart categories](#smart-categories).
+- **Break down a payment** — one ₹5,000 Amazon order of five things becomes five items in five categories, typed in or read from a screenshot of the order. See [Break down](#break-down).
 - **Cloud backup** — everything is backed up to your account as you go; log in on a new phone and it all comes back. See [Cloud backup](#cloud-backup).
 - **Category tabs** — swipe between *All* and 13 categories (Food & Canteen, Food Delivery, Travel, Recharge & Subscriptions, Laundry & Hostel, Lent to Friends, …), each with its own monthly total and payment list.
 - **Month at a glance** — the total spent this month up top; step back through previous months.
@@ -99,6 +100,25 @@ Every captured payment goes through a small categoriser, most specific knowledge
 
 Teaching a merchant also files its other waiting payments, and payments captured before a rule or a merchant was known get re-sorted the next time the app opens. Anything you've categorised yourself is never changed.
 
+## Break down
+
+<p align="center">
+  <img src="docs/screenshots/share-order.png" width="260" alt="A shared order screenshot read into four items, with the matching ₹450 payment picked" />
+  <img src="docs/screenshots/breakdown-editor.png" width="260" alt="Break down editor filled in from the shared order" />
+  <img src="docs/screenshots/breakdown-home.png" width="260" alt="Shopping tab showing an Amazon payment with a +2 more badge" />
+</p>
+
+The bank and the UPI app only ever say "₹5,000 to Amazon", never what was in the order. *Break down* splits one payment into items, each with its own amount, category and note:
+
+- **Editor** — type an amount, pick a category, next. The last item always takes whatever is left, so the items add up to the payment exactly, to the paisa.
+- **Totals use the items** — each category counts only its own part, so the ₹5,000 order adds ₹3,000 to Shopping, ₹1,500 to College and ₹500 to Health. Merchant totals still see one ₹5,000 payment.
+- **Listed once** — on Home the payment shows under its biggest item, with a *+2 more* badge; the other categories count their part without listing it again. *Back to one category* undoes it.
+- **Asked at the right time** — after a payment over ₹100 (or ₹250, ₹500, ₹1,000, or never: it's a setting), the one notification that payment gets offers *Break down*. A payment Inkless filed on its own gets a quiet *"₹450 → 🍜 Food Delivery"* with *Looks right · Break down · Change*. Smaller payments stay quiet, and history imports never ask.
+- **Share to Inkless** — share an order's screenshot (or its text) from Amazon, Flipkart, Blinkit or anywhere else. Inkless reads the items and prices on the phone, picks the recent payment with the same total, and opens the editor filled in, with a guessed category per item. Delivery, fees and discounts end up in the last item. Nothing is saved until you check it and tap *Save*.
+- **Refunds** — money back for one item (same amount) goes back into that item's category; if it isn't clear which item it was, the refund waits in the review list.
+
+Screenshots are read with [Tesseract](https://github.com/tesseract-ocr/tesseract) on the phone itself: no network, and the image and its text are never stored or uploaded. Its English model has no "₹", which it tends to read as "%", "=" or a "7" stuck to the price, so the order parser allows for that and uses the bill's total to tell "₹54" from "754". The parser lives in `parsing/` with fixture tests, including text Tesseract actually read off a test screenshot.
+
 ## Accounts
 
 <p align="center">
@@ -123,7 +143,7 @@ Error messages are deliberately vague about whether an account exists: a wrong p
 
 The phone's own database is always the real copy; the app reads nothing else, so it works the same offline. The cloud copy in Firestore exists so a new phone can get everything back.
 
-- **What's backed up:** payments, categories, merchants (with the names and categories you taught them), rules and *My accounts*. Never the text of an SMS or notification, and never more than the last 4 digits of an account number.
+- **What's backed up:** payments (with their breakdown), categories, merchants (with the names and categories you taught them), rules and *My accounts*. Never the text of an SMS or notification, and never more than the last 4 digits of an account number.
 - **When:** a few seconds after any change, right after logging in, and every few hours as a safety net, using WorkManager so it only runs with a connection and retries when it fails. *Back up now* in Settings does it on the spot.
 - **New phone:** log in and it downloads everything, with a *Restoring your backup…* card on the home screen while it does. If that phone's SMS inbox came back too, importing its history doesn't create duplicates of payments the backup already brought.
 - **Two phones:** each upload and download only moves what changed since last time. When both phones changed the same payment, the later edit wins. Deleting something sends a "deleted" marker, so it disappears on the other phone too.
@@ -135,6 +155,7 @@ The phone's own database is always the real copy; the app reads nothing else, so
 - Your transactions are stored in a Room database on the device, one file per account (`inkless_<id>.db`). Demo data lives in its own file and never mixes with anything else.
 - SMS access is asked for in plain language first, and can be revoked any time from Android settings. Only bank transaction alerts are kept; the original text stays on the phone so it can be re-read if a parser improves, and is never uploaded. Notification access works the same way: only UPI apps' payment notifications are read, and their text never leaves the phone either.
 - The only network traffic is Firebase: Authentication for sign-in, and Cloud Firestore for your username, profile and (unless you switch it off) the cloud backup. No analytics or ads SDKs. Firestore's own offline cache is kept in memory only, so there's no second copy of your data on disk.
+- A shared order screenshot is read on the phone with Tesseract (whose English model, `tessdata_fast`, is Apache-2.0 and ships in the app), with no network at all; neither the image nor its text is kept. Only the breakdown you save is stored and backed up.
 - Firestore security rules let each account read and write only its own data, and only the fields listed above: a document carrying anything else, such as message text or a full account number, is refused. A username can be looked up one at a time (that's how logging in with a username finds the email), but usernames can't be listed.
 - The backup is encrypted in transit and at rest by Google, and other users can't read it, but whoever runs the Firebase project can see it in the Firebase console. If that's not OK for you, switch backup off.
 - Inkless opts out of Android's automatic cloud backup and device-to-device transfer, so your spending data isn't copied anywhere behind your back.
@@ -151,6 +172,7 @@ The phone's own database is always the real copy; the app reads nothing else, so
 | Accounts | Firebase Authentication, Cloud Firestore, Credential Manager (Sign in with Google) |
 | Sync | Two-way, offline-first sync between Room and Firestore in WorkManager; last write wins, deletions as tombstones |
 | Capture | `BroadcastReceiver` (SMS_RECEIVED), `NotificationListenerService`, SMS content provider, WorkManager |
+| Sharing | Android share target (`ACTION_SEND`), Tesseract OCR (Tesseract4Android) on the device |
 | Notifications | Notification actions handled by a `BroadcastReceiver`, deep link into the payment |
 | Async | Kotlin Coroutines & Flow |
 | Tests | JUnit, Truth, Turbine; Room tests on a device/emulator; Firestore rules tests on the Firebase emulator |
@@ -162,7 +184,7 @@ minSdk 26 · targetSdk 37
 
 ```
 app/        Android app — UI, Room database, accounts, SMS capture, Hilt wiring, demo data
-parsing/    Pure Kotlin module (no Android dependencies): SMS filter, bank and UPI-app parsers, test fixtures
+parsing/    Pure Kotlin module (no Android dependencies): SMS filter, bank and UPI-app parsers, shared-order parser, test fixtures
 firebase/   Firestore security rules, their tests, and Firebase setup steps
 docs/       Screenshots
 ```
@@ -174,6 +196,8 @@ auth/         Firebase sign-in, usernames, Google ID tokens, input validation
 session/      Who's using the app (signed out, demo, an account) and which database is open
 capture/      SMS receiver, notification listener, inbox import, the filter → parse → dedupe → save pipeline, transfer/refund classification
 categorize/   Rules → merchant memory → keywords, re-sorting, and the "what was this?" notification
+breakdown/    Breaking a payment into items: the rules, and which notification a new payment gets
+share/        Share to Inkless: reading a shared order (OCR for screenshots) and matching it to a payment
 sync/         Cloud backup: Firestore mappers, the sync worker and its schedule, backup on/off
 data/db/      Room entities, DAOs, DatabaseProvider (one database file per account)
 data/repo/    Repositories the UI reads from
