@@ -20,6 +20,7 @@ It's local-first: your ledger lives in a database on your phone, and the SMS tex
 - **One payment, one entry** — the bank SMS and the GPay/PhonePe/Paytm notification for the same payment are merged. See [UPI app notifications](#upi-app-notifications).
 - **Transfers aren't spending** — money moved between your own accounts shows as 🔁 and stays out of the totals; money from home is tagged as allowance.
 - **Files itself** — known merchants go straight into the right category, and anything new is a one-tap question. See [Smart categories](#smart-categories).
+- **Safe to spend today** — set your monthly allowance and the day it arrives; Home says what you can spend today and when the money runs out at this pace. See [Budget](#budget).
 - **Break down a payment** — one ₹5,000 Amazon order of five things becomes five items in five categories, typed in or read from a screenshot of the order. See [Break down](#break-down).
 - **Cloud backup** — everything is backed up to your account as you go; log in on a new phone and it all comes back. See [Cloud backup](#cloud-backup).
 - **Category tabs** — swipe between *All* and 13 categories (Food & Canteen, Food Delivery, Travel, Recharge & Subscriptions, Laundry & Hostel, Lent to Friends, …), each with its own monthly total and payment list.
@@ -27,7 +28,7 @@ It's local-first: your ledger lives in a database on your phone, and the SMS tex
 - **Day-by-day list** — payments grouped by day with a daily total, merchant name, time and UPI ID.
 - **Refunds handled properly** — a refund is subtracted from the category it came back to, and money coming in (like the monthly allowance) never counts as spending.
 - **Transaction details** — tap any payment to set its category, add a note, rename the merchant ("q8291…@ybl" → "Tapri near Block C"), or delete it.
-- **Cash quick-add** — the *Cash* button on the home screen, for spends no SMS will ever mention.
+- **Cash quick-add** — the *Cash* button in the app or on the home-screen widget, for spends no SMS will ever mention.
 - **Demo mode** — *Try the demo* on the welcome screen opens a few months of made-up hostel spending, no account needed. The data is seeded, so it comes out the same every time.
 - **Material 3** with light/dark theme and dynamic colour on Android 12+.
 
@@ -100,6 +101,27 @@ Every captured payment goes through a small categoriser, most specific knowledge
 
 Teaching a merchant also files its other waiting payments, and payments captured before a rule or a merchant was known get re-sorted the next time the app opens. Anything you've categorised yourself is never changed.
 
+## Budget
+
+<p align="center">
+  <img src="docs/screenshots/budget-home.png" width="260" alt="Home with ₹162 safe to spend today, a 12% spending ring and a pace chart" />
+  <img src="docs/screenshots/category-detail.png" width="260" alt="Food &amp; Canteen detail with a budget bar, six months of spending and top places" />
+  <img src="docs/screenshots/widget.png" width="260" alt="Home-screen widget showing ₹139.79 safe to spend today and a Cash button" />
+</p>
+
+Set the monthly allowance and the day it usually arrives (Settings → *Allowance and budget*, or the card on Home). Each budget month runs from that day to the day before the next allowance, and everything below is about the current one:
+
+- **Safe to spend today** — what was left this morning, spread evenly over the days until the allowance, minus what today has already taken. It turns into *over today's share* when today goes past it.
+- **Spending ring and pace chart** — how much of the allowance is gone, and spending so far against an even pace that ends exactly at the budget.
+- **Runway** — *"At this pace you'll run out on the 24th."* The pace is a weighted average of daily spending that leans on the last few days, so a spree shows up straight away.
+- **Daily food cap** (optional) — canteen and food delivery against a daily limit, and how many days this month went over it (meals skipped at the mess).
+- **Category budgets** — tap a category's total on Home for its page: this month against its budget, the last six months as bars, and the places the money went.
+- **Semester total** — spending since July (or January), on the budget page.
+- **Home-screen widget** — safe to spend today and a *Cash* button that opens the quick-add sheet. It updates as payments come in.
+- **Weekly summary** — Sunday at 7 pm: the week's spending, the top three categories, and what's left until the allowance. It can be switched off on the budget page.
+
+Every spend number (category totals, budgets, safe to spend, the widget, the summary) comes from one database view, `spend_parts`, which already splits broken-down payments into their items and counts refunds against their category. Nothing adds up payments on its own, so the numbers always agree.
+
 ## Break down
 
 <p align="center">
@@ -143,7 +165,7 @@ Error messages are deliberately vague about whether an account exists: a wrong p
 
 The phone's own database is always the real copy; the app reads nothing else, so it works the same offline. The cloud copy in Firestore exists so a new phone can get everything back.
 
-- **What's backed up:** payments (with their breakdown), categories, merchants (with the names and categories you taught them), rules and *My accounts*. Never the text of an SMS or notification, and never more than the last 4 digits of an account number.
+- **What's backed up:** payments (with their breakdown), categories (with their budgets), the allowance, merchants (with the names and categories you taught them), rules and *My accounts*. Never the text of an SMS or notification, and never more than the last 4 digits of an account number.
 - **When:** a few seconds after any change, right after logging in, and every few hours as a safety net, using WorkManager so it only runs with a connection and retries when it fails. *Back up now* in Settings does it on the spot.
 - **New phone:** log in and it downloads everything, with a *Restoring your backup…* card on the home screen while it does. If that phone's SMS inbox came back too, importing its history doesn't create duplicates of payments the backup already brought.
 - **Two phones:** each upload and download only moves what changed since last time. When both phones changed the same payment, the later edit wins. Deleting something sends a "deleted" marker, so it disappears on the other phone too.
@@ -173,6 +195,7 @@ The phone's own database is always the real copy; the app reads nothing else, so
 | Sync | Two-way, offline-first sync between Room and Firestore in WorkManager; last write wins, deletions as tombstones |
 | Capture | `BroadcastReceiver` (SMS_RECEIVED), `NotificationListenerService`, SMS content provider, WorkManager |
 | Sharing | Android share target (`ACTION_SEND`), Tesseract OCR (Tesseract4Android) on the device |
+| Budget | Pure-Kotlin calculators, charts drawn with Compose `Canvas`, Jetpack Glance home-screen widget, weekly WorkManager job |
 | Notifications | Notification actions handled by a `BroadcastReceiver`, deep link into the payment |
 | Async | Kotlin Coroutines & Flow |
 | Tests | JUnit, Truth, Turbine; Room tests on a device/emulator; Firestore rules tests on the Firebase emulator |
@@ -196,6 +219,8 @@ auth/         Firebase sign-in, usernames, Google ID tokens, input validation
 session/      Who's using the app (signed out, demo, an account) and which database is open
 capture/      SMS receiver, notification listener, inbox import, the filter → parse → dedupe → save pipeline, transfer/refund classification
 categorize/   Rules → merchant memory → keywords, re-sorting, and the "what was this?" notification
+budget/       Allowance cycle, safe to spend, runway, food cap, semesters, the weekly summary
+widget/       The home-screen widget
 breakdown/    Breaking a payment into items: the rules, and which notification a new payment gets
 share/        Share to Inkless: reading a shared order (OCR for screenshots) and matching it to a payment
 sync/         Cloud backup: Firestore mappers, the sync worker and its schedule, backup on/off
@@ -219,7 +244,7 @@ The app needs an `app/google-services.json` from a Firebase project. It isn't co
 # Unit tests (JVM)
 ./gradlew test
 
-# Room, migration, capture, dedupe, categorising and sync tests (needs a running emulator or connected phone)
+# Room, migration, capture, dedupe, categorising, spending and sync tests (needs a running emulator or connected phone)
 ./gradlew connectedDebugAndroidTest
 
 # Firestore rules tests (needs Node and Java 21+)
