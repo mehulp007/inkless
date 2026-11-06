@@ -31,4 +31,13 @@ class MoneyTest {
     fun `can force paise`() {
         assertThat(Money.format(4500, alwaysShowPaise = true)).isEqualTo("₹45.00")
     }
+
+    @Test
+    fun `short amounts for chart labels`() {
+        assertThat(Money.short(95_000)).isEqualTo("₹950")
+        assertThat(Money.short(120_000)).isEqualTo("₹1.2k")
+        assertThat(Money.short(1_000_000)).isEqualTo("₹10k")
+        assertThat(Money.short(15_000_000)).isEqualTo("₹1.5L")
+        assertThat(Money.short(-500)).isEqualTo("₹0")
+    }
 }

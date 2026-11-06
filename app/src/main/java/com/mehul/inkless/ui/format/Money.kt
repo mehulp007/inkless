@@ -20,6 +20,21 @@ object Money {
         return if (paise < 0) "-₹$body" else "₹$body"
     }
 
+    /** Compact, for chart labels: "₹950", "₹1.2k", "₹1.5L". */
+    fun short(paise: Long): String {
+        val rupees = paise.coerceAtLeast(0) / 100
+        return when {
+            rupees < 1_000 -> "₹$rupees"
+            rupees < 1_00_000 -> "₹" + oneDecimal(rupees, 1_000) + "k"
+            else -> "₹" + oneDecimal(rupees, 1_00_000) + "L"
+        }
+    }
+
+    private fun oneDecimal(value: Long, unit: Long): String {
+        val tenths = value * 10 / unit
+        return if (tenths % 10 == 0L) "${tenths / 10}" else "${tenths / 10}.${tenths % 10}"
+    }
+
     // Last three digits stay together, everything before them goes in pairs (lakh, crore).
     private fun groupIndian(digits: String): String {
         if (digits.length <= 3) return digits
