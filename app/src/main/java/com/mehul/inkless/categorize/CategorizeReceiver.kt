@@ -12,7 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** Handles a category button on the "what was this?" notification, without opening the app. */
+/** Handles the category and "Looks right" buttons on payment notifications, without opening the app. */
 @AndroidEntryPoint
 class CategorizeReceiver : BroadcastReceiver() {
 
@@ -26,13 +26,16 @@ class CategorizeReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val transactionId = intent.getStringExtra(EXTRA_TRANSACTION) ?: return
-        val categoryId = intent.getStringExtra(EXTRA_CATEGORY) ?: return
+        // No category means "Looks right": keep the category Inkless picked.
+        val categoryId = intent.getStringExtra(EXTRA_CATEGORY)
 
         val pending = goAsync()
         scope.launch {
             try {
                 // The app may have been closed; wait for the signed-in account's database to open.
-                if (runner.currentAccount() != null) repository.categorize(transactionId, categoryId)
+                if (runner.currentAccount() != null) {
+                    if (categoryId != null) repository.categorize(transactionId, categoryId) else repository.keepAsIs(transactionId)
+                }
                 notifier.dismiss(transactionId)
             } finally {
                 pending.finish()
@@ -51,6 +54,14 @@ class CategorizeReceiver : BroadcastReceiver() {
                 Intent(context, CategorizeReceiver::class.java)
                     .putExtra(EXTRA_TRANSACTION, transactionId)
                     .putExtra(EXTRA_CATEGORY, categoryId),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+
+        fun confirmIntent(context: Context, transactionId: String): PendingIntent =
+            PendingIntent.getBroadcast(
+                context,
+                "$transactionId:ok".hashCode(),
+                Intent(context, CategorizeReceiver::class.java).putExtra(EXTRA_TRANSACTION, transactionId),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
     }

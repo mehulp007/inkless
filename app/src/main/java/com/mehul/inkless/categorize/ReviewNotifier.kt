@@ -13,10 +13,11 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import com.mehul.inkless.MainActivity
 import com.mehul.inkless.R
+import com.mehul.inkless.breakdown.AfterPayment
+import com.mehul.inkless.breakdown.BreakdownPrefs
 import com.mehul.inkless.data.db.InklessDatabase
+import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.db.entity.TransactionEntity
-import com.mehul.inkless.data.db.entity.TransactionStatus
-import com.mehul.inkless.data.db.entity.TransactionType
 import com.mehul.inkless.data.repo.LedgerRepository
 import com.mehul.inkless.ui.format.Money
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -24,14 +25,19 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * "₹45 to SHARMA CANTEEN — what was this?" with the user's top categories as buttons. Tapping a
- * button is handled by [CategorizeReceiver] without opening the app; tapping the notification
- * opens the payment to pick any other category.
+ * At most one notification per freshly captured payment (see [AfterPayment]):
+ * - "₹45 to SHARMA CANTEEN: what was this?" with the user's top categories as buttons, and a
+ *   Break down button for payments over the user's limit;
+ * - "₹450 → 🍜 Food Delivery" for payments over the limit that were filed on their own, with
+ *   Looks right / Break down / Change.
+ * Category and Looks right buttons are handled by [CategorizeReceiver] without opening the app;
+ * Break down and Change open it.
  */
 @Singleton
 class ReviewNotifier @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: LedgerRepository,
+    private val breakdownPrefs: BreakdownPrefs,
 ) {
     private val manager = NotificationManagerCompat.from(context)
 
@@ -40,32 +46,54 @@ class ReviewNotifier @Inject constructor(
             (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
                 ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
 
-    /** Asks about each freshly captured payment that couldn't be filed on its own. */
-    suspend fun askAbout(db: InklessDatabase, saved: List<TransactionEntity>) {
-        val unsure = saved.filter { it.type == TransactionType.EXPENSE && it.status == TransactionStatus.NEEDS_REVIEW }
-        if (unsure.isEmpty() || !allowed()) return
+    /** Live captures only: history imports would flood the shade. */
+    suspend fun askAbout(uid: String, db: InklessDatabase, saved: List<TransactionEntity>) {
+        if (!allowed()) return
+        val askAbove = breakdownPrefs.askAbovePaise(uid)
+        val asks = saved.map { it to AfterPayment.of(it, askAbove) }.filter { it.second != AfterPayment.NOTHING }
+        if (asks.isEmpty()) return
 
         val categories = db.categoryDao().getAll().associateBy { it.id }
         val picks = repository.quickPicks(MAX_BUTTONS).mapNotNull(categories::get)
-        createChannel()
+        createChannels()
 
-        for (txn in unsure) {
-            val who = txn.payeeRaw ?: txn.vpa ?: "someone"
-            val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+        for ((txn, ask) in asks) {
+            val builder = when (ask) {
+                AfterPayment.CHECK_IN -> checkIn(txn, txn.categoryId?.let(categories::get))
+                else -> whatWasThis(txn, picks, withBreakDown = ask == AfterPayment.WHAT_WAS_THIS_OR_BREAK_DOWN)
+            }
+            builder
                 .setSmallIcon(R.drawable.ic_stat_inkless)
-                .setContentTitle("${Money.format(txn.amountPaise)} to $who")
-                .setContentText("What was this? Tap a category.")
-                .setContentIntent(openPayment(txn.id))
+                .setContentIntent(open("inkless://transaction/${txn.id}", txn.id, OPEN))
                 .setAutoCancel(true)
                 .setOnlyAlertOnce(true)
-            picks.forEach { category ->
-                builder.addAction(0, "${category.emoji} ${category.name}", CategorizeReceiver.intent(context, txn.id, category.id))
-            }
             post(txn.id, builder)
         }
     }
 
     fun dismiss(transactionId: String) = manager.cancel(TAG, transactionId.hashCode())
+
+    private fun whatWasThis(txn: TransactionEntity, picks: List<CategoryEntity>, withBreakDown: Boolean) =
+        NotificationCompat.Builder(context, CHANNEL_ID)
+            .setContentTitle("${Money.format(txn.amountPaise)} to ${who(txn)}")
+            .setContentText(if (withBreakDown) "What was this? Tap a category, or break it down." else "What was this? Tap a category.")
+            .apply {
+                // Android shows three buttons at most, so Break down takes the place of one category.
+                picks.take(if (withBreakDown) MAX_BUTTONS - 1 else MAX_BUTTONS).forEach { category ->
+                    addAction(0, "${category.emoji} ${category.name}", CategorizeReceiver.intent(context, txn.id, category.id))
+                }
+                if (withBreakDown) addAction(0, "Break down", open("inkless://breakdown/${txn.id}", txn.id, BREAK_DOWN))
+            }
+
+    private fun checkIn(txn: TransactionEntity, category: CategoryEntity?) =
+        NotificationCompat.Builder(context, CHECK_IN_CHANNEL_ID)
+            .setContentTitle("${Money.format(txn.amountPaise)} → ${category?.let { "${it.emoji} ${it.name}" } ?: "Other"}")
+            .setContentText(who(txn))
+            .addAction(0, "Looks right", CategorizeReceiver.confirmIntent(context, txn.id))
+            .addAction(0, "Break down", open("inkless://breakdown/${txn.id}", txn.id, BREAK_DOWN))
+            .addAction(0, "Change", open("inkless://transaction/${txn.id}", txn.id, CHANGE))
+
+    private fun who(txn: TransactionEntity) = txn.payeeRaw ?: txn.vpa ?: "someone"
 
     private fun post(transactionId: String, builder: NotificationCompat.Builder) {
         if (!allowed()) return
@@ -76,30 +104,42 @@ class ReviewNotifier @Inject constructor(
         }
     }
 
-    private fun openPayment(transactionId: String): PendingIntent {
-        val intent = Intent(Intent.ACTION_VIEW, "inkless://transaction/$transactionId".toUri(), context, MainActivity::class.java)
+    /** Opens [link] in the app. [purpose] keeps one payment's buttons from overwriting each other. */
+    private fun open(link: String, transactionId: String, purpose: Int): PendingIntent {
+        val intent = Intent(Intent.ACTION_VIEW, link.toUri(), context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         return PendingIntent.getActivity(
             context,
-            transactionId.hashCode(),
+            31 * transactionId.hashCode() + purpose,
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
     }
 
-    private fun createChannel() {
+    private fun createChannels() {
         manager.createNotificationChannel(
             NotificationChannelCompat.Builder(CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_DEFAULT)
                 .setName("Payments to sort")
                 .setDescription("A quick question when Inkless can't tell what a payment was")
                 .build(),
         )
+        manager.createNotificationChannel(
+            NotificationChannelCompat.Builder(CHECK_IN_CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_LOW)
+                .setName("Bigger payments")
+                .setDescription("A quiet check after bigger payments, in case one was several things")
+                .build(),
+        )
     }
 
     private companion object {
         const val CHANNEL_ID = "review"
+        const val CHECK_IN_CHANNEL_ID = "check_in"
         const val TAG = "review"
         // Android shows at most three buttons on a notification.
         const val MAX_BUTTONS = 3
+
+        const val OPEN = 0
+        const val BREAK_DOWN = 1
+        const val CHANGE = 2
     }
 }

@@ -48,7 +48,7 @@ class SmsReceiver : BroadcastReceiver() {
             try {
                 val saved = runner.capture(messages)
                 // Only live payments get a question; history imports would flood the shade.
-                runner.currentAccount()?.let { (_, db) -> notifier.askAbout(db, saved) }
+                runner.currentAccount()?.let { (uid, db) -> notifier.askAbout(uid, db, saved) }
             } finally {
                 pending.finish()
             }

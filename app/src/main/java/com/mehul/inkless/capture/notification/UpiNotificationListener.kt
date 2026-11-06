@@ -45,7 +45,7 @@ class UpiNotificationListener : NotificationListenerService() {
         val incoming = IncomingNotification(sbn.packageName, sbn.key, text, sbn.postTime)
         scope.launch {
             val saved = runner.capture(incoming) ?: return@launch
-            runner.currentAccount()?.let { (_, db) -> notifier.askAbout(db, listOf(saved)) }
+            runner.currentAccount()?.let { (uid, db) -> notifier.askAbout(uid, db, listOf(saved)) }
         }
     }
 }

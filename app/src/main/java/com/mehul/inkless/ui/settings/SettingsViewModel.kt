@@ -8,6 +8,7 @@ import com.mehul.inkless.auth.AuthException
 import com.mehul.inkless.auth.AuthFailure
 import com.mehul.inkless.auth.AuthRepository
 import com.mehul.inkless.auth.Reauth
+import com.mehul.inkless.breakdown.BreakdownPrefs
 import com.mehul.inkless.capture.sms.SmsCapture
 import com.mehul.inkless.data.repo.LedgerRepository
 import com.mehul.inkless.session.Session
@@ -52,8 +53,19 @@ class SettingsViewModel @Inject constructor(
     private val auth: AuthRepository,
     private val smsCapture: SmsCapture,
     private val cloudBackup: CloudBackup,
+    private val breakdownPrefs: BreakdownPrefs,
     repository: LedgerRepository,
 ) : ViewModel() {
+
+    /** Above what amount new payments get a "break it down?" question; null when off. */
+    val askAbovePaise: StateFlow<Long?> = combine(sessions.session, breakdownPrefs.changes) { session, _ ->
+        (session as? Session.SignedIn)?.let { breakdownPrefs.askAbovePaise(it.user.uid) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BreakdownPrefs.DEFAULT_PAISE)
+
+    fun setAskAbove(paise: Long?) {
+        val uid = (sessions.session.value as? Session.SignedIn)?.user?.uid ?: return
+        breakdownPrefs.setAskAbovePaise(uid, paise)
+    }
 
     val backup: StateFlow<BackupStatus> = sessions.session
         .flatMapLatest { session ->
