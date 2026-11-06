@@ -4,7 +4,7 @@
 
 Inkless is an Android expense tracker built around how students in India actually pay: lots of small UPI payments — chai, canteen, autos, Swiggy, recharges — spread across GPay, PhonePe, Paytm and bank apps. Inkless reads the SMS your bank already sends for every UPI payment and adds the payment for you, so the ledger fills itself with zero typing. Every payment is filed into a category tab, so you can see at a glance where the month's money went.
 
-It's local-first: your ledger lives in a database on your phone, and the SMS text never leaves it. The internet is only used for Firebase: signing in, and the cloud backup you can switch off.
+It's local-first: your ledger lives in a database on your phone, and the SMS text never leaves it. The internet is only used for Firebase: signing in, the cloud backup you can switch off, and splits you share with friends who use Inkless too.
 
 <p align="center">
   <img src="docs/screenshots/home-all.png" width="260" alt="Month view with every payment grouped by day" />
@@ -22,6 +22,7 @@ It's local-first: your ledger lives in a database on your phone, and the SMS tex
 - **Files itself** — known merchants go straight into the right category, and anything new is a one-tap question. See [Smart categories](#smart-categories).
 - **Safe to spend today** — set your monthly allowance and the day it arrives; Home says what you can spend today and when the money runs out at this pace. See [Budget](#budget).
 - **Break down a payment** — one ₹5,000 Amazon order of five things becomes five items in five categories, typed in or read from a screenshot of the order. See [Break down](#break-down).
+- **Split with friends** — split a payment equally, by amounts or by percentages; only your part counts as your spending, and Inkless keeps track of who owes whom. See [Split with friends](#split-with-friends).
 - **Cloud backup** — everything is backed up to your account as you go; log in on a new phone and it all comes back. See [Cloud backup](#cloud-backup).
 - **Category tabs** — swipe between *All* and 13 categories (Food & Canteen, Food Delivery, Travel, Recharge & Subscriptions, Laundry & Hostel, Lent to Friends, …), each with its own monthly total and payment list.
 - **Month at a glance** — the total spent this month up top; step back through previous months.
@@ -120,7 +121,7 @@ Set the monthly allowance and the day it usually arrives (Settings → *Allowanc
 - **Home-screen widget** — safe to spend today and a *Cash* button that opens the quick-add sheet. It updates as payments come in.
 - **Weekly summary** — Sunday at 7 pm: the week's spending, the top three categories, and what's left until the allowance. It can be switched off on the budget page.
 
-Every spend number (category totals, budgets, safe to spend, the widget, the summary) comes from one database view, `spend_parts`, which already splits broken-down payments into their items and counts refunds against their category. Nothing adds up payments on its own, so the numbers always agree.
+Every spend number (category totals, budgets, safe to spend, the widget, the summary) comes from one database view, `spend_parts`, which already splits broken-down payments into their items, counts only your part of a payment split with friends, and counts refunds against their category. Nothing adds up payments on its own, so the numbers always agree.
 
 ## Break down
 
@@ -141,6 +142,25 @@ The bank and the UPI app only ever say "₹5,000 to Amazon", never what was in t
 
 Screenshots are read with [Tesseract](https://github.com/tesseract-ocr/tesseract) on the phone itself: no network, and the image and its text are never stored or uploaded. Its English model has no "₹", which it tends to read as "%", "=" or a "7" stuck to the price, so the order parser allows for that and uses the bill's total to tell "₹54" from "754". The parser lives in `parsing/` with fixture tests, including text Tesseract actually read off a test screenshot.
 
+## Split with friends
+
+<p align="center">
+  <img src="docs/screenshots/split.png" width="260" alt="Splitting a ₹336.39 Swiggy order by percentages, with ₹116.07 left as your part" />
+  <img src="docs/screenshots/split-payment.png" width="260" alt="A payment split with two friends, one of whom has paid back" />
+  <img src="docs/screenshots/friend.png" width="260" alt="A friend who owes ₹262.13, with a Remind button" />
+</p>
+
+A dinner paid on your UPI isn't all your spending. *Split with friends* on a payment's details divides it:
+
+- **Equally, by amounts or by percentages**, to the paisa. Whatever doesn't divide evenly stays with you, the payer, so nobody owes a fraction of a paisa more than their part.
+- **Only your part counts** — categories, budgets, safe to spend and the widget see the ₹300 that was yours, not the ₹900 bill. On Home the payment shows *split · yours ₹300*.
+- **Who owes whom** — the Friends screen (the people icon on Home) shows each friend's balance: their unpaid parts of your payments, minus anything you owe them. Money lent or borrowed outside any payment (*"₹150, auto to the station"*) goes on the friend's page too.
+- **Paid back, automatically** — when money arrives from a friend who owes you (matched by their UPI ID or their name) and it's the amount of something they owe, or all of it, a notification asks *"₹250 from Rohan: the ₹250 Rohan owed you?"*. *Mark paid back* ticks it off, and the repayment is filed as money back rather than income.
+- **Remind** — sends a friend what they owe, item by item, through WhatsApp or anything else. If you've added your UPI ID under *My accounts*, the message ends in a `upi://pay` link with the amount filled in, so paying you is one tap.
+- **Friends on Inkless** — add a friend's Inkless username and splits with them show up in their app under *Shared with you*. When they tap *I've paid*, it's ticked off on your phone too.
+
+A payment is either broken down into items or split with friends, not both. A shared split holds everyone's username, the amounts, who has paid, and a short note with the merchant's name and the date; only the people in it can read it, and only you, the payer, can change the amounts or remove it.
+
 ## Accounts
 
 <p align="center">
@@ -151,7 +171,7 @@ Screenshots are read with [Tesseract](https://github.com/tesseract-ocr/tesseract
 - **Sign up** with a username, email and password. The username is checked as you type, and the account gets a verification email (the app works while you wait, with a reminder on the home screen).
 - **Log in** with your username *or* your email, or with **Continue with Google** (Android's Credential Manager account picker).
 - **Forgot password** takes a username or email and sends a reset link.
-- **Settings** — link Google to a password account, change password, log out, or delete the account (deletes its cloud backup, frees the username and wipes its data from the phone).
+- **Settings** — link Google to a password account, change password, log out, or delete the account (deletes its cloud backup and the splits it shared, frees the username and wipes its data from the phone).
 - **Several people, one phone** — each account gets its own database file, so logging out and letting a friend log in never mixes your data.
 
 Error messages are deliberately vague about whether an account exists: a wrong password and an unknown username get the same message, and the reset screen always says *"If an account exists, we've sent a reset link."*
@@ -165,7 +185,7 @@ Error messages are deliberately vague about whether an account exists: a wrong p
 
 The phone's own database is always the real copy; the app reads nothing else, so it works the same offline. The cloud copy in Firestore exists so a new phone can get everything back.
 
-- **What's backed up:** payments (with their breakdown), categories (with their budgets), the allowance, merchants (with the names and categories you taught them), rules and *My accounts*. Never the text of an SMS or notification, and never more than the last 4 digits of an account number.
+- **What's backed up:** payments (with their breakdown), categories (with their budgets), the allowance, merchants (with the names and categories you taught them), rules, *My accounts*, friends, splits and money lent or borrowed. Never the text of an SMS or notification, and never more than the last 4 digits of an account number.
 - **When:** a few seconds after any change, right after logging in, and every few hours as a safety net, using WorkManager so it only runs with a connection and retries when it fails. *Back up now* in Settings does it on the spot.
 - **New phone:** log in and it downloads everything, with a *Restoring your backup…* card on the home screen while it does. If that phone's SMS inbox came back too, importing its history doesn't create duplicates of payments the backup already brought.
 - **Two phones:** each upload and download only moves what changed since last time. When both phones changed the same payment, the later edit wins. Deleting something sends a "deleted" marker, so it disappears on the other phone too.
@@ -176,9 +196,9 @@ The phone's own database is always the real copy; the app reads nothing else, so
 
 - Your transactions are stored in a Room database on the device, one file per account (`inkless_<id>.db`). Demo data lives in its own file and never mixes with anything else.
 - SMS access is asked for in plain language first, and can be revoked any time from Android settings. Only bank transaction alerts are kept; the original text stays on the phone so it can be re-read if a parser improves, and is never uploaded. Notification access works the same way: only UPI apps' payment notifications are read, and their text never leaves the phone either.
-- The only network traffic is Firebase: Authentication for sign-in, and Cloud Firestore for your username, profile and (unless you switch it off) the cloud backup. No analytics or ads SDKs. Firestore's own offline cache is kept in memory only, so there's no second copy of your data on disk.
+- The only network traffic is Firebase: Authentication for sign-in, and Cloud Firestore for your username, profile, splits you share with friends and (unless you switch it off) the cloud backup. No analytics or ads SDKs. Firestore's own offline cache is kept in memory only, so there's no second copy of your data on disk.
 - A shared order screenshot is read on the phone with Tesseract (whose English model, `tessdata_fast`, is Apache-2.0 and ships in the app), with no network at all; neither the image nor its text is kept. Only the breakdown you save is stored and backed up.
-- Firestore security rules let each account read and write only its own data, and only the fields listed above: a document carrying anything else, such as message text or a full account number, is refused. A username can be looked up one at a time (that's how logging in with a username finds the email), but usernames can't be listed.
+- Firestore security rules let each account read and write only its own data, and only the fields listed above: a document carrying anything else, such as message text or a full account number, is refused. A username can be looked up one at a time (that's how logging in with a username finds the email), but usernames can't be listed. A shared split can only be read by the people in it.
 - The backup is encrypted in transit and at rest by Google, and other users can't read it, but whoever runs the Firebase project can see it in the Firebase console. If that's not OK for you, switch backup off.
 - Inkless opts out of Android's automatic cloud backup and device-to-device transfer, so your spending data isn't copied anywhere behind your back.
 
@@ -194,7 +214,7 @@ The phone's own database is always the real copy; the app reads nothing else, so
 | Accounts | Firebase Authentication, Cloud Firestore, Credential Manager (Sign in with Google) |
 | Sync | Two-way, offline-first sync between Room and Firestore in WorkManager; last write wins, deletions as tombstones |
 | Capture | `BroadcastReceiver` (SMS_RECEIVED), `NotificationListenerService`, SMS content provider, WorkManager |
-| Sharing | Android share target (`ACTION_SEND`), Tesseract OCR (Tesseract4Android) on the device |
+| Sharing | Android share target and share sheet (`ACTION_SEND`), Tesseract OCR (Tesseract4Android) on the device, `upi://pay` links |
 | Budget | Pure-Kotlin calculators, charts drawn with Compose `Canvas`, Jetpack Glance home-screen widget, weekly WorkManager job |
 | Notifications | Notification actions handled by a `BroadcastReceiver`, deep link into the payment |
 | Async | Kotlin Coroutines & Flow |
@@ -223,6 +243,7 @@ budget/       Allowance cycle, safe to spend, runway, food cap, semesters, the w
 widget/       The home-screen widget
 breakdown/    Breaking a payment into items: the rules, and which notification a new payment gets
 share/        Share to Inkless: reading a shared order (OCR for screenshots) and matching it to a payment
+splits/       Friends and splits: the split maths, balances, matching repayments, reminders, splits shared with friends' apps
 sync/         Cloud backup: Firestore mappers, the sync worker and its schedule, backup on/off
 data/db/      Room entities, DAOs, DatabaseProvider (one database file per account)
 data/repo/    Repositories the UI reads from
@@ -244,7 +265,7 @@ The app needs an `app/google-services.json` from a Firebase project. It isn't co
 # Unit tests (JVM)
 ./gradlew test
 
-# Room, migration, capture, dedupe, categorising, spending and sync tests (needs a running emulator or connected phone)
+# Room, migration, capture, dedupe, categorising, spending, splits and sync tests (needs a running emulator or connected phone)
 ./gradlew connectedDebugAndroidTest
 
 # Firestore rules tests (needs Node and Java 21+)
