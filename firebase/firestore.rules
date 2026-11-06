@@ -43,7 +43,7 @@ service cloud.firestore {
         && !existsAfter(profileDoc(request.auth.uid));
     }
 
-    // users/{uid}: the profile, plus (later) everything the app syncs under it.
+    // users/{uid}: the profile, plus the account's backup under it.
     match /users/{uid} {
       allow read: if isUser(uid);
 
@@ -52,15 +52,90 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && getAfter(usernameDoc(request.resource.data.username)).data.uid == uid;
 
-      // The username is fixed once claimed.
-      allow update: if isUser(uid) && request.resource.data.username == resource.data.username;
+      // The username is fixed once claimed. `backup` is the account-wide cloud backup switch.
+      allow update: if isUser(uid)
+        && request.resource.data.username == resource.data.username
+        && request.resource.data.keys().hasOnly(['username', 'email', 'createdAt', 'backup'])
+        && request.resource.data.get('backup', true) is bool;
       allow delete: if isUser(uid);
 
-      // {path=**} alone would also match the profile itself (it matches zero segments), so
-      // require a sub-collection name in front.
-      match /{subcollection}/{path=**} {
-        allow read, write: if isUser(uid);
+      // The backup: parsed fields only. Each collection lists the fields it may hold, so raw SMS or
+      // notification text can't be stored even by mistake. Collections not listed are closed.
+      match /transactions/{id} {
+        allow read, delete: if isUser(uid);
+        allow create, update: if isUser(uid)
+          && synced([
+            'amountPaise', 'direction', 'type', 'timestamp', 'vpa', 'payeeRaw', 'merchantId',
+            'accountLast4', 'bankCode', 'upiRef', 'balanceAfterPaise', 'categoryId', 'confidence',
+            'status', 'sources', 'note', 'tags', 'createdAt'
+          ])
+          && request.resource.data.amountPaise is int
+          && lastFourAtMost(request.resource.data.get('accountLast4', null));
       }
+
+      match /categories/{id} {
+        allow read, delete: if isUser(uid);
+        allow create, update: if isUser(uid)
+          && synced(['name', 'emoji', 'colorArgb', 'monthlyBudgetPaise', 'sortOrder', 'isSystem']);
+      }
+
+      match /merchants/{id} {
+        allow read, delete: if isUser(uid);
+        allow create, update: if isUser(uid)
+          && synced(['vpa', 'displayName', 'defaultCategoryId', 'timesSeen']);
+      }
+
+      match /rules/{id} {
+        allow read, delete: if isUser(uid);
+        allow create, update: if isUser(uid)
+          && synced(['field', 'match', 'pattern', 'categoryId', 'priority']);
+      }
+
+      match /myAccounts/{id} {
+        allow read, delete: if isUser(uid);
+        allow create, update: if isUser(uid)
+          && synced(['match', 'value', 'role', 'label']);
+      }
+    }
+
+    // A synced document: only the given fields plus the sync ones, and stamped with the server's
+    // clock (other devices page through syncedAt, so it can't be left to the phone).
+    function synced(fields) {
+      let data = request.resource.data;
+      return data.keys().hasOnly(fields.concat(['updatedAt', 'deleted', 'syncedAt']))
+        && data.updatedAt is int
+        && data.deleted is bool
+        && data.syncedAt == request.time
+        // Last write wins: an edit older than the stored one is turned away.
+        && (resource == null || data.updatedAt >= resource.data.updatedAt);
+    }
+
+    // Account numbers leave the phone as their last four digits at most.
+    function lastFourAtMost(value) {
+      return value == null || (value is string && value.size() <= 4);
+    }
+
+    // sharedSplits/{id} -> { memberUids[], payerUid, total, shares{uid: paise}, settled{uid: bool}, note, createdAt }
+    // A bill split between friends who all use Inkless. Only its members see it, only the payer
+    // creates or removes it, and each member can only tick their own share as settled.
+    match /sharedSplits/{splitId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.memberUids;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['memberUids', 'payerUid', 'total', 'shares', 'settled', 'note', 'createdAt'])
+        && request.resource.data.payerUid == request.auth.uid
+        && request.resource.data.memberUids is list
+        && request.auth.uid in request.resource.data.memberUids
+        && request.resource.data.total is int
+        && request.resource.data.createdAt == request.time;
+
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.memberUids
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['settled'])
+        && request.resource.data.settled.diff(resource.data.settled).affectedKeys().hasOnly([request.auth.uid])
+        && request.resource.data.settled[request.auth.uid] is bool;
+
+      allow delete: if signedIn() && resource.data.payerUid == request.auth.uid;
     }
   }
 }

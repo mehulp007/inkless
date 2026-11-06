@@ -154,22 +154,146 @@ describe('users', () => {
     await assertSucceeds(updateDoc(doc(alice(), 'users', 'alice'), { email: 'alice@example.com' }));
   });
 
-  test('a profile cannot be created for someone else', async () => {
-    await assertFails(setDoc(doc(bob(), 'users', 'alice'), { username: 'x', email: 'x', createdAt: serverTimestamp() }));
+  test('the owner can switch backup on and off, and nothing else gets added', async () => {
+    await seedAlice();
+    const profile = doc(alice(), 'users', 'alice');
+    await assertSucceeds(updateDoc(profile, { backup: false }));
+    await assertSucceeds(updateDoc(profile, { backup: true }));
+    await assertFails(updateDoc(profile, { backup: 'off' }));
+    await assertFails(updateDoc(profile, { notes: 'hi' }));
+    await assertFails(updateDoc(doc(bob(), 'users', 'alice'), { backup: false }));
   });
 
-  test('everything under a user is private to them', async () => {
-    await seedAlice();
-    const ref = (db) => doc(db, 'users', 'alice', 'transactions', 't1');
-    await assertSucceeds(setDoc(ref(alice()), { amountPaise: 4500 }));
-    await assertSucceeds(getDoc(ref(alice())));
-    await assertFails(getDoc(ref(bob())));
-    await assertFails(setDoc(ref(bob()), { amountPaise: 1 }));
-    await assertFails(getDocs(collection(bob(), 'users', 'alice', 'transactions')));
+  test('a profile cannot be created for someone else', async () => {
+    await assertFails(setDoc(doc(bob(), 'users', 'alice'), { username: 'x', email: 'x', createdAt: serverTimestamp() }));
   });
 
   test('nothing outside users and usernames is open', async () => {
     await assertFails(setDoc(doc(alice(), 'anything', 'x'), { a: 1 }));
     await assertFails(getDoc(doc(alice(), 'anything', 'x')));
+  });
+});
+
+// A transaction as the app uploads it.
+function txn(extra = {}) {
+  return {
+    amountPaise: 4500, direction: 'DEBIT', type: 'EXPENSE', timestamp: 1, vpa: 'q829154@ybl', payeeRaw: 'Tapri',
+    merchantId: 'm1', accountLast4: '1234', bankCode: 'SBI', upiRef: '412345678901', balanceAfterPaise: null,
+    categoryId: 'food_canteen', confidence: 0.85, status: 'AUTO', sources: ['SMS', 'NOTIFICATION'], note: null,
+    tags: [], createdAt: 1, updatedAt: 2, deleted: false, syncedAt: serverTimestamp(), ...extra,
+  };
+}
+
+const synced = (data) => ({ ...data, updatedAt: 2, deleted: false, syncedAt: serverTimestamp() });
+
+describe('backup', () => {
+  const ref = (db, collectionName = 'transactions', id = 't1') => doc(db, 'users', 'alice', collectionName, id);
+
+  test('only the owner can read, write and delete their backup', async () => {
+    await assertSucceeds(setDoc(ref(alice()), txn()));
+    await assertSucceeds(getDoc(ref(alice())));
+    await assertSucceeds(getDocs(collection(alice(), 'users', 'alice', 'transactions')));
+    await assertFails(getDoc(ref(bob())));
+    await assertFails(getDocs(collection(bob(), 'users', 'alice', 'transactions')));
+    await assertFails(setDoc(ref(bob()), txn()));
+    await assertFails(getDoc(ref(nobody())));
+    await assertFails(deleteDoc(ref(bob())));
+    await assertSucceeds(deleteDoc(ref(alice())));
+  });
+
+  test('an edit older than the stored one is turned away', async () => {
+    await assertSucceeds(setDoc(ref(alice()), txn({ updatedAt: 5 })));
+    await assertFails(setDoc(ref(alice()), txn({ updatedAt: 4, note: 'stale' })));
+    await assertSucceeds(setDoc(ref(alice()), txn({ updatedAt: 5 })));
+  });
+
+  test('a deletion travels as a tombstone', async () => {
+    await assertSucceeds(setDoc(ref(alice()), txn()));
+    await assertSucceeds(setDoc(ref(alice()), txn({ deleted: true, updatedAt: 3 })));
+  });
+
+  test('a transaction with any field beyond the parsed ones is refused', async () => {
+    await assertFails(setDoc(ref(alice()), txn({ body: 'Rs.45 debited from A/c XX1234 to q829154@ybl' })));
+    await assertFails(setDoc(ref(alice()), txn({ ownerUid: 'alice' })));
+  });
+
+  test('account numbers go up as four digits at most', async () => {
+    await assertSucceeds(setDoc(ref(alice()), txn({ accountLast4: null })));
+    await assertFails(setDoc(ref(alice()), txn({ accountLast4: '50100123451234' })));
+  });
+
+  test('the sync time must come from the server', async () => {
+    await assertFails(setDoc(ref(alice()), txn({ syncedAt: 1_900_000_000_000 })));
+    await assertFails(setDoc(ref(alice()), txn({ amountPaise: '45' })));
+  });
+
+  test('categories, merchants, rules and my accounts hold only their own fields', async () => {
+    const db = alice();
+    await assertSucceeds(setDoc(ref(db, 'categories', 'food_canteen'), synced({
+      name: 'Food & Canteen', emoji: '🍔', colorArgb: 4294090040, monthlyBudgetPaise: null, sortOrder: 0, isSystem: true,
+    })));
+    await assertSucceeds(setDoc(ref(db, 'merchants', 'm1'), synced({
+      vpa: 'q829154@ybl', displayName: 'Tapri', defaultCategoryId: 'food_canteen', timesSeen: 3,
+    })));
+    await assertSucceeds(setDoc(ref(db, 'rules', 'r1'), synced({
+      field: 'UPI_ID', match: 'CONTAINS', pattern: 'canteen', categoryId: 'food_canteen', priority: 1,
+    })));
+    await assertSucceeds(setDoc(ref(db, 'myAccounts', 'a1'), synced({
+      match: 'UPI_ID', value: 'alice@oksbi', role: 'MINE', label: null,
+    })));
+    await assertFails(setDoc(ref(db, 'merchants', 'm2'), synced({ vpa: 'x@ybl', displayName: 'X', timesSeen: 1, sms: 'hi' })));
+  });
+
+  test('collections that are not part of the backup are closed', async () => {
+    await assertFails(setDoc(ref(alice(), 'rawCaptures', 'c1'), synced({ body: 'Rs.45 debited' })));
+    await assertFails(getDoc(ref(alice(), 'rawCaptures', 'c1')));
+  });
+});
+
+describe('shared splits', () => {
+  const split = (extra = {}) => ({
+    memberUids: ['alice', 'bob'], payerUid: 'alice', total: 60000,
+    shares: { alice: 30000, bob: 30000 }, settled: { alice: true, bob: false },
+    note: 'Saturday dinner', createdAt: serverTimestamp(), ...extra,
+  });
+
+  async function seedSplit() {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'sharedSplits', 's1'), { ...split(), createdAt: 1 });
+    });
+  }
+
+  const carol = () => env.authenticatedContext('carol', { email: 'carol@example.com' }).firestore();
+
+  test('the payer creates a split they are part of', async () => {
+    await assertSucceeds(setDoc(doc(alice(), 'sharedSplits', 's1'), split()));
+  });
+
+  test("nobody creates a split in someone else's name", async () => {
+    await assertFails(setDoc(doc(bob(), 'sharedSplits', 's1'), split()));
+    await assertFails(setDoc(doc(carol(), 'sharedSplits', 's1'), split({ payerUid: 'carol' })));
+  });
+
+  test('only members can read a split', async () => {
+    await seedSplit();
+    await assertSucceeds(getDoc(doc(alice(), 'sharedSplits', 's1')));
+    await assertSucceeds(getDoc(doc(bob(), 'sharedSplits', 's1')));
+    await assertFails(getDoc(doc(carol(), 'sharedSplits', 's1')));
+    await assertFails(getDoc(doc(nobody(), 'sharedSplits', 's1')));
+  });
+
+  test('a member ticks only their own share as settled', async () => {
+    await seedSplit();
+    await assertSucceeds(updateDoc(doc(bob(), 'sharedSplits', 's1'), { 'settled.bob': true }));
+    await assertFails(updateDoc(doc(bob(), 'sharedSplits', 's1'), { 'settled.alice': false }));
+    await assertFails(updateDoc(doc(bob(), 'sharedSplits', 's1'), { total: 1 }));
+    await assertFails(updateDoc(doc(bob(), 'sharedSplits', 's1'), { 'shares.bob': 0 }));
+    await assertFails(updateDoc(doc(carol(), 'sharedSplits', 's1'), { 'settled.carol': true }));
+  });
+
+  test('only the payer removes a split', async () => {
+    await seedSplit();
+    await assertFails(deleteDoc(doc(bob(), 'sharedSplits', 's1')));
+    await assertSucceeds(deleteDoc(doc(alice(), 'sharedSplits', 's1')));
   });
 });
