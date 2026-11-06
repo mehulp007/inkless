@@ -20,6 +20,7 @@ It's local-first: your ledger lives in a database on your phone, and the SMS tex
 - **One payment, one entry** — the bank SMS and the GPay/PhonePe/Paytm notification for the same payment are merged. See [UPI app notifications](#upi-app-notifications).
 - **Transfers aren't spending** — money moved between your own accounts shows as 🔁 and stays out of the totals; money from home is tagged as allowance.
 - **Files itself** — known merchants go straight into the right category, and anything new is a one-tap question. See [Smart categories](#smart-categories).
+- **Cloud backup** — everything is backed up to your account as you go; log in on a new phone and it all comes back. See [Cloud backup](#cloud-backup).
 - **Category tabs** — swipe between *All* and 13 categories (Food & Canteen, Food Delivery, Travel, Recharge & Subscriptions, Laundry & Hostel, Lent to Friends, …), each with its own monthly total and payment list.
 - **Month at a glance** — the total spent this month up top; step back through previous months.
 - **Day-by-day list** — payments grouped by day with a daily total, merchant name, time and UPI ID.
@@ -108,17 +109,34 @@ Teaching a merchant also files its other waiting payments, and payments captured
 - **Sign up** with a username, email and password. The username is checked as you type, and the account gets a verification email (the app works while you wait, with a reminder on the home screen).
 - **Log in** with your username *or* your email, or with **Continue with Google** (Android's Credential Manager account picker).
 - **Forgot password** takes a username or email and sends a reset link.
-- **Settings** — link Google to a password account, change password, log out, or delete the account (frees the username and wipes its data from the phone).
+- **Settings** — link Google to a password account, change password, log out, or delete the account (deletes its cloud backup, frees the username and wipes its data from the phone).
 - **Several people, one phone** — each account gets its own database file, so logging out and letting a friend log in never mixes your data.
 
 Error messages are deliberately vague about whether an account exists: a wrong password and an unknown username get the same message, and the reset screen always says *"If an account exists, we've sent a reset link."*
+
+## Cloud backup
+
+<p align="center">
+  <img src="docs/screenshots/backup.png" width="260" alt="Settings showing cloud backup switched on and backed up just now" />
+  <img src="docs/screenshots/logout-warning.png" width="260" alt="Log-out dialog warning that one change isn't backed up yet" />
+</p>
+
+The phone's own database is always the real copy; the app reads nothing else, so it works the same offline. The cloud copy in Firestore exists so a new phone can get everything back.
+
+- **What's backed up:** payments, categories, merchants (with the names and categories you taught them), rules and *My accounts*. Never the text of an SMS or notification, and never more than the last 4 digits of an account number.
+- **When:** a few seconds after any change, right after logging in, and every few hours as a safety net, using WorkManager so it only runs with a connection and retries when it fails. *Back up now* in Settings does it on the spot.
+- **New phone:** log in and it downloads everything, with a *Restoring your backup…* card on the home screen while it does. If that phone's SMS inbox came back too, importing its history doesn't create duplicates of payments the backup already brought.
+- **Two phones:** each upload and download only moves what changed since last time. When both phones changed the same payment, the later edit wins. Deleting something sends a "deleted" marker, so it disappears on the other phone too.
+- **Logging out with changes not yet backed up** (say, offline) asks first: back up and log out, or log out anyway. They stay on the phone either way.
+- **Switching backup off** applies to every phone on the account and deletes the cloud copy (after a confirmation); the phone keeps everything. Switching it back on uploads it all again. New accounts start with backup on.
 
 ## Privacy
 
 - Your transactions are stored in a Room database on the device, one file per account (`inkless_<id>.db`). Demo data lives in its own file and never mixes with anything else.
 - SMS access is asked for in plain language first, and can be revoked any time from Android settings. Only bank transaction alerts are kept; the original text stays on the phone so it can be re-read if a parser improves, and is never uploaded. Notification access works the same way: only UPI apps' payment notifications are read, and their text never leaves the phone either.
-- The only network traffic is Firebase: Authentication for sign-in, and Cloud Firestore for your username and profile. No analytics or ads SDKs.
-- Firestore security rules let each account read and write only its own data. A username can be looked up one at a time (that's how logging in with a username finds the email), but usernames can't be listed.
+- The only network traffic is Firebase: Authentication for sign-in, and Cloud Firestore for your username, profile and (unless you switch it off) the cloud backup. No analytics or ads SDKs. Firestore's own offline cache is kept in memory only, so there's no second copy of your data on disk.
+- Firestore security rules let each account read and write only its own data, and only the fields listed above: a document carrying anything else, such as message text or a full account number, is refused. A username can be looked up one at a time (that's how logging in with a username finds the email), but usernames can't be listed.
+- The backup is encrypted in transit and at rest by Google, and other users can't read it, but whoever runs the Firebase project can see it in the Firebase console. If that's not OK for you, switch backup off.
 - Inkless opts out of Android's automatic cloud backup and device-to-device transfer, so your spending data isn't copied anywhere behind your back.
 
 ## Tech
@@ -131,6 +149,7 @@ Error messages are deliberately vague about whether an account exists: a wrong p
 | DI | Hilt |
 | Storage | Room (schema exported to `app/schemas/`, migrations tested against every past schema) |
 | Accounts | Firebase Authentication, Cloud Firestore, Credential Manager (Sign in with Google) |
+| Sync | Two-way, offline-first sync between Room and Firestore in WorkManager; last write wins, deletions as tombstones |
 | Capture | `BroadcastReceiver` (SMS_RECEIVED), `NotificationListenerService`, SMS content provider, WorkManager |
 | Notifications | Notification actions handled by a `BroadcastReceiver`, deep link into the payment |
 | Async | Kotlin Coroutines & Flow |
@@ -155,6 +174,7 @@ auth/         Firebase sign-in, usernames, Google ID tokens, input validation
 session/      Who's using the app (signed out, demo, an account) and which database is open
 capture/      SMS receiver, notification listener, inbox import, the filter → parse → dedupe → save pipeline, transfer/refund classification
 categorize/   Rules → merchant memory → keywords, re-sorting, and the "what was this?" notification
+sync/         Cloud backup: Firestore mappers, the sync worker and its schedule, backup on/off
 data/db/      Room entities, DAOs, DatabaseProvider (one database file per account)
 data/repo/    Repositories the UI reads from
 data/seed/    Default categories
@@ -175,7 +195,7 @@ The app needs an `app/google-services.json` from a Firebase project. It isn't co
 # Unit tests (JVM)
 ./gradlew test
 
-# Room, migration, capture, dedupe and categorising tests (needs a running emulator or connected phone)
+# Room, migration, capture, dedupe, categorising and sync tests (needs a running emulator or connected phone)
 ./gradlew connectedDebugAndroidTest
 
 # Firestore rules tests (needs Node and Java 21+)
