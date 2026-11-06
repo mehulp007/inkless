@@ -6,6 +6,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navDeepLink
 import com.mehul.inkless.ui.accounts.MyAccountsScreen
+import com.mehul.inkless.ui.ask.AskScreen
 import com.mehul.inkless.ui.breakdown.BreakdownScreen
 import com.mehul.inkless.ui.budget.BudgetScreen
 import com.mehul.inkless.ui.category.CategoryScreen
@@ -15,11 +16,13 @@ import com.mehul.inkless.ui.capture.SmsSetupScreen
 import com.mehul.inkless.ui.capture.UnreadScreen
 import com.mehul.inkless.ui.health.CaptureHealthScreen
 import com.mehul.inkless.ui.home.HomeScreen
+import com.mehul.inkless.ui.insights.InsightsScreen
 import com.mehul.inkless.ui.review.ReviewScreen
 import com.mehul.inkless.ui.rules.RulesScreen
 import com.mehul.inkless.ui.settings.SettingsScreen
 import com.mehul.inkless.ui.split.SplitScreen
 import com.mehul.inkless.ui.transaction.TransactionScreen
+import com.mehul.inkless.ui.wrapped.WrappedScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -49,6 +52,16 @@ data class FriendRoute(val friendId: String)
 
 @Serializable
 data class SplitRoute(val transactionId: String)
+
+@Serializable
+object InsightsRoute
+
+@Serializable
+object AskRoute
+
+/** [month] as "2026-10". */
+@Serializable
+data class WrappedRoute(val month: String)
 
 @Serializable
 object SmsSetupRoute
@@ -82,7 +95,25 @@ fun InklessNavHost() {
                 onOpenBudget = { navController.navigate(BudgetRoute) },
                 onOpenCategory = { navController.navigate(CategoryRoute(it)) },
                 onOpenFriends = { navController.navigate(FriendsRoute) },
+                onOpenInsights = { navController.navigate(InsightsRoute) },
             )
+        }
+        // The spending alert notification opens inkless://insights.
+        composable<InsightsRoute>(deepLinks = listOf(navDeepLink<InsightsRoute>(basePath = "inkless://insights"))) {
+            InsightsScreen(
+                onBack = { navController.popBackStack() },
+                onAsk = { navController.navigate(AskRoute) },
+                onWrapped = { navController.navigate(WrappedRoute(it.toString())) },
+            )
+        }
+        composable<AskRoute> {
+            AskScreen(
+                onBack = { navController.popBackStack() },
+                onOpenTransaction = { navController.navigate(TransactionRoute(it)) },
+            )
+        }
+        composable<WrappedRoute> {
+            WrappedScreen(onBack = { navController.popBackStack() })
         }
         composable<FriendsRoute> {
             FriendsScreen(

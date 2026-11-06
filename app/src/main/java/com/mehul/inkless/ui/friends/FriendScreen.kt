@@ -1,5 +1,6 @@
 package com.mehul.inkless.ui.friends
 
+import android.content.ComponentName
 import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +50,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mehul.inkless.R
 import com.mehul.inkless.parsing.Amounts
+import com.mehul.inkless.share.ShareActivity
 import com.mehul.inkless.splits.FriendBalance
 import com.mehul.inkless.ui.format.Money
 import com.mehul.inkless.ui.theme.LocalInklessColors
@@ -123,7 +125,10 @@ fun FriendScreen(
                         scope.launch {
                             val text = viewModel.reminder() ?: return@launch
                             val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
-                            context.startActivity(Intent.createChooser(send, "Remind ${current.friend.name}"))
+                            context.startActivity(
+                                Intent.createChooser(send, "Remind ${current.friend.name}")
+                                    .putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, arrayOf(ComponentName(context, ShareActivity::class.java))),
+                            )
                         }
                     },
                     onSettle = { settling = true },

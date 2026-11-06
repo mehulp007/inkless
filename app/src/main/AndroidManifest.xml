@@ -88,6 +88,17 @@
             android:name=".splits.SettleReceiver"
             android:exported="false" />
 
+        <!-- Hands the Wrapped picture to the app it's shared with; nothing else in the cache is exposed. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/shared_files" />
+        </provider>
+
         <receiver
             android:name=".categorize.CategorizeReceiver"
             android:exported="false" />

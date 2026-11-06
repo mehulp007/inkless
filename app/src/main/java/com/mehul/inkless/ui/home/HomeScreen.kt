@@ -79,6 +79,7 @@ fun HomeScreen(
     onOpenBudget: () -> Unit,
     onOpenCategory: (String) -> Unit,
     onOpenFriends: () -> Unit,
+    onOpenInsights: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val budget by viewModel.budget.collectAsStateWithLifecycle()
@@ -117,6 +118,7 @@ fun HomeScreen(
         onOpenBudget = onOpenBudget,
         onOpenCategory = onOpenCategory,
         onOpenFriends = onOpenFriends,
+        onOpenInsights = onOpenInsights,
     )
 
     if (addingCash) {
@@ -149,6 +151,7 @@ private fun HomeContent(
     onOpenBudget: () -> Unit,
     onOpenCategory: (String) -> Unit,
     onOpenFriends: () -> Unit,
+    onOpenInsights: () -> Unit,
 ) {
     Scaffold(
         floatingActionButton = {
@@ -172,6 +175,9 @@ private fun HomeContent(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onOpenInsights) {
+                        Icon(painterResource(R.drawable.ic_insights), contentDescription = "Insights")
+                    }
                     IconButton(onClick = onOpenFriends) {
                         Icon(painterResource(R.drawable.ic_people), contentDescription = "Friends")
                     }
