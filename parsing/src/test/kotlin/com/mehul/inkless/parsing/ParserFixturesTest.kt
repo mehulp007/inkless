@@ -14,7 +14,11 @@ class ParserFixturesTest(private val case: Fixture) {
 
     @Test
     fun readsAsExpected() {
-        val result = SmsReader(BankParsers.all).read(case.sender, case.body)
+        val result = if (case.notification) {
+            NotificationReader.read(case.sender, case.body)
+        } else {
+            SmsReader(BankParsers.all).read(case.sender, case.body)
+        }
         val label = "${case.file}: ${case.body.take(60)}…"
         val expect = case.expect
 
@@ -59,7 +63,14 @@ class ParserFixturesTest(private val case: Fixture) {
         if (payee != null) assertWithMessage("$label payee").that(txn.payee).isEqualTo(payee)
     }
 
-    data class Fixture(val file: String, val sender: String, val expect: String, val body: String) {
+    /** SMS cases sit in parser-fixtures/, UPI app notification cases in parser-fixtures/notifications/. */
+    data class Fixture(
+        val file: String,
+        val sender: String,
+        val expect: String,
+        val body: String,
+        val notification: Boolean = false,
+    ) {
         override fun toString() = "$file / ${body.take(40)}"
     }
 
@@ -68,10 +79,13 @@ class ParserFixturesTest(private val case: Fixture) {
         @Parameterized.Parameters(name = "{0}")
         fun cases(): List<Fixture> {
             val dir = java.io.File(ParserFixturesTest::class.java.getResource("/parser-fixtures")!!.toURI())
-            return dir.listFiles { f -> f.extension == "txt" }!!.sortedBy { it.name }.flatMap(::read)
+            val sms = dir.listFiles { f -> f.extension == "txt" }!!.sortedBy { it.name }.flatMap { read(it, notification = false) }
+            val notifications = java.io.File(dir, "notifications").listFiles { f -> f.extension == "txt" }.orEmpty()
+                .sortedBy { it.name }.flatMap { read(it, notification = true) }
+            return sms + notifications
         }
 
-        private fun read(file: java.io.File): List<Fixture> =
+        private fun read(file: java.io.File, notification: Boolean): List<Fixture> =
             file.readText()
                 .replace("\r\n", "\n")
                 .split(Regex("""^---\s*$""", RegexOption.MULTILINE))
@@ -83,6 +97,7 @@ class ParserFixturesTest(private val case: Fixture) {
                         sender = lines[0].removePrefix("sender:").trim(),
                         expect = lines[1].removePrefix("expect:").trim(),
                         body = lines.drop(2).joinToString("\n").trim(),
+                        notification = notification,
                     )
                 }
     }

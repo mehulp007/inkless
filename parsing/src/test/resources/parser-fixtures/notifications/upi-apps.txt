@@ -1,0 +1,76 @@
+# UPI app notifications, in the shapes these apps are commonly seen to use (title on the first
+# line, body after). Not yet checked against real notifications; replace with real (masked)
+# ones as they come in. "sender:" is the app's package name.
+
+---
+sender: com.google.android.apps.nbu.paisa.user
+expect: DEBIT 45.00 payee=Sharma Canteen
+₹45.00 paid to Sharma Canteen
+Tap to view details
+---
+sender: com.google.android.apps.nbu.paisa.user
+expect: CREDIT 500.00 payee=Rohan Kumar
+Rohan Kumar sent you ₹500
+Tap to view details
+---
+sender: com.google.android.apps.nbu.paisa.user
+expect: CREDIT 1.00 payee=Aniket Patil
+Aniket Patil paid you ₹1
+---
+sender: com.phonepe.app
+expect: CREDIT 500.00 payee=Rohan Kumar
+Received ₹500 from Rohan Kumar
+Money has been credited to your bank account
+---
+sender: com.phonepe.app
+expect: DEBIT 120.00 payee=Zomato
+Payment of ₹120 to Zomato successful
+---
+sender: net.one97.paytm
+expect: DEBIT 30.00 payee=Raju Tea Stall
+Paid ₹30 to Raju Tea Stall
+from Paytm UPI Lite
+---
+sender: net.one97.paytm
+expect: CREDIT 200.00 payee=Priya S
+₹200 received from Priya S
+in your Bank Account
+---
+sender: in.org.npci.upiapp
+expect: DEBIT 75.00 vpa=chaiwala@ybl
+₹75 sent to chaiwala@ybl
+Transaction successful
+---
+
+# Not payments
+---
+sender: com.google.android.apps.nbu.paisa.user
+expect: REJECT PROMO
+You won ₹25 cashback!
+Scratch your card to claim it
+---
+sender: com.phonepe.app
+expect: REJECT PROMO
+Rohan has requested ₹200
+Pay now on PhonePe
+---
+sender: net.one97.paytm
+expect: REJECT PROMO
+Payment of ₹45 to Sharma Canteen failed
+Any money debited will be refunded
+---
+sender: com.phonepe.app
+expect: REJECT PROMO
+Your electricity bill of ₹640 is due on 10 Nov
+Pay now to avoid late fee
+---
+sender: com.google.android.apps.nbu.paisa.user
+expect: REJECT PROMO
+Payment pending
+₹45 to Sharma Canteen is processing
+---
+sender: com.phonepe.app
+expect: REJECT NOT_A_TRANSACTION
+Check your account balance
+Tap to see your balance across banks
+---
