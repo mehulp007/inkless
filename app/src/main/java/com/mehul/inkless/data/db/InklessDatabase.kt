@@ -9,6 +9,7 @@ import com.mehul.inkless.data.db.dao.MerchantDao
 import com.mehul.inkless.data.db.dao.MyAccountDao
 import com.mehul.inkless.data.db.dao.RawCaptureDao
 import com.mehul.inkless.data.db.dao.RuleDao
+import com.mehul.inkless.data.db.dao.SyncDao
 import com.mehul.inkless.data.db.dao.TransactionDao
 import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.db.entity.MerchantEntity
@@ -42,4 +43,5 @@ abstract class InklessDatabase : RoomDatabase() {
     abstract fun rawCaptureDao(): RawCaptureDao
     abstract fun ruleDao(): RuleDao
     abstract fun myAccountDao(): MyAccountDao
+    abstract fun syncDao(): SyncDao
 }
