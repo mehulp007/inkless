@@ -12,6 +12,7 @@ import com.mehul.inkless.data.seed.AccountSeeder
 import com.mehul.inkless.demo.Demo
 import com.mehul.inkless.demo.DemoSeeder
 import com.mehul.inkless.di.ApplicationScope
+import com.mehul.inkless.sync.SyncPrefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -43,6 +44,7 @@ class SessionManager @Inject constructor(
     private val accountSeeder: AccountSeeder,
     private val recategorizer: Recategorizer,
     private val prefs: SessionPrefs,
+    private val syncPrefs: SyncPrefs,
     @param:ApplicationScope private val scope: CoroutineScope,
 ) {
     private val demoMode = MutableStateFlow(prefs.demoMode)
@@ -125,6 +127,7 @@ class SessionManager @Inject constructor(
         val uid = auth.user.value?.uid ?: return
         auth.deleteAccount(reauth)
         prefs.setUsername(uid, null)
+        syncPrefs.forget(uid)
         databases.delete(uid)
         googleIdTokens.clear()
     }

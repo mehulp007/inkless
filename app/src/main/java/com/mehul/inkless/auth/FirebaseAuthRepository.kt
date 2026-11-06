@@ -12,6 +12,7 @@ import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.mehul.inkless.sync.CloudStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +24,7 @@ import javax.inject.Singleton
 class FirebaseAuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val usernames: UsernameService,
+    private val cloud: CloudStore,
 ) : AuthRepository {
 
     private val _user = MutableStateFlow(auth.currentUser?.toAuthUser())
@@ -129,6 +131,8 @@ class FirebaseAuthRepository @Inject constructor(
         // Re-authenticating first means the delete below can't fail with "recent login required"
         // after the cloud data is already gone.
         current.reauthenticate(credential).await()
+        // The backup first: once the profile is gone nothing would point at it.
+        cloud.eraseAll(current.uid)
         usernames.release(current.uid)
         current.delete().await()
         Unit
