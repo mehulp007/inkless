@@ -4,6 +4,8 @@
     <!-- Bank alerts: live ones as they arrive, and past ones from the inbox on first setup. -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_SMS" />
+    <!-- Still installable on tablets without a SIM; capture just never turns on there. -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <application
         android:name=".InklessApp"
