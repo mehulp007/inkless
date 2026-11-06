@@ -17,6 +17,8 @@ It's local-first: your ledger lives in a database on your phone, and the SMS tex
 ## What it does
 
 - **Auto-capture from bank SMS** — payments show up within seconds of paying, from any UPI app. See [below](#auto-capture).
+- **One payment, one entry** — the bank SMS and the GPay/PhonePe/Paytm notification for the same payment are merged. See [UPI app notifications](#upi-app-notifications).
+- **Transfers aren't spending** — money moved between your own accounts shows as 🔁 and stays out of the totals; money from home is tagged as allowance.
 - **Files itself** — known merchants go straight into the right category, and anything new is a one-tap question. See [Smart categories](#smart-categories).
 - **Category tabs** — swipe between *All* and 13 categories (Food & Canteen, Food Delivery, Travel, Recharge & Subscriptions, Laundry & Hostel, Lent to Friends, …), each with its own monthly total and payment list.
 - **Month at a glance** — the total spent this month up top; step back through previous months.
@@ -54,6 +56,30 @@ What it refuses to read matters just as much. A filter runs before any parsing a
 
 Each account turns capture on separately, nothing is captured in demo mode or while signed out, and the parsers live in the pure-Kotlin `:parsing` module with table-driven tests: every sample message in [`parsing/src/test/resources/parser-fixtures/`](parsing/src/test/resources/parser-fixtures/) states what it should be read as.
 
+## UPI app notifications
+
+<p align="center">
+  <img src="docs/screenshots/transfer.png" width="260" alt="A transfer to the user's own account shown with a transfer icon and left out of the month's spending" />
+  <img src="docs/screenshots/capture-health.png" width="260" alt="Capture health screen with SMS and notification access on, and battery and notifications needing attention" />
+</p>
+
+With notification access switched on, Inkless also reads payment notifications from UPI apps (Google Pay, PhonePe, Paytm, BHIM, Amazon Pay, CRED, super.money, Navi). It ignores every other app's notifications without reading them, and drops cashback, offers, requests, reminders and failed or pending payments. Notifications bring:
+
+- **Names people recognise** — "Tapri near Block C" instead of `q829154@ybl`.
+- **UPI Lite payments**, which send no bank SMS at all.
+
+The same payment now usually arrives twice, so a deduplicator decides when two captures are one payment: the same UPI reference settles it; otherwise the same amount and direction within three minutes, from different sources, with payees that don't contradict each other (it allows for banks cutting names short and masking UPI IDs). Two SMS for the same amount are never merged — that's two chais. When they merge, the bank SMS wins on the money (amount, reference, account, balance), the notification wins on the name, and a category you already chose is kept.
+
+**My accounts** (Settings) lists your own UPI IDs and your name as banks print it, plus home's UPI ID:
+
+- Money to or from your own accounts is a **transfer**: shown with 🔁, never counted as spending or income.
+- Money from home is **income tagged as allowance**.
+- Money back from a merchant you paid at least as much in the last 30 days is a **refund** in that payment's category.
+
+Adding or removing an account re-checks the last six months, so old transfers stop counting as spending straight away.
+
+**Capture health** (Settings) shows whether SMS access, notification access, Inkless's own notifications and battery optimisation are set up, with a button straight to the system setting that fixes each one — including the *Allow restricted settings* step Android 13+ needs for apps installed from a file.
+
 ## Smart categories
 
 <p align="center">
@@ -90,7 +116,7 @@ Error messages are deliberately vague about whether an account exists: a wrong p
 ## Privacy
 
 - Your transactions are stored in a Room database on the device, one file per account (`inkless_<id>.db`). Demo data lives in its own file and never mixes with anything else.
-- SMS access is asked for in plain language first, and can be revoked any time from Android settings. Only bank transaction alerts are kept; the original text stays on the phone so it can be re-read if a parser improves, and is never uploaded.
+- SMS access is asked for in plain language first, and can be revoked any time from Android settings. Only bank transaction alerts are kept; the original text stays on the phone so it can be re-read if a parser improves, and is never uploaded. Notification access works the same way: only UPI apps' payment notifications are read, and their text never leaves the phone either.
 - The only network traffic is Firebase: Authentication for sign-in, and Cloud Firestore for your username and profile. No analytics or ads SDKs.
 - Firestore security rules let each account read and write only its own data. A username can be looked up one at a time (that's how logging in with a username finds the email), but usernames can't be listed.
 - Inkless opts out of Android's automatic cloud backup and device-to-device transfer, so your spending data isn't copied anywhere behind your back.
@@ -105,7 +131,7 @@ Error messages are deliberately vague about whether an account exists: a wrong p
 | DI | Hilt |
 | Storage | Room (schema exported to `app/schemas/`, migrations tested against every past schema) |
 | Accounts | Firebase Authentication, Cloud Firestore, Credential Manager (Sign in with Google) |
-| Capture | `BroadcastReceiver` (SMS_RECEIVED), SMS content provider, WorkManager |
+| Capture | `BroadcastReceiver` (SMS_RECEIVED), `NotificationListenerService`, SMS content provider, WorkManager |
 | Notifications | Notification actions handled by a `BroadcastReceiver`, deep link into the payment |
 | Async | Kotlin Coroutines & Flow |
 | Tests | JUnit, Truth, Turbine; Room tests on a device/emulator; Firestore rules tests on the Firebase emulator |
@@ -117,7 +143,7 @@ minSdk 26 · targetSdk 37
 
 ```
 app/        Android app — UI, Room database, accounts, SMS capture, Hilt wiring, demo data
-parsing/    Pure Kotlin module (no Android dependencies): SMS filter, bank parsers, test fixtures
+parsing/    Pure Kotlin module (no Android dependencies): SMS filter, bank and UPI-app parsers, test fixtures
 firebase/   Firestore security rules, their tests, and Firebase setup steps
 docs/       Screenshots
 ```
@@ -127,7 +153,7 @@ Inside `app/src/main/java/com/mehul/inkless/`:
 ```
 auth/         Firebase sign-in, usernames, Google ID tokens, input validation
 session/      Who's using the app (signed out, demo, an account) and which database is open
-capture/      SMS receiver, inbox import worker, and the filter → parse → save pipeline
+capture/      SMS receiver, notification listener, inbox import, the filter → parse → dedupe → save pipeline, transfer/refund classification
 categorize/   Rules → merchant memory → keywords, re-sorting, and the "what was this?" notification
 data/db/      Room entities, DAOs, DatabaseProvider (one database file per account)
 data/repo/    Repositories the UI reads from
@@ -149,7 +175,7 @@ The app needs an `app/google-services.json` from a Firebase project. It isn't co
 # Unit tests (JVM)
 ./gradlew test
 
-# Room, migration, capture and categorising tests (needs a running emulator or connected phone)
+# Room, migration, capture, dedupe and categorising tests (needs a running emulator or connected phone)
 ./gradlew connectedDebugAndroidTest
 
 # Firestore rules tests (needs Node and Java 21+)
