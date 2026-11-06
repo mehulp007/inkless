@@ -19,7 +19,7 @@ object SmsFilter {
 
     // Money actually moved. "will be debited" is a warning, not a transaction.
     private val movedMoney = Regex(
-        """(?<!will be )(?<!will get )\b(?:debited|credited|sent|received|paid|spent|withdrawn|deposited|transferred|deducted|refunded|reversed)\b""",
+        """(?<!will be )(?<!will get )\b(?:debited|credited|sent|received|paid|spent|withdrawn|deposited|transferred|deducted|refunded|reversed|trf to|trf from|has (?:a )?(?:credit|debit)|dr\. from|cr\. to)\b""",
         ignoreCase,
     )
 
@@ -36,7 +36,15 @@ object SmsFilter {
 
     private val moneyCameBack = Regex("""(?<!will be )\b(?:reversed|refunded)\b""", ignoreCase)
 
-    private val request =Regex("""\b(?:has requested|requested money|collect request|requesting rs|request of rs)""", ignoreCase)
+    private val request = Regex("""\b(?:has requested|requested money|collect request|requesting rs|request of rs)""", ignoreCase)
+
+    // Telecom recharges ("credited to your Airtel number") and reminders mention money without it
+    // moving between bank accounts.
+    private val notBankMoney = Regex(
+        """\b(?:credited to your (?:airtel|jio|vi|vodafone|bsnl|mobile)|recharge (?:of|for|is successful)|successfully recharged|""" +
+            """data pack|prepaid pack|talk ?time|validity extended|low balance|minimum balance|is due on|due date)""",
+        ignoreCase,
+    )
 
     private val promo = Regex(
         """\b(?:pre-?approved|personal loan|loan offer|apply now|eligible for|limit (?:increase|enhance)|upgrade your|""" +
@@ -44,6 +52,9 @@ object SmsFilter {
             """complete your kyc|offer valid|t&c apply|insurance cover)""",
         ignoreCase,
     )
+
+    // DLT headers end in -P for promotional traffic; banks never send transaction alerts that way.
+    private val promoHeader = Regex("""-P$""", ignoreCase)
 
     private val accountish = Regex("""\b(?:a/?c|acct|account|card|upi|vpa)\b""", ignoreCase)
 
@@ -54,8 +65,10 @@ object SmsFilter {
         if (otpWithCode.containsMatchIn(body) && !accountMoved.containsMatchIn(body)) return Rejection.OTP
 
         val code = Senders.code(sender) ?: return Rejection.UNKNOWN_SENDER
+        if (promoHeader.containsMatchIn(sender.trim())) return Rejection.PROMO
         val known = code in Senders.knownBanks
 
+        if (notBankMoney.containsMatchIn(body)) return Rejection.NOT_A_TRANSACTION
         // "failed ... reversed to your a/c" is money coming back, which we do want.
         if (failed.containsMatchIn(body) && !moneyCameBack.containsMatchIn(body)) return Rejection.FAILED
         if (!movedMoney.containsMatchIn(body)) {

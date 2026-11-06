@@ -23,8 +23,16 @@ object GenericUpiParser {
         Regex(""";\s*([^;]+?)\s+credited\b""", ignoreCase),
         // Axis and others: "UPI/P2M/512345678901/SHARMA CANTEEN"
         Regex("""\bupi/p2[am]/\d+/([^/\n]+?)(?:/|\s+not you|\s+-|\.\s|$)""", ignoreCase),
-        // "to SHARMA CANTEEN on 05-11-26", "from ROHAN K on ..."
-        Regex("""\b(?:to|from)\s+(?!a/?c\b|your\b|vpa\b|ac\b|account\b|bank\b)([a-z][a-z0-9 .&'-]{1,40}?)\s+(?:on|ref|upi|via|dated)\b""", ignoreCase),
+        // NEFT/IMPS credits: "Ref: NEFT/SBIN1262951…/JAIN."
+        Regex("""\b(?:neft|imps|rtgs)/[a-z0-9]+/([^/.]+)""", ignoreCase),
+        // "paid to X via UPI", "sent to X from …"
+        Regex("""\bpaid\b.*?\bto\s+(.+?)\s+via\b""", ignoreCase),
+        Regex("""\bsent to\s+(.+?)(?:\s+from\b|\s+upi\b|\.\s)""", ignoreCase),
+        // "to SHARMA CANTEEN on 05-11-26", "from ROHAN K on ...", "To Moj 23/10/26"
+        Regex(
+            """\b(?:to|from)\s+(?!a/?c\b|your\b|vpa\b|ac\b|account\b|bank\b)([a-z][a-z0-9 .&'-]{1,40}?)\s+(?:on|ref|upi|via|dated|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b""",
+            ignoreCase,
+        ),
     )
 
     fun parse(body: String, bankCode: String? = null): ParsedTxn? {
