@@ -4,6 +4,7 @@ import com.mehul.inkless.data.db.dao.CategoryTotal
 import com.mehul.inkless.data.db.dao.TransactionListItem
 import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.db.entity.Direction
+import com.mehul.inkless.data.db.entity.TransactionItemEntity
 import com.mehul.inkless.data.db.entity.TransactionType
 import com.mehul.inkless.ui.format.Titles
 import java.time.Instant
@@ -63,6 +64,8 @@ data class TransactionRow(
     val emoji: String,
     val colorArgb: Long,
     val timestamp: Long,
+    /** A broken-down payment shows under its biggest item, with a "+N more" badge for the rest. */
+    val moreItems: Int = 0,
 )
 
 internal object HomeStateBuilder {
@@ -77,9 +80,11 @@ internal object HomeStateBuilder {
         categories: List<CategoryEntity>,
         transactions: List<TransactionListItem>,
         totals: List<CategoryTotal>,
+        items: List<TransactionItemEntity> = emptyList(),
     ): HomeUiState.Ready {
         val categoriesById = categories.associateBy { it.id }
         val totalsById = totals.associateBy { it.categoryId }
+        val itemsByPayment = items.groupBy { it.transactionId }
 
         val rows = transactions.map { txn ->
             val category = txn.categoryId?.let(categoriesById::get)
@@ -100,7 +105,16 @@ internal object HomeStateBuilder {
                 },
                 colorArgb = category?.colorArgb ?: NEUTRAL_COLOR,
                 timestamp = txn.timestamp,
+                moreItems = (txn.itemCount - 1).coerceAtLeast(0),
             )
+        }
+        val rowsByDay = rows.groupBy { dayOf(it, zone) }
+
+        // What a payment spent in one category: its item(s) there if it's broken down, else all or nothing.
+        fun spentIn(row: TransactionRow, categoryId: String): Long {
+            if (row.isCredit || row.isTransfer) return 0
+            val parts = itemsByPayment[row.id] ?: return if (row.categoryId == categoryId) row.amountPaise else 0
+            return parts.filter { it.categoryId == categoryId }.sumOf { it.amountPaise }
         }
 
         val spent = totals.sumOf { it.totalPaise }
@@ -111,7 +125,7 @@ internal object HomeStateBuilder {
             colorArgb = NEUTRAL_COLOR,
             totalPaise = spent,
             count = rows.size,
-            days = groupByDay(rows, zone),
+            days = groupByDay(rows, zone) { _, dayRows -> dayRows.filterNot { it.isCredit || it.isTransfer }.sumOf { it.amountPaise } },
         )
         val categoryTabs = categories.map { category ->
             val categoryRows = rows.filter { it.categoryId == category.id }
@@ -122,7 +136,10 @@ internal object HomeStateBuilder {
                 colorArgb = category.colorArgb,
                 totalPaise = totalsById[category.id]?.totalPaise ?: 0L,
                 count = categoryRows.size,
-                days = groupByDay(categoryRows, zone),
+                // Counts this category's part of every payment that day, listed here or not, like the tab total.
+                days = groupByDay(categoryRows, zone) { date, _ ->
+                    rowsByDay[date].orEmpty().sumOf { spentIn(it, category.id) }
+                },
             )
         }
 
@@ -136,13 +153,13 @@ internal object HomeStateBuilder {
     }
 
     // Rows arrive newest first, and groupBy keeps that order for both days and rows.
-    private fun groupByDay(rows: List<TransactionRow>, zone: ZoneId): List<DayGroup> =
-        rows.groupBy { Instant.ofEpochMilli(it.timestamp).atZone(zone).toLocalDate() }
-            .map { (date, dayRows) ->
-                DayGroup(
-                    date = date,
-                    spentPaise = dayRows.filterNot { it.isCredit || it.isTransfer }.sumOf { it.amountPaise },
-                    rows = dayRows,
-                )
-            }
+    private fun groupByDay(
+        rows: List<TransactionRow>,
+        zone: ZoneId,
+        spent: (LocalDate, List<TransactionRow>) -> Long,
+    ): List<DayGroup> =
+        rows.groupBy { dayOf(it, zone) }
+            .map { (date, dayRows) -> DayGroup(date = date, spentPaise = spent(date, dayRows), rows = dayRows) }
+
+    private fun dayOf(row: TransactionRow, zone: ZoneId): LocalDate = Instant.ofEpochMilli(row.timestamp).atZone(zone).toLocalDate()
 }

@@ -7,6 +7,7 @@ import androidx.navigation.toRoute
 import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.db.entity.MerchantEntity
 import com.mehul.inkless.data.db.entity.TransactionEntity
+import com.mehul.inkless.data.db.entity.TransactionItemEntity
 import com.mehul.inkless.data.repo.LedgerRepository
 import com.mehul.inkless.ui.navigation.TransactionRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,6 +26,7 @@ data class TransactionScreenState(
     val transaction: TransactionEntity? = null,
     val categories: List<CategoryEntity> = emptyList(),
     val merchant: MerchantEntity? = null,
+    val items: List<TransactionItemEntity> = emptyList(),
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -39,12 +41,13 @@ class TransactionViewModel @Inject constructor(
     val state: StateFlow<TransactionScreenState> = repository.transaction(id)
         .flatMapLatest { txn ->
             val merchant = txn?.merchantId?.let(repository::merchant) ?: flowOf(null)
-            combine(repository.categories(), merchant) { categories, m ->
+            combine(repository.categories(), merchant, repository.items(id)) { categories, m, items ->
                 TransactionScreenState(
                     loading = false,
                     transaction = txn?.takeUnless { it.deleted },
                     categories = categories,
                     merchant = m,
+                    items = items,
                 )
             }
         }
@@ -61,6 +64,10 @@ class TransactionViewModel @Inject constructor(
             repository.edit(id, categoryId, note)
             then()
         }
+    }
+
+    fun removeBreakdown() {
+        viewModelScope.launch { repository.removeBreakdown(id) }
     }
 
     fun delete(then: () -> Unit) {

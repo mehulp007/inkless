@@ -82,7 +82,8 @@ class HomeViewModel @Inject constructor(
                 repository.categories(),
                 repository.transactionsBetween(start, end),
                 repository.categoryTotalsBetween(start, end),
-            ) { categories, transactions, totals ->
+                repository.itemsBetween(start, end),
+            ) { categories, transactions, totals, items ->
                 HomeStateBuilder.build(
                     month = month,
                     today = LocalDate.now(clock),
@@ -90,6 +91,7 @@ class HomeViewModel @Inject constructor(
                     categories = categories,
                     transactions = transactions,
                     totals = totals,
+                    items = items,
                 )
             }
         }

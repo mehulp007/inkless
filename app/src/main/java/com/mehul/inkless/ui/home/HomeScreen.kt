@@ -348,7 +348,12 @@ private fun TransactionItem(row: TransactionRow, onClick: () -> Unit) {
 
     ListItem(
         modifier = Modifier.clickable(onClick = onClick),
-        headlineContent = { Text(row.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        headlineContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(row.title, modifier = Modifier.weight(1f, fill = false), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (row.moreItems > 0) MoreItemsBadge(row.moreItems)
+            }
+        },
         supportingContent = {
             Text(
                 text = listOfNotNull(time, row.vpa).joinToString("  ·  "),
@@ -366,6 +371,23 @@ private fun TransactionItem(row: TransactionRow, onClick: () -> Unit) {
             )
         },
     )
+}
+
+/** "+4 more": the rest of a broken-down payment's items, counted in their own categories. */
+@Composable
+private fun MoreItemsBadge(count: Int) {
+    Surface(
+        modifier = Modifier.padding(start = 8.dp),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+    ) {
+        Text(
+            "+$count more",
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+        )
+    }
 }
 
 @Composable

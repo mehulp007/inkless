@@ -20,6 +20,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -56,6 +57,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun TransactionScreen(
     onBack: () -> Unit,
+    onBreakDown: (transactionId: String) -> Unit,
     viewModel: TransactionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -92,6 +94,8 @@ fun TransactionScreen(
                 modifier = Modifier.padding(padding).consumeWindowInsets(padding),
                 onSave = { category, note -> viewModel.save(category, note, then = onBack) },
                 onRename = viewModel::renameMerchant,
+                onBreakDown = { onBreakDown(txn.id) },
+                onRemoveBreakdown = viewModel::removeBreakdown,
             )
         }
     }
@@ -118,6 +122,8 @@ private fun Details(
     modifier: Modifier,
     onSave: (categoryId: String?, note: String) -> Unit,
     onRename: (String) -> Unit,
+    onBreakDown: () -> Unit,
+    onRemoveBreakdown: () -> Unit,
 ) {
     var renaming by rememberSaveable { mutableStateOf(false) }
     // Keyed by id so the fields reset if the screen is reused for another entry.
@@ -127,6 +133,9 @@ private fun Details(
         (txn.status == TransactionStatus.NEEDS_REVIEW && categoryId != null)
     val isCredit = txn.direction == Direction.CREDIT
     val takesCategory = txn.type == TransactionType.EXPENSE || txn.type == TransactionType.REFUND
+    // Only spending can be split into what it was for; refunds and money in stay whole.
+    val canBreakDown = txn.type == TransactionType.EXPENSE && !isCredit
+    val brokenDown = state.items.isNotEmpty()
 
     Column(
         modifier = modifier
@@ -162,7 +171,9 @@ private fun Details(
             )
         }
 
-        if (takesCategory) {
+        if (brokenDown) {
+            BreakdownList(state, onEdit = onBreakDown, onRemove = onRemoveBreakdown)
+        } else if (takesCategory) {
             if (txn.status == TransactionStatus.NEEDS_REVIEW) {
                 Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = MaterialTheme.shapes.small) {
                     Text(
@@ -175,6 +186,11 @@ private fun Details(
             }
             Text("Category", style = MaterialTheme.typography.titleSmall)
             CategoryPicker(categories = state.categories, selectedId = categoryId, onSelect = { categoryId = it })
+            if (canBreakDown) {
+                OutlinedButton(onClick = onBreakDown, modifier = Modifier.fillMaxWidth()) {
+                    Text("Several things? Break it down")
+                }
+            }
         }
 
         OutlinedTextField(
@@ -200,6 +216,30 @@ private fun Details(
             onRename = { onRename(it); renaming = false },
             onDismiss = { renaming = false },
         )
+    }
+}
+
+@Composable
+private fun BreakdownList(state: TransactionScreenState, onEdit: () -> Unit, onRemove: () -> Unit) {
+    val categories = state.categories.associateBy { it.id }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Broken down into ${state.items.size} items", style = MaterialTheme.typography.titleSmall)
+        state.items.forEach { item ->
+            val category = categories[item.categoryId]
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("${category?.emoji.orEmpty()}  ${category?.name ?: "Other"}", style = MaterialTheme.typography.bodyLarge)
+                    item.note?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Text(Money.format(item.amountPaise), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onEdit) { Text("Edit items") }
+            TextButton(onClick = onRemove) { Text("Back to one category") }
+        }
     }
 }
 

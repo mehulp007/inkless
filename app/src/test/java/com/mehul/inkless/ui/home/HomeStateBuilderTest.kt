@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import com.mehul.inkless.data.db.dao.CategoryTotal
 import com.mehul.inkless.data.db.dao.TransactionListItem
 import com.mehul.inkless.data.db.entity.Direction
+import com.mehul.inkless.data.db.entity.TransactionItemEntity
 import com.mehul.inkless.data.db.entity.TransactionStatus
 import com.mehul.inkless.data.db.entity.TransactionType
 import com.mehul.inkless.data.seed.CategoryIds
@@ -121,5 +122,33 @@ class HomeStateBuilderTest {
 
         assertThat(built.tabs.first().days.flatMap { it.rows }.map { it.title })
             .containsExactly("Refund", "Money in").inOrder()
+    }
+
+    @Test
+    fun `a broken-down payment is listed once, under its biggest item, and each tab counts its own part`() {
+        val order = txn("amz", 500_000, at(6, 12), CategoryIds.SHOPPING, merchantName = "Amazon").copy(itemCount = 3)
+        val items = listOf(
+            TransactionItemEntity("i1", "amz", 300_000, CategoryIds.SHOPPING, "shoes", 0, "u1"),
+            TransactionItemEntity("i2", "amz", 150_000, CategoryIds.COLLEGE, "calculator", 1, "u1"),
+            TransactionItemEntity("i3", "amz", 50_000, CategoryIds.HEALTH, null, 2, "u1"),
+        )
+        val built = HomeStateBuilder.build(
+            YearMonth.of(2026, 11), today, zone, categories, listOf(order),
+            listOf(
+                CategoryTotal(CategoryIds.SHOPPING, 300_000, 1),
+                CategoryTotal(CategoryIds.COLLEGE, 150_000, 1),
+                CategoryTotal(CategoryIds.HEALTH, 50_000, 1),
+            ),
+            items,
+        )
+        val tab = { id: String -> built.tabs.first { it.key == id } }
+
+        val row = tab(CategoryIds.SHOPPING).days.single().rows.single()
+        assertThat(row.moreItems).isEqualTo(2)
+        assertThat(tab(CategoryIds.SHOPPING).days.single().spentPaise).isEqualTo(300_000)
+        assertThat(tab(CategoryIds.COLLEGE).days).isEmpty()
+        assertThat(tab(CategoryIds.COLLEGE).totalPaise).isEqualTo(150_000)
+        assertThat(built.tabs.first().days.single().spentPaise).isEqualTo(500_000)
+        assertThat(built.spentPaise).isEqualTo(500_000)
     }
 }

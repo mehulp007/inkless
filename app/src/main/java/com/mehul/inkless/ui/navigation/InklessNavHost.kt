@@ -6,6 +6,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navDeepLink
 import com.mehul.inkless.ui.accounts.MyAccountsScreen
+import com.mehul.inkless.ui.breakdown.BreakdownScreen
 import com.mehul.inkless.ui.capture.SmsSetupScreen
 import com.mehul.inkless.ui.capture.UnreadScreen
 import com.mehul.inkless.ui.health.CaptureHealthScreen
@@ -24,6 +25,10 @@ object SettingsRoute
 
 @Serializable
 data class TransactionRoute(val id: String)
+
+/** [draft] is a breakdown read from a shared order, waiting in ShareDrafts. */
+@Serializable
+data class BreakdownRoute(val transactionId: String, val draft: String? = null)
 
 @Serializable
 object SmsSetupRoute
@@ -86,7 +91,14 @@ fun InklessNavHost() {
         }
         // The "what was this?" notification opens a payment through inkless://transaction/<id>.
         composable<TransactionRoute>(deepLinks = listOf(navDeepLink<TransactionRoute>(basePath = "inkless://transaction"))) {
-            TransactionScreen(onBack = { navController.popBackStack() })
+            TransactionScreen(
+                onBack = { navController.popBackStack() },
+                onBreakDown = { navController.navigate(BreakdownRoute(it)) },
+            )
+        }
+        // From the payment, the "break it down?" notifications (inkless://breakdown/<id>) and Share to Inkless.
+        composable<BreakdownRoute>(deepLinks = listOf(navDeepLink<BreakdownRoute>(basePath = "inkless://breakdown"))) {
+            BreakdownScreen(onDone = { navController.popBackStack() })
         }
         composable<SmsSetupRoute> {
             SmsSetupScreen(onDone = { navController.popBackStack() })

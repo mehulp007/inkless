@@ -1,6 +1,8 @@
 package com.mehul.inkless.data.repo
 
 import androidx.room.withTransaction
+import com.mehul.inkless.breakdown.Breakdown
+import com.mehul.inkless.breakdown.DraftItem
 import com.mehul.inkless.capture.AccountReclassifier
 import com.mehul.inkless.categorize.MerchantMemory
 import com.mehul.inkless.categorize.Recategorizer
@@ -21,6 +23,7 @@ import com.mehul.inkless.data.db.entity.RawCaptureEntity
 import com.mehul.inkless.data.db.entity.RuleEntity
 import com.mehul.inkless.data.db.entity.SyncState
 import com.mehul.inkless.data.db.entity.TransactionEntity
+import com.mehul.inkless.data.db.entity.TransactionItemEntity
 import com.mehul.inkless.data.db.entity.TransactionStatus
 import com.mehul.inkless.data.db.entity.TransactionType
 import com.mehul.inkless.data.seed.CategoryIds
@@ -59,6 +62,61 @@ class LedgerRepository @Inject constructor(
     fun transaction(id: String): Flow<TransactionEntity?> =
         fromCurrentDb { it.transactionDao().observe(id) }
 
+    fun items(transactionId: String): Flow<List<TransactionItemEntity>> =
+        fromCurrentDb { it.transactionItemDao().observe(transactionId) }
+
+    fun itemsBetween(startMillis: Long, endMillis: Long): Flow<List<TransactionItemEntity>> =
+        fromCurrentDb { it.transactionItemDao().observeBetween(startMillis, endMillis) }
+
+    /**
+     * Saves a payment's breakdown, replacing any earlier one. The payment itself is filed under its
+     * biggest item, which is the tab it shows in on Home. Merchant memory isn't touched: one shop
+     * selling many kinds of things says nothing about the next payment there.
+     */
+    suspend fun saveBreakdown(transactionId: String, items: List<DraftItem>) {
+        val db = db()
+        val dao = db.transactionDao()
+        val current = dao.get(transactionId) ?: return
+        require(Breakdown.isValid(current.amountPaise, items.map { it.amountPaise })) { "Items don't add up to the payment" }
+        val primary = checkNotNull(Breakdown.primary(items) { it.amountPaise })
+        val now = clock.millis()
+        db.withTransaction {
+            db.transactionItemDao().replace(
+                transactionId,
+                items.mapIndexed { index, item ->
+                    TransactionItemEntity(
+                        id = UUID.randomUUID().toString(),
+                        transactionId = transactionId,
+                        amountPaise = item.amountPaise,
+                        categoryId = checkNotNull(item.categoryId),
+                        note = item.note?.trim()?.ifEmpty { null },
+                        sortOrder = index,
+                        ownerUid = current.ownerUid,
+                    )
+                },
+            )
+            dao.update(
+                current.copy(
+                    categoryId = primary.categoryId,
+                    status = TransactionStatus.CONFIRMED,
+                    confidence = 1f,
+                    updatedAt = now,
+                    syncState = SyncState.DIRTY,
+                ),
+            )
+        }
+    }
+
+    /** Back to one category for the whole payment: the one its biggest item had. */
+    suspend fun removeBreakdown(transactionId: String) {
+        val db = db()
+        val current = db.transactionDao().get(transactionId) ?: return
+        db.withTransaction {
+            db.transactionItemDao().replace(transactionId, emptyList())
+            db.transactionDao().update(current.copy(updatedAt = clock.millis(), syncState = SyncState.DIRTY))
+        }
+    }
+
     /**
      * Saves the user's edits. A category they picked themselves is no longer "needs review", and
      * the merchant remembers it, so its other waiting payments are filed too.
@@ -79,7 +137,9 @@ class LedgerRepository @Inject constructor(
                     syncState = SyncState.DIRTY,
                 ),
             )
-            if (categoryId != null && categoryId != CategoryIds.OTHER && current.type != TransactionType.INCOME) {
+            // A broken-down payment says nothing about what this merchant usually is.
+            val brokenDown = db.transactionItemDao().get(id).isNotEmpty()
+            if (categoryId != null && categoryId != CategoryIds.OTHER && current.type != TransactionType.INCOME && !brokenDown) {
                 rememberFor(db, current, categoryId, now)
             }
         }
@@ -106,6 +166,10 @@ class LedgerRepository @Inject constructor(
             ?: return
         MerchantMemory.learn(db, merchantId, categoryId, now)
     }
+
+    /** Spending in the last [days] days, newest first. */
+    suspend fun recentSpending(days: Long, limit: Int): List<TransactionEntity> =
+        db().transactionDao().recentSpending(clock.millis() - java.time.Duration.ofDays(days).toMillis(), limit)
 
     fun merchant(id: String): Flow<MerchantEntity?> = fromCurrentDb { it.merchantDao().observe(id) }
 
