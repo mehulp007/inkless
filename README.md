@@ -19,10 +19,12 @@ It's local-first: your ledger lives in a database on your phone, and the SMS tex
 - **Auto-capture from bank SMS** — payments show up within seconds of paying, from any UPI app. See [below](#auto-capture).
 - **One payment, one entry** — the bank SMS and the GPay/PhonePe/Paytm notification for the same payment are merged. See [UPI app notifications](#upi-app-notifications).
 - **Transfers aren't spending** — money moved between your own accounts shows as 🔁 and stays out of the totals; money from home is tagged as allowance.
-- **Files itself** — known merchants go straight into the right category, and anything new is a one-tap question. See [Smart categories](#smart-categories).
+- **Files itself, and learns** — known merchants go straight into the right category, a small model trained on your own sorting guesses the rest, and anything it isn't sure about is a one-tap question. See [Smart categories](#smart-categories).
 - **Safe to spend today** — set your monthly allowance and the day it arrives; Home says what you can spend today and when the money runs out at this pace. See [Budget](#budget).
 - **Break down a payment** — one ₹5,000 Amazon order of five things becomes five items in five categories, typed in or read from a screenshot of the order. See [Break down](#break-down).
 - **Split with friends** — split a payment equally, by amounts or by percentages; only your part counts as your spending, and Inkless keeps track of who owes whom. See [Split with friends](#split-with-friends).
+- **Insights** — spending alerts, payments that come round every week or month, your month wrapped up as a picture to share, and how well the guessing is going. See [Insights](#insights).
+- **Ask Inkless** — *"How much on food this month?"*, *"Biggest payment in October"*, *"kitna kharcha kal?"*, answered from the phone's own data. See [Insights](#insights).
 - **Cloud backup** — everything is backed up to your account as you go; log in on a new phone and it all comes back. See [Cloud backup](#cloud-backup).
 - **Category tabs** — swipe between *All* and 13 categories (Food & Canteen, Food Delivery, Travel, Recharge & Subscriptions, Laundry & Hostel, Lent to Friends, …), each with its own monthly total and payment list.
 - **Month at a glance** — the total spent this month up top; step back through previous months.
@@ -97,10 +99,11 @@ Every captured payment goes through a small categoriser, most specific knowledge
 
 1. **Your rules** — Settings → Categorising rules, e.g. *UPI ID contains `canteen` → Food & Canteen*. They match the UPI ID, the payee name or either, by *contains*, *is exactly* or a regex, and run in the order you put them.
 2. **Merchant memory** — once you've said what a merchant is, every later payment to it is filed the same way. This is what handles opaque QR handles like `q829154@ybl` and SMS that only carry a name ("trf to RAMU BHAIYA"), which no keyword can guess.
-3. **Built-in keywords** — Swiggy/Zomato → Food Delivery, Blinkit/Zepto/Instamart → Groceries, Uber/Rapido/IRCTC → Travel, Jio/Airtel/Netflix → Recharge & Subscriptions, and so on. Short keywords must be a whole word, so "ola" files *Ola* but not *Kolapur Stores*.
-4. **Otherwise it asks.** A notification — *"₹30 to RAMU BHAIYA — what was this?"* — carries your three most-used categories as buttons; tapping one files the payment and teaches the merchant without opening the app. Anything still unsorted waits on the home screen under *N payments to sort*, where one tap per merchant clears it.
+3. **The learned model** — a Naive Bayes classifier trained on the phone from every payment you've sorted. It looks at the payee's words (and pieces of words, so "Night Canteen" helps with "Block D Canteen"), the merchant itself, the amount, the time of day and the day of the week, so ₹20 at 5 pm at an unknown QR code reads as chai. It files a payment on its own only when it's at least 80% sure and has learned from enough payments, and never learns from its own guesses until you confirm them.
+4. **Built-in keywords** — Swiggy/Zomato → Food Delivery, Blinkit/Zepto/Instamart → Groceries, Uber/Rapido/IRCTC → Travel, Jio/Airtel/Netflix → Recharge & Subscriptions, and so on. Short keywords must be a whole word, so "ola" files *Ola* but not *Kolapur Stores*.
+5. **Otherwise it asks.** A notification — *"₹30 to RAMU BHAIYA — what was this?"* — carries the model's best guesses (then your most-used categories) as buttons, and the payment's page opens with its best guess already picked; tapping one files the payment and teaches the merchant without opening the app. Anything still unsorted waits on the home screen under *N payments to sort*, where one tap per merchant clears it.
 
-Teaching a merchant also files its other waiting payments, and payments captured before a rule or a merchant was known get re-sorted the next time the app opens. Anything you've categorised yourself is never changed.
+Every correction retrains the model a moment later, so the next guess already knows. Teaching a merchant also files its other waiting payments, and payments captured before a rule or a merchant was known get re-sorted the next time the app opens. Anything you've categorised yourself is never changed.
 
 ## Budget
 
@@ -122,6 +125,22 @@ Set the monthly allowance and the day it usually arrives (Settings → *Allowanc
 - **Weekly summary** — Sunday at 7 pm: the week's spending, the top three categories, and what's left until the allowance. It can be switched off on the budget page.
 
 Every spend number (category totals, budgets, safe to spend, the widget, the summary) comes from one database view, `spend_parts`, which already splits broken-down payments into their items, counts only your part of a payment split with friends, and counts refunds against their category. Nothing adds up payments on its own, so the numbers always agree.
+
+## Insights
+
+<p align="center">
+  <img src="docs/screenshots/insights.png" width="260" alt="Insights with recurring payments and a weekly chart of how often Inkless guessed right" />
+  <img src="docs/screenshots/ask.png" width="260" alt="Ask Inkless answering how much went on food this month and how much Rohan owes" />
+  <img src="docs/screenshots/wrapped.png" width="260" alt="October wrapped: total spent, top category, top place, most visits and biggest payment" />
+</p>
+
+The chart icon on Home opens *Insights*:
+
+- **How well Inkless guesses** — every payment that arrives gets the model's guess before anyone sorts it. The chart shows, week by week, how often that guess matched the category the payment ended up in, next to how many payments Inkless filed by itself and you then changed. It's the number that should climb as you correct it. Replaying the demo's 215 payments in order (guess first, then learn the real category), the model is right 60% of the time over the first quarter and 96% over the last; the replay runs as a unit test, so the numbers stay honest.
+- **Spending alerts** — *"🍜 Food Delivery: ₹1,240 this week. About 2.3× a usual week (₹540)."* "Usual" is the median of the last eight weeks (or 28 days), and "unusual" is measured with the median absolute deviation, so one big month can't skew it. It also has to be clearly more in rupees, and only categories you spend on most weeks (or most days) count, so a monthly recharge turning up on schedule isn't news. At most one notification a day, on its own quiet channel.
+- **Coming up** — payments that come round every week, month or year (laundry on Mondays, the phone recharge on the 3rd), with roughly how much and when the next one is due. Something missed twice in a row drops off the list.
+- **Wrapped** — any month in a few numbers: total and change on the month before, where most of it went, the top place, the most visited, the biggest payment, how many ₹30-or-less payments, the no-spend days. *Share as a picture* draws it as an image and opens the share sheet.
+- **Ask Inkless** — questions in plain words, in English or a bit of Hinglish: totals, counts, the biggest payment, a daily average, top categories or places, for today, yesterday, a week, a month by name or the last N days, and what a friend owes. It's a small rule-based parser that turns the question into a query on the phone's own database: instant, offline, and it never makes a number up.
 
 ## Break down
 
@@ -197,6 +216,7 @@ The phone's own database is always the real copy; the app reads nothing else, so
 - Your transactions are stored in a Room database on the device, one file per account (`inkless_<id>.db`). Demo data lives in its own file and never mixes with anything else.
 - SMS access is asked for in plain language first, and can be revoked any time from Android settings. Only bank transaction alerts are kept; the original text stays on the phone so it can be re-read if a parser improves, and is never uploaded. Notification access works the same way: only UPI apps' payment notifications are read, and their text never leaves the phone either.
 - The only network traffic is Firebase: Authentication for sign-in, and Cloud Firestore for your username, profile, splits you share with friends and (unless you switch it off) the cloud backup. No analytics or ads SDKs. Firestore's own offline cache is kept in memory only, so there's no second copy of your data on disk.
+- The category model is trained and stored on the phone, from your own payments, and isn't backed up: a new phone retrains it from the restored payments. Ask Inkless, the alerts, recurring payments and Wrapped are all worked out on the phone too. The Wrapped picture is only saved in the app's cache, and only leaves the phone if you share it.
 - A shared order screenshot is read on the phone with Tesseract (whose English model, `tessdata_fast`, is Apache-2.0 and ships in the app), with no network at all; neither the image nor its text is kept. Only the breakdown you save is stored and backed up.
 - Firestore security rules let each account read and write only its own data, and only the fields listed above: a document carrying anything else, such as message text or a full account number, is refused. A username can be looked up one at a time (that's how logging in with a username finds the email), but usernames can't be listed. A shared split can only be read by the people in it.
 - The backup is encrypted in transit and at rest by Google, and other users can't read it, but whoever runs the Firebase project can see it in the Firebase console. If that's not OK for you, switch backup off.
@@ -216,7 +236,8 @@ The phone's own database is always the real copy; the app reads nothing else, so
 | Capture | `BroadcastReceiver` (SMS_RECEIVED), `NotificationListenerService`, SMS content provider, WorkManager |
 | Sharing | Android share target and share sheet (`ACTION_SEND`), Tesseract OCR (Tesseract4Android) on the device, `upi://pay` links |
 | Budget | Pure-Kotlin calculators, charts drawn with Compose `Canvas`, Jetpack Glance home-screen widget, weekly WorkManager job |
-| Notifications | Notification actions handled by a `BroadcastReceiver`, deep link into the payment |
+| Notifications | Notification actions handled by a `BroadcastReceiver`, deep links into the payment and Insights |
+| On-device ML | Multinomial Naive Bayes in plain Kotlin (no ML library), retrained on every correction; robust statistics for alerts; a rule-based question parser |
 | Async | Kotlin Coroutines & Flow |
 | Tests | JUnit, Truth, Turbine; Room tests on a device/emulator; Firestore rules tests on the Firebase emulator |
 | Build | Gradle 9 (Kotlin DSL + version catalog), AGP 9, KSP |
@@ -240,6 +261,9 @@ session/      Who's using the app (signed out, demo, an account) and which datab
 capture/      SMS receiver, notification listener, inbox import, the filter → parse → dedupe → save pipeline, transfer/refund classification
 categorize/   Rules → merchant memory → keywords, re-sorting, and the "what was this?" notification
 budget/       Allowance cycle, safe to spend, runway, food cap, semesters, the weekly summary
+ml/           The category model: features, Naive Bayes, training, the replay evaluation
+insights/     Spending alerts, recurring payments, Wrapped, the accuracy report
+ask/          Ask Inkless: the question parser and the queries behind the answers
 widget/       The home-screen widget
 breakdown/    Breaking a payment into items: the rules, and which notification a new payment gets
 share/        Share to Inkless: reading a shared order (OCR for screenshots) and matching it to a payment
