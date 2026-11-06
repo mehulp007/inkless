@@ -42,6 +42,24 @@
             </intent-filter>
         </activity>
 
+        <!-- Share to Inkless: an order's text or screenshot, to break a payment down into items. -->
+        <activity
+            android:name=".share.ShareActivity"
+            android:exported="true"
+            android:label="@string/share_label"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
+
         <!-- UPI app payment notifications; the user switches this on under notification access. -->
         <service
             android:name=".capture.notification.UpiNotificationListener"
