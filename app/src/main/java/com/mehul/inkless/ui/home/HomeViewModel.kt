@@ -9,6 +9,7 @@ import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.repo.LedgerRepository
 import com.mehul.inkless.session.Session
 import com.mehul.inkless.session.SessionManager
+import com.mehul.inkless.sync.CloudBackup
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -32,19 +34,25 @@ class HomeViewModel @Inject constructor(
     private val sessions: SessionManager,
     private val auth: AuthRepository,
     private val smsCapture: SmsCapture,
+    cloudBackup: CloudBackup,
     private val clock: Clock,
 ) : ViewModel() {
 
     private val verificationSent = MutableStateFlow(false)
 
+    private val restoring = sessions.session.flatMapLatest { session ->
+        if (session is Session.SignedIn) cloudBackup.status(session.user.uid).map { it.restoring } else flowOf(false)
+    }
+
     val account: StateFlow<HomeAccount> =
-        combine(sessions.session, verificationSent, smsCapture.settingsChanged) { session, sent, _ ->
+        combine(sessions.session, verificationSent, smsCapture.settingsChanged, restoring) { session, sent, _, restoring ->
             when (session) {
                 Session.Demo -> HomeAccount(isDemo = true)
                 is Session.SignedIn -> HomeAccount(
                     unverifiedEmail = session.user.email.takeUnless { session.user.emailVerified },
                     verificationSent = sent,
                     offerSmsSetup = !smsCapture.isEnabled(session.user.uid) && !smsCapture.setupSeen(session.user.uid),
+                    restoring = restoring,
                 )
                 else -> HomeAccount()
             }

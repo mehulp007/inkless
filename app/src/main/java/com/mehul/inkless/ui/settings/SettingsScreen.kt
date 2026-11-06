@@ -3,6 +3,7 @@ package com.mehul.inkless.ui.settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -16,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -40,8 +42,9 @@ import com.mehul.inkless.ui.auth.ErrorMessage
 import com.mehul.inkless.ui.auth.FormStatus
 import com.mehul.inkless.ui.auth.GoogleButton
 import com.mehul.inkless.ui.auth.PasswordField
+import java.time.ZoneId
 
-private enum class SettingsDialog { CHANGE_PASSWORD, DELETE_ACCOUNT, LOG_OUT }
+private enum class SettingsDialog { CHANGE_PASSWORD, DELETE_ACCOUNT, LOG_OUT, TURN_OFF_BACKUP }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,6 +67,7 @@ fun SettingsScreen(
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val dialogStatus by viewModel.dialogStatus.collectAsStateWithLifecycle()
+    val backup by viewModel.backup.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     var dialog by rememberSaveable { mutableStateOf<SettingsDialog?>(null) }
     val version = remember {
@@ -144,6 +148,26 @@ fun SettingsScreen(
                     }
                     ActionItem("Log out", enabled = !busy) { dialog = SettingsDialog.LOG_OUT }
 
+                    SectionTitle("Cloud backup")
+                    val now = remember(backup) { System.currentTimeMillis() }
+                    ListItem(
+                        modifier = Modifier.clickable(enabled = !busy) {
+                            if (backup.on) dialog = SettingsDialog.TURN_OFF_BACKUP else viewModel.turnOnBackup()
+                        },
+                        headlineContent = { Text("Back up to the cloud") },
+                        supportingContent = { Text(BackupText.describe(backup, now, ZoneId.systemDefault())) },
+                        trailingContent = { Switch(checked = backup.on, onCheckedChange = null, enabled = !busy) },
+                    )
+                    if (backup.on) {
+                        ActionItem(
+                            "Back up now",
+                            supporting = "Payments, categories, merchants, rules and your accounts. " +
+                                "Never the text of your SMS, and only the last 4 digits of account numbers.",
+                            enabled = !busy && !backup.running,
+                            onClick = viewModel::backUpNow,
+                        )
+                    }
+
                     SectionTitle("Auto-capture")
                     ActionItem(
                         "Bank SMS",
@@ -172,7 +196,7 @@ fun SettingsScreen(
                     )
                     ActionItem(
                         "Delete account",
-                        supporting = "Removes your account and everything on this phone",
+                        supporting = "Removes your account, its cloud backup and everything on this phone",
                         destructive = true,
                         enabled = !busy,
                     ) { dialog = SettingsDialog.DELETE_ACCOUNT }
@@ -189,11 +213,54 @@ fun SettingsScreen(
 
     val account = mode as? SettingsMode.Account
     when (dialog) {
-        SettingsDialog.LOG_OUT -> AlertDialog(
+        SettingsDialog.LOG_OUT -> {
+            val unsent = BackupText.changes(backup.pending)?.takeIf { backup.on }
+            if (unsent == null) {
+                AlertDialog(
+                    onDismissRequest = closeDialog,
+                    title = { Text("Log out?") },
+                    text = { Text("Your data stays on this phone and comes back when you log in again.") },
+                    confirmButton = { TextButton(onClick = { closeDialog(); viewModel.logOut() }) { Text("Log out") } },
+                    dismissButton = { TextButton(onClick = closeDialog) { Text("Cancel") } },
+                )
+            } else {
+                AlertDialog(
+                    onDismissRequest = closeDialog,
+                    title = { Text("Back up before logging out?") },
+                    text = {
+                        Text(
+                            "$unsent on this phone ${if (backup.pending == 1) "isn't" else "aren't"} backed up yet. " +
+                                "${if (backup.pending == 1) "It stays" else "They stay"} here, but won't reach your " +
+                                "other phones until you log in here again.",
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { closeDialog(); viewModel.backUpAndLogOut() }) { Text("Back up and log out") }
+                    },
+                    dismissButton = {
+                        Row {
+                            TextButton(onClick = { closeDialog(); viewModel.logOut() }) { Text("Log out anyway") }
+                            TextButton(onClick = closeDialog) { Text("Cancel") }
+                        }
+                    },
+                )
+            }
+        }
+        SettingsDialog.TURN_OFF_BACKUP -> AlertDialog(
             onDismissRequest = closeDialog,
-            title = { Text("Log out?") },
-            text = { Text("Your data stays on this phone and comes back when you log in again.") },
-            confirmButton = { TextButton(onClick = { closeDialog(); viewModel.logOut() }) { Text("Log out") } },
+            title = { Text("Turn off cloud backup?") },
+            text = {
+                Text(
+                    "Backup stops on every phone you use Inkless on, and your payments, categories, merchants, " +
+                        "rules and accounts are deleted from the cloud. Everything stays on this phone, but a new " +
+                        "phone won't get it back.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { closeDialog(); viewModel.turnOffBackup() }) {
+                    Text("Turn off and delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
             dismissButton = { TextButton(onClick = closeDialog) { Text("Cancel") } },
         )
         SettingsDialog.CHANGE_PASSWORD -> ChangePasswordDialog(
@@ -293,8 +360,8 @@ private fun DeleteAccountDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "This deletes your account, frees your username and wipes your Inkless data from this " +
-                        "phone. It can't be undone.",
+                    "This deletes your account and its cloud backup, frees your username and wipes your " +
+                        "Inkless data from this phone. It can't be undone.",
                 )
                 if (usesPassword) {
                     PasswordField(password, { password = it }, enabled = !status.busy, label = "Confirm with your password")

@@ -19,6 +19,8 @@ data class HomeAccount(
     val verificationSent: Boolean = false,
     /** Signed in, SMS capture not set up, and the user hasn't said "not now" yet. */
     val offerSmsSetup: Boolean = false,
+    /** First login on this phone: the backup is still coming down. */
+    val restoring: Boolean = false,
 )
 
 sealed interface HomeUiState {

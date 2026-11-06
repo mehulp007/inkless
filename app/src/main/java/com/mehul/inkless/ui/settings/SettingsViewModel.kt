@@ -3,6 +3,7 @@ package com.mehul.inkless.ui.settings
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.mehul.inkless.auth.AuthException
 import com.mehul.inkless.auth.AuthFailure
 import com.mehul.inkless.auth.AuthRepository
@@ -11,13 +12,20 @@ import com.mehul.inkless.capture.sms.SmsCapture
 import com.mehul.inkless.data.repo.LedgerRepository
 import com.mehul.inkless.session.Session
 import com.mehul.inkless.session.SessionManager
+import com.mehul.inkless.sync.BackupStatus
+import com.mehul.inkless.sync.CloudBackup
+import com.mehul.inkless.sync.OfflineException
+import com.mehul.inkless.sync.SyncOutcome
 import com.mehul.inkless.ui.auth.FormRunner
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -37,13 +45,21 @@ sealed interface SettingsMode {
 
 data class CaptureSettings(val smsOn: Boolean = false, val unreadCount: Int = 0)
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val sessions: SessionManager,
     private val auth: AuthRepository,
     private val smsCapture: SmsCapture,
+    private val cloudBackup: CloudBackup,
     repository: LedgerRepository,
 ) : ViewModel() {
+
+    val backup: StateFlow<BackupStatus> = sessions.session
+        .flatMapLatest { session ->
+            if (session is Session.SignedIn) cloudBackup.status(session.user.uid) else flowOf(BackupStatus())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BackupStatus())
 
     private val permissionCheck = MutableStateFlow(0)
 
@@ -105,6 +121,56 @@ class SettingsViewModel @Inject constructor(
     fun dialogClosed() = dialogRunner.reset()
 
     fun logOut() = sessions.logOut()
+
+    fun backUpNow() = backupAction { uid ->
+        when (cloudBackup.syncNow(uid)) {
+            SyncOutcome.DONE -> "Backed up"
+            SyncOutcome.OFFLINE -> "No internet. It'll back up once you're online"
+            SyncOutcome.FAILED -> "Couldn't back up. Try again in a bit"
+            SyncOutcome.BACKUP_OFF -> "Cloud backup is off"
+        }
+    }
+
+    /** For log out with changes the cloud hasn't got: only logs out once they're up. */
+    fun backUpAndLogOut() = backupAction { uid ->
+        if (cloudBackup.syncNow(uid) == SyncOutcome.DONE) {
+            sessions.logOut()
+            null
+        } else {
+            "Couldn't back up, so you're still logged in. Try again online, or log out anyway"
+        }
+    }
+
+    fun turnOffBackup() = backupAction { uid ->
+        if (cloudBackup.turnOff(uid)) {
+            "Backup off. The cloud copy is deleted"
+        } else {
+            "Backup off. The rest of the cloud copy goes next time you're online"
+        }
+    }
+
+    fun turnOnBackup() = backupAction { uid ->
+        when (cloudBackup.turnOn(uid)) {
+            SyncOutcome.DONE -> "Backup on. Everything is backed up"
+            else -> "Backup on. It'll upload once you're online"
+        }
+    }
+
+    private fun backupAction(block: suspend (uid: String) -> String?) {
+        val uid = (sessions.session.value as? Session.SignedIn)?.user?.uid ?: return
+        if (_busy.value) return
+        _busy.value = true
+        viewModelScope.launch {
+            _message.value = try {
+                block(uid)
+            } catch (e: OfflineException) {
+                "No internet. Nothing changed"
+            } catch (e: FirebaseFirestoreException) {
+                "Couldn't reach the cloud. Nothing changed"
+            }
+            _busy.value = false
+        }
+    }
 
     fun exitDemo() = sessions.exitDemo()
 
