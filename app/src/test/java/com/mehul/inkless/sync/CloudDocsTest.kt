@@ -13,6 +13,7 @@ import com.mehul.inkless.data.db.entity.MyAccountEntity
 import com.mehul.inkless.data.db.entity.RuleEntity
 import com.mehul.inkless.data.db.entity.SyncState
 import com.mehul.inkless.data.db.entity.TransactionEntity
+import com.mehul.inkless.data.db.entity.TransactionItemEntity
 import com.mehul.inkless.data.db.entity.TransactionStatus
 import com.mehul.inkless.data.db.entity.TransactionType
 import org.junit.Test
@@ -83,6 +84,16 @@ class CloudDocsTest {
         val noAmount = TransactionDoc(transaction).toMap() - "amountPaise"
         assertThat(TransactionDoc.fromMap("t1", unknownType, "u1")).isNull()
         assertThat(TransactionDoc.fromMap("t1", noAmount, "u1")).isNull()
+    }
+
+    @Test
+    fun `a broken-down payment brings its items along, in order`() {
+        val items = listOf(
+            TransactionItemEntity("i1", "t1", 3_000, "shopping", "shoes", 0, "u1"),
+            TransactionItemEntity("i2", "t1", 1_500, "college", null, 1, "u1"),
+        )
+        val back = TransactionDoc.fromMap("t1", asFirestore(TransactionDoc(transaction, items.reversed()).toMap()), "u1")
+        assertThat(back?.items).isEqualTo(items)
     }
 
     @Test

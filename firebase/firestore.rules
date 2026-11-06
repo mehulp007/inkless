@@ -67,9 +67,12 @@ service cloud.firestore {
           && synced([
             'amountPaise', 'direction', 'type', 'timestamp', 'vpa', 'payeeRaw', 'merchantId',
             'accountLast4', 'bankCode', 'upiRef', 'balanceAfterPaise', 'categoryId', 'confidence',
-            'status', 'sources', 'note', 'tags', 'createdAt'
+            'status', 'sources', 'note', 'tags', 'createdAt', 'items'
           ])
           && request.resource.data.amountPaise is int
+          // A broken-down payment's items ({ id, amountPaise, categoryId, note }) live in its document.
+          && request.resource.data.get('items', []) is list
+          && request.resource.data.get('items', []).size() <= 50
           && lastFourAtMost(request.resource.data.get('accountLast4', null));
       }
 

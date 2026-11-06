@@ -22,6 +22,7 @@ import com.mehul.inkless.data.db.entity.MyAccountEntity
 import com.mehul.inkless.data.db.entity.RuleEntity
 import com.mehul.inkless.data.db.entity.SyncState
 import com.mehul.inkless.data.db.entity.TransactionEntity
+import com.mehul.inkless.data.db.entity.TransactionItemEntity
 import com.mehul.inkless.data.db.entity.TransactionStatus
 import com.mehul.inkless.data.db.entity.TransactionType
 import com.mehul.inkless.data.seed.AccountSeeder
@@ -198,6 +199,28 @@ class SyncFlowTest {
         // The new phone's SMS inbox came back too, and its history import reads the same message.
         assertThat(processor.process(phoneB.db, uid, sms).outcome).isEqualTo(CaptureOutcome.DUPLICATE)
         assertThat(phoneB.db.transactionDao().count()).isEqualTo(1)
+    }
+
+    @Test
+    fun aBreakdownTravelsWithItsPayment() = runTest {
+        phoneA.db.transactionDao().insert(payment("order").copy(amountPaise = 500_000))
+        phoneA.db.transactionItemDao().replace(
+            "order",
+            listOf(
+                TransactionItemEntity("i1", "order", 300_000, "shopping", "shoes", 0, uid),
+                TransactionItemEntity("i2", "order", 200_000, "college", null, 1, uid),
+            ),
+        )
+        phoneA.sync()
+        phoneB.sync()
+        assertThat(phoneB.db.transactionItemDao().get("order").map { it.amountPaise }).containsExactly(300_000L, 200_000L).inOrder()
+
+        // Removed on B (a newer edit of the payment): A loses its items too.
+        phoneB.db.transactionItemDao().replace("order", emptyList())
+        phoneB.db.transactionDao().update(phoneB.transaction("order")!!.copy(updatedAt = 5_000, syncState = SyncState.DIRTY))
+        phoneB.sync()
+        phoneA.sync()
+        assertThat(phoneA.db.transactionItemDao().get("order")).isEmpty()
     }
 }
 

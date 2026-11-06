@@ -1,6 +1,7 @@
 package com.mehul.inkless.sync
 
 import com.mehul.inkless.data.db.dao.SyncDao
+import com.mehul.inkless.data.db.entity.TransactionEntity
 
 /**
  * One synced table: which Firestore collection it lives in, and how to read, map and write its
@@ -94,21 +95,30 @@ object SyncTables {
 
     internal val transactions = SyncTable(
         collection = "transactions",
-        id = { it.id },
-        updatedAt = { it.updatedAt },
-        toDoc = { TransactionDoc(it).toMap() },
-        fromDoc = { id, data, owner -> TransactionDoc.fromMap(id, data, owner)?.transaction },
-        dirty = { dirtyTransactions(it) },
+        id = { it.transaction.id },
+        updatedAt = { it.transaction.updatedAt },
+        toDoc = { it.toMap() },
+        fromDoc = TransactionDoc::fromMap,
+        dirty = { withItems(dirtyTransactions(it)) },
         markSynced = { id, at -> transactionSynced(id, at) },
-        local = { transactions(it) },
-        save = { saveTransactions(it) },
+        local = { withItems(transactions(it)) },
+        save = { docs ->
+            saveTransactions(docs.map { it.transaction })
+            deleteItemsOf(docs.map { it.transaction.id })
+            insertItems(docs.flatMap { it.items })
+        },
         markAllDirty = { markTransactionsDirty() },
         // A receipt photo is a file on this phone; the cloud copy doesn't carry it.
-        keepLocal = { remote, local -> remote.copy(receiptUri = local.receiptUri) },
+        keepLocal = { remote, local -> remote.copy(transaction = remote.transaction.copy(receiptUri = local.transaction.receiptUri)) },
     )
 
     /** In upload and download order: what a transaction points at arrives before the transaction. */
     val all: List<SyncTable<*>> = listOf(categories, merchants, rules, myAccounts, transactions)
 
     val collections: List<String> = all.map { it.collection }
+}
+
+private suspend fun SyncDao.withItems(transactions: List<TransactionEntity>): List<TransactionDoc> {
+    val items = itemsOf(transactions.map { it.id }).groupBy { it.transactionId }
+    return transactions.map { TransactionDoc(it, items[it.id].orEmpty()) }
 }

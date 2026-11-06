@@ -207,6 +207,17 @@ describe('backup', () => {
     await assertSucceeds(setDoc(ref(alice()), txn({ updatedAt: 5 })));
   });
 
+  test('a broken-down payment carries its items', async () => {
+    const items = [
+      { id: 'i1', amountPaise: 300000, categoryId: 'shopping', note: 'shoes' },
+      { id: 'i2', amountPaise: 200000, categoryId: 'college', note: null },
+    ];
+    await assertSucceeds(setDoc(ref(alice()), txn({ amountPaise: 500000, items })));
+    await assertFails(setDoc(ref(alice()), txn({ items: 'shoes' })));
+    const tooMany = Array.from({ length: 51 }, (_, i) => ({ id: `i${i}`, amountPaise: 1, categoryId: 'other', note: null }));
+    await assertFails(setDoc(ref(alice()), txn({ items: tooMany, updatedAt: 9 })));
+  });
+
   test('a deletion travels as a tombstone', async () => {
     await assertSucceeds(setDoc(ref(alice()), txn()));
     await assertSucceeds(setDoc(ref(alice()), txn({ deleted: true, updatedAt: 3 })));

@@ -1,6 +1,7 @@
 package com.mehul.inkless.data.db.dao
 
 import androidx.room.Dao
+import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Upsert
 import com.mehul.inkless.data.db.entity.CategoryEntity
@@ -8,6 +9,7 @@ import com.mehul.inkless.data.db.entity.MerchantEntity
 import com.mehul.inkless.data.db.entity.MyAccountEntity
 import com.mehul.inkless.data.db.entity.RuleEntity
 import com.mehul.inkless.data.db.entity.TransactionEntity
+import com.mehul.inkless.data.db.entity.TransactionItemEntity
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -47,6 +49,17 @@ interface SyncDao {
 
     @Query("UPDATE transactions SET syncState = 'DIRTY'")
     suspend fun markTransactionsDirty()
+
+    // A payment's items travel inside its document.
+
+    @Query("SELECT * FROM transaction_items WHERE transactionId IN (:transactionIds) ORDER BY transactionId, sortOrder")
+    suspend fun itemsOf(transactionIds: List<String>): List<TransactionItemEntity>
+
+    @Query("DELETE FROM transaction_items WHERE transactionId IN (:transactionIds)")
+    suspend fun deleteItemsOf(transactionIds: List<String>)
+
+    @Insert
+    suspend fun insertItems(items: List<TransactionItemEntity>)
 
     // Categories
 

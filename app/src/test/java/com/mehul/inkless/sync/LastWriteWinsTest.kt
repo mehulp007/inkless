@@ -12,11 +12,11 @@ import org.junit.Test
 class LastWriteWinsTest {
 
     private fun txn(id: String, updatedAt: Long, note: String? = null, receipt: String? = null, state: SyncState = SyncState.SYNCED) =
-        TransactionEntity(
+        TransactionDoc(TransactionEntity(
             id = id, amountPaise = 4500, direction = Direction.DEBIT, type = TransactionType.EXPENSE, timestamp = 1,
             status = TransactionStatus.AUTO, sources = setOf(CaptureSource.SMS), note = note, receiptUri = receipt,
             createdAt = 1, updatedAt = updatedAt, ownerUid = "u1", syncState = state,
-        )
+        ))
 
     private val table = SyncTables.transactions
 
@@ -29,7 +29,7 @@ class LastWriteWinsTest {
     fun `the later edit wins either way`() {
         val cloudNewer = table.winners(listOf(txn("t1", 9, note = "cloud")), listOf(txn("t1", 5, note = "phone", state = SyncState.DIRTY)))
         val phoneNewer = table.winners(listOf(txn("t1", 5, note = "cloud")), listOf(txn("t1", 9, note = "phone", state = SyncState.DIRTY)))
-        assertThat(cloudNewer.single().note).isEqualTo("cloud")
+        assertThat(cloudNewer.single().transaction.note).isEqualTo("cloud")
         assertThat(phoneNewer).isEmpty()
     }
 
@@ -41,8 +41,8 @@ class LastWriteWinsTest {
     @Test
     fun `a receipt photo on this phone survives a newer cloud copy`() {
         val won = table.winners(listOf(txn("t1", 9, note = "cloud")), listOf(txn("t1", 5, receipt = "content://receipt/1")))
-        assertThat(won.single().receiptUri).isEqualTo("content://receipt/1")
-        assertThat(won.single().note).isEqualTo("cloud")
+        assertThat(won.single().transaction.receiptUri).isEqualTo("content://receipt/1")
+        assertThat(won.single().transaction.note).isEqualTo("cloud")
     }
 
     @Test

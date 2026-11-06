@@ -12,6 +12,7 @@ import com.mehul.inkless.data.db.entity.MyAccountEntity
 import com.mehul.inkless.data.db.entity.RuleEntity
 import com.mehul.inkless.data.db.entity.SyncState
 import com.mehul.inkless.data.db.entity.TransactionEntity
+import com.mehul.inkless.data.db.entity.TransactionItemEntity
 import com.mehul.inkless.data.db.entity.TransactionStatus
 import com.mehul.inkless.data.db.entity.TransactionType
 
@@ -139,10 +140,13 @@ object CloudDocs {
 
 /**
  * Everything about one payment, kept in one document so it syncs (and wins or loses a conflict)
- * as a whole. Whatever later belongs to a payment goes in here as another field, next to
- * [transaction], rather than into a document of its own.
+ * as a whole: the payment and its breakdown [items]. Whatever later belongs to a payment goes in
+ * here as another field rather than into a document of its own.
  */
-data class TransactionDoc(val transaction: TransactionEntity) {
+data class TransactionDoc(
+    val transaction: TransactionEntity,
+    val items: List<TransactionItemEntity> = emptyList(),
+) {
 
     fun toMap(): Map<String, Any?> = with(transaction) {
         mapOf(
@@ -165,6 +169,9 @@ data class TransactionDoc(val transaction: TransactionEntity) {
             "note" to note,
             "tags" to tags,
             "createdAt" to createdAt,
+            "items" to items.sortedBy { it.sortOrder }.map { item ->
+                mapOf("id" to item.id, "amountPaise" to item.amountPaise, "categoryId" to item.categoryId, "note" to item.note)
+            },
             CloudDocs.UPDATED_AT to updatedAt,
             CloudDocs.DELETED to deleted,
         )
@@ -200,6 +207,18 @@ data class TransactionDoc(val transaction: TransactionEntity) {
                     deleted = f.bool(CloudDocs.DELETED),
                     syncState = SyncState.SYNCED,
                 ),
+                items = (data["items"] as? List<*>).orEmpty().mapIndexed { index, raw ->
+                    val item = Fields(requireNotNull(raw as? Map<*, *>) { "item $index" }.mapKeys { it.key.toString() })
+                    TransactionItemEntity(
+                        id = item.string("id"),
+                        transactionId = id,
+                        amountPaise = item.long("amountPaise"),
+                        categoryId = item.string("categoryId"),
+                        note = item.stringOrNull("note"),
+                        sortOrder = index,
+                        ownerUid = ownerUid,
+                    )
+                },
             )
         } catch (e: IllegalArgumentException) {
             null
