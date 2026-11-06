@@ -19,7 +19,8 @@ import java.time.Duration
  * it) even if the user leaves the screen or the app is closed.
  *
  * Two modes: HISTORY reads back a number of months (first setup); CATCH_UP reads from the last
- * captured SMS onwards, for anything that arrived while the app wasn't capturing.
+ * captured SMS onwards, for anything that arrived while the app wasn't capturing. Catch-up never
+ * reaches back before capture was switched on, so skipping the history import stays skipped.
  */
 class InboxImportWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
@@ -40,8 +41,10 @@ class InboxImportWorker(context: Context, params: WorkerParameters) : CoroutineW
         val now = System.currentTimeMillis()
         val since = when (inputData.getString(KEY_MODE)) {
             MODE_HISTORY -> now - Duration.ofDays(30L * inputData.getInt(KEY_MONTHS, 3)).toMillis()
-            else -> db.rawCaptureDao().latestSmsTime()?.minus(CATCH_UP_OVERLAP_MS)
-                ?: (now - CATCH_UP_DEFAULT_MS)
+            else -> catchUpSince(
+                latestCaptured = db.rawCaptureDao().latestSmsTime(),
+                enabledAt = inputData.getLong(KEY_ENABLED_AT, now),
+            )
         }
 
         val messages = SmsInbox.read(applicationContext, since)
@@ -68,15 +71,23 @@ class InboxImportWorker(context: Context, params: WorkerParameters) : CoroutineW
         const val KEY_TOTAL = "total"
         const val KEY_SAVED = "saved"
         const val KEY_UNPARSED = "unparsed"
+        const val KEY_ENABLED_AT = "enabled_at"
 
         const val MODE_HISTORY = "history"
         const val MODE_CATCH_UP = "catch_up"
 
         private const val PROGRESS_EVERY = 20
-        private const val CATCH_UP_OVERLAP_MS = 60 * 60 * 1000L
-        private val CATCH_UP_DEFAULT_MS = Duration.ofDays(7).toMillis()
 
-        fun input(uid: String, mode: String, months: Int = 3): Data =
-            workDataOf(KEY_UID to uid, KEY_MODE to mode, KEY_MONTHS to months)
+        private const val CATCH_UP_OVERLAP_MS = 60 * 60 * 1000L
+
+        /**
+         * Re-reads the last hour before the newest captured SMS (duplicates are ignored anyway), but
+         * never anything from before the user turned capture on.
+         */
+        fun catchUpSince(latestCaptured: Long?, enabledAt: Long): Long =
+            maxOf(latestCaptured?.minus(CATCH_UP_OVERLAP_MS) ?: enabledAt, enabledAt)
+
+        fun input(uid: String, mode: String, months: Int = 3, enabledAt: Long = 0): Data =
+            workDataOf(KEY_UID to uid, KEY_MODE to mode, KEY_MONTHS to months, KEY_ENABLED_AT to enabledAt)
     }
 }

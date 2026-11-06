@@ -60,6 +60,8 @@ class SmsCapture @Inject constructor(
     fun enable(uid: String) {
         prefs.edit {
             putBoolean(enabledKey(uid), true)
+            // Remembered once, so turning permission off and on again doesn't reset it.
+            if (!prefs.contains(enabledAtKey(uid))) putLong(enabledAtKey(uid), System.currentTimeMillis())
             putBoolean(seenKey(uid), true)
         }
         changes.value++
@@ -72,15 +74,22 @@ class SmsCapture @Inject constructor(
 
     private fun enqueue(uid: String, mode: String, months: Int = 3) {
         val request = OneTimeWorkRequestBuilder<InboxImportWorker>()
-            .setInputData(InboxImportWorker.input(uid, mode, months))
+            .setInputData(InboxImportWorker.input(uid, mode, months, enabledAt = enabledAt(uid)))
             .build()
         val name = if (mode == InboxImportWorker.MODE_HISTORY) HISTORY_WORK else CATCH_UP_WORK
         val policy = if (mode == InboxImportWorker.MODE_HISTORY) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP
         work.enqueueUniqueWork(name, policy, request)
     }
 
+    // Accounts that switched capture on before this was recorded start counting from now.
+    private fun enabledAt(uid: String): Long {
+        if (!prefs.contains(enabledAtKey(uid))) prefs.edit { putLong(enabledAtKey(uid), System.currentTimeMillis()) }
+        return prefs.getLong(enabledAtKey(uid), System.currentTimeMillis())
+    }
+
     private fun enabledKey(uid: String) = "sms_enabled_$uid"
     private fun seenKey(uid: String) = "sms_setup_seen_$uid"
+    private fun enabledAtKey(uid: String) = "sms_enabled_at_$uid"
 
     private companion object {
         const val HISTORY_WORK = "sms-history-import"
