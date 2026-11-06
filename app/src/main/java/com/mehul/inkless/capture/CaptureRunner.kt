@@ -36,13 +36,21 @@ class CaptureRunner @Inject constructor(
         return uid to db
     }
 
-    /** Saves what it can and returns what was saved. */
+    /** Saves what it can and returns the new transactions (not ones merged into an existing payment). */
     suspend fun capture(messages: List<IncomingSms>): List<TransactionEntity> {
         val (uid, db) = currentAccount() ?: return emptyList()
         // Each account opts in on its own, even if another account on this phone already allowed SMS.
         if (!smsCapture.isEnabled(uid)) return emptyList()
-        return messages.mapNotNull { processor.process(db, uid, it).transaction }
+        return messages.mapNotNull { processor.process(db, uid, it).newTransaction() }
     }
+
+    /** Same for a UPI app notification. Notification access is granted for the whole phone in system settings. */
+    suspend fun capture(notification: IncomingNotification): TransactionEntity? {
+        val (uid, db) = currentAccount() ?: return null
+        return processor.process(db, uid, notification).newTransaction()
+    }
+
+    private fun CaptureResult.newTransaction() = transaction.takeIf { outcome == CaptureOutcome.SAVED }
 
     private companion object {
         const val SESSION_WAIT_MS = 10_000L

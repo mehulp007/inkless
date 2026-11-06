@@ -21,16 +21,34 @@ data class IncomingSms(
     val receivedAt: Long,
 )
 
+/** A UPI app's notification: [text] is the title and body on separate lines. */
+data class IncomingNotification(
+    val packageName: String,
+    /** Android's id for this notification; an app updating the same one keeps the key. */
+    val key: String,
+    val text: String,
+    val postedAt: Long,
+)
+
 object CaptureMapper {
+
+    /** Same notification re-posted (apps update them) hashes the same; a new one doesn't. */
+    fun hash(notification: IncomingNotification): String =
+        sha256("${notification.packageName}\n${notification.key}\n${notification.text}")
+
+    /** When the payment happened, as near as the SMS can say. */
+    fun timeOf(sms: IncomingSms): Long = sms.sentAt.takeIf { it > 0 } ?: sms.receivedAt
+
+    private fun sha256(key: String): String =
+        MessageDigest.getInstance("SHA-256").digest(key.toByteArray()).joinToString("") { "%02x".format(it) }
+
 
     /**
      * Identifies one SMS, so the live receiver and a later inbox import don't both save it.
      * The sent time is part of it because two chai payments can produce word-for-word identical alerts.
      */
     fun hash(sms: IncomingSms): String {
-        val key = "${sms.sender.trim().uppercase()}\n${sms.body}\n${sms.sentAt.takeIf { it > 0 } ?: sms.receivedAt}"
-        return MessageDigest.getInstance("SHA-256").digest(key.toByteArray())
-            .joinToString("") { "%02x".format(it) }
+        return sha256("${sms.sender.trim().uppercase()}\n${sms.body}\n${timeOf(sms)}")
     }
 
     /**
@@ -41,6 +59,17 @@ object CaptureMapper {
         id: String,
         parsed: ParsedTxn,
         sms: IncomingSms,
+        merchantId: String?,
+        ownerUid: String,
+        now: Long,
+        decision: Decision? = null,
+    ): TransactionEntity = toTransaction(id, parsed, timeOf(sms), CaptureSource.SMS, merchantId, ownerUid, now, decision)
+
+    fun toTransaction(
+        id: String,
+        parsed: ParsedTxn,
+        timestamp: Long,
+        source: CaptureSource,
         merchantId: String?,
         ownerUid: String,
         now: Long,
@@ -59,7 +88,7 @@ object CaptureMapper {
             amountPaise = parsed.amountPaise,
             direction = if (isDebit) Direction.DEBIT else Direction.CREDIT,
             type = type,
-            timestamp = sms.sentAt.takeIf { it > 0 } ?: sms.receivedAt,
+            timestamp = timestamp,
             vpa = parsed.vpa,
             payeeRaw = parsed.payee,
             merchantId = merchantId,
@@ -70,7 +99,7 @@ object CaptureMapper {
             categoryId = if (needsCategory) filed?.categoryId ?: CategoryIds.OTHER else null,
             confidence = if (needsCategory) filed?.confidence ?: 0f else 1f,
             status = if (needsCategory && filed == null) TransactionStatus.NEEDS_REVIEW else TransactionStatus.AUTO,
-            sources = setOf(CaptureSource.SMS),
+            sources = setOf(source),
             createdAt = now,
             updatedAt = now,
             ownerUid = ownerUid,

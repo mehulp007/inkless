@@ -123,6 +123,24 @@ interface TransactionDao {
     @Query("UPDATE transactions SET merchantId = :merchantId WHERE id = :id")
     suspend fun linkMerchant(id: String, merchantId: String)
 
+    /** The latest payment to a merchant in a time range, for spotting refunds. */
+    @Query(
+        """
+        SELECT * FROM transactions
+        WHERE merchantId = :merchantId AND direction = 'DEBIT' AND type = 'EXPENSE' AND deleted = 0
+          AND timestamp >= :from AND timestamp <= :to
+        ORDER BY timestamp DESC LIMIT 1
+        """,
+    )
+    suspend fun lastDebitTo(merchantId: String, from: Long, to: Long): TransactionEntity?
+
+    /** Candidates for "is this the same payment?" around a new capture. */
+    @Query("SELECT * FROM transactions WHERE deleted = 0 AND timestamp BETWEEN :from AND :to")
+    suspend fun around(from: Long, to: Long): List<TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE deleted = 0 AND upiRef = :ref")
+    suspend fun byRef(ref: String): List<TransactionEntity>
+
     @Query("SELECT COUNT(*) FROM transactions")
     suspend fun count(): Int
 

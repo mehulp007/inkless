@@ -21,7 +21,7 @@ class MigrationTest {
     val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), InklessDatabase::class.java)
 
     @Test
-    fun version1To2KeepsTransactionsAndAddsRules() = runTest {
+    fun upgradingFromVersion1KeepsTransactionsAndAddsNewTables() = runTest {
         helper.createDatabase(dbName, 1).use { db ->
             db.execSQL(
                 """
@@ -34,6 +34,7 @@ class MigrationTest {
         }
 
         helper.runMigrationsAndValidate(dbName, 2, true).close()
+        helper.runMigrationsAndValidate(dbName, 3, true).close()
 
         val db = Room.databaseBuilder(ApplicationProvider.getApplicationContext(), InklessDatabase::class.java, dbName).build()
         try {
@@ -42,6 +43,7 @@ class MigrationTest {
             assertThat(kept!!.amountPaise).isEqualTo(4500)
             assertThat(kept.payeeRaw).isEqualTo("SHARMA CANTEEN")
             assertThat(db.ruleDao().getAll()).isEmpty()
+            assertThat(db.myAccountDao().getAll()).isEmpty()
         } finally {
             db.close()
         }

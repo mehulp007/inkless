@@ -6,11 +6,13 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.mehul.inkless.data.db.dao.CategoryDao
 import com.mehul.inkless.data.db.dao.MerchantDao
+import com.mehul.inkless.data.db.dao.MyAccountDao
 import com.mehul.inkless.data.db.dao.RawCaptureDao
 import com.mehul.inkless.data.db.dao.RuleDao
 import com.mehul.inkless.data.db.dao.TransactionDao
 import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.db.entity.MerchantEntity
+import com.mehul.inkless.data.db.entity.MyAccountEntity
 import com.mehul.inkless.data.db.entity.RawCaptureEntity
 import com.mehul.inkless.data.db.entity.RuleEntity
 import com.mehul.inkless.data.db.entity.TransactionEntity
@@ -22,12 +24,14 @@ import com.mehul.inkless.data.db.entity.TransactionEntity
         MerchantEntity::class,
         RawCaptureEntity::class,
         RuleEntity::class,
+        MyAccountEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
     // Every schema change from here on ships with a migration and a test in MigrationTest.
     autoMigrations = [
         AutoMigration(from = 1, to = 2), // adds rules
+        AutoMigration(from = 2, to = 3), // adds my_accounts
     ],
 )
 @TypeConverters(Converters::class)
@@ -37,4 +41,5 @@ abstract class InklessDatabase : RoomDatabase() {
     abstract fun merchantDao(): MerchantDao
     abstract fun rawCaptureDao(): RawCaptureDao
     abstract fun ruleDao(): RuleDao
+    abstract fun myAccountDao(): MyAccountDao
 }

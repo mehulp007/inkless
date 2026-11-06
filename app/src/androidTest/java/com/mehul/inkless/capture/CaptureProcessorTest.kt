@@ -19,7 +19,7 @@ import java.time.ZoneOffset
 class CaptureProcessorTest {
 
     private lateinit var db: InklessDatabase
-    private val processor = CaptureProcessor(Clock.fixed(Instant.parse("2026-11-05T10:00:00Z"), ZoneOffset.UTC))
+    private val processor = CaptureProcessor(Clock.fixed(Instant.parse("2026-11-05T10:00:00Z"), ZoneOffset.UTC), TransactionClassifier())
 
     private val payment = IncomingSms(
         sender = "VM-KOTAKB",

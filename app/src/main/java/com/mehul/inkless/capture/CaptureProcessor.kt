@@ -9,6 +9,8 @@ import com.mehul.inkless.data.db.entity.RawCaptureEntity
 import com.mehul.inkless.data.db.entity.RawCaptureStatus
 import com.mehul.inkless.data.db.entity.TransactionEntity
 import com.mehul.inkless.parsing.BankParsers
+import com.mehul.inkless.parsing.NotificationReader
+import com.mehul.inkless.parsing.ParsedTxn
 import com.mehul.inkless.parsing.SmsReader
 import com.mehul.inkless.parsing.SmsResult
 import java.time.Clock
@@ -16,15 +18,19 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
-enum class CaptureOutcome { SAVED, UNPARSED, DUPLICATE, SKIPPED }
+enum class CaptureOutcome { SAVED, MERGED, UNPARSED, DUPLICATE, SKIPPED }
 
-/** [transaction] is set when one was saved. */
+/** [transaction] is the saved (or merged-into) transaction, when there is one. */
 data class CaptureResult(val outcome: CaptureOutcome, val transaction: TransactionEntity? = null)
 
-/** SMS in, transaction out: filter, parse, and save, in one database transaction per message. */
+/**
+ * Bank SMS and UPI app notifications in, transactions out: filter, parse, categorise, and either
+ * save a new transaction or merge into the one the other source already created.
+ */
 @Singleton
 class CaptureProcessor @Inject constructor(
     private val clock: Clock,
+    private val classifier: TransactionClassifier,
 ) {
     private val reader = SmsReader(BankParsers.all)
 
@@ -32,34 +38,101 @@ class CaptureProcessor @Inject constructor(
         val result = reader.read(sms.sender, sms.body)
         // OTPs, promos and personal messages are dropped here and never written anywhere.
         if (result is SmsResult.Rejected) return CaptureResult(CaptureOutcome.SKIPPED)
-
-        val now = clock.millis()
-        val transactionId = (result as? SmsResult.Parsed)?.let { UUID.randomUUID().toString() }
-        val capture = RawCaptureEntity(
-            id = UUID.randomUUID().toString(),
+        return save(
+            db = db,
+            ownerUid = ownerUid,
+            result = result,
             source = CaptureSource.SMS,
             sender = sms.sender,
-            bodyHash = CaptureMapper.hash(sms),
+            hash = CaptureMapper.hash(sms),
             body = sms.body,
             receivedAt = sms.receivedAt,
-            status = if (transactionId != null) RawCaptureStatus.PARSED else RawCaptureStatus.UNPARSED,
+            timestamp = CaptureMapper.timeOf(sms),
+        )
+    }
+
+    suspend fun process(db: InklessDatabase, ownerUid: String, notification: IncomingNotification): CaptureResult {
+        val result = NotificationReader.read(notification.packageName, notification.text)
+        // Offers, reminders and requests aren't stored either.
+        if (result !is SmsResult.Parsed) return CaptureResult(CaptureOutcome.SKIPPED)
+        return save(
+            db = db,
+            ownerUid = ownerUid,
+            result = result,
+            source = CaptureSource.NOTIFICATION,
+            sender = notification.packageName,
+            hash = CaptureMapper.hash(notification),
+            body = notification.text,
+            receivedAt = notification.postedAt,
+            timestamp = notification.postedAt,
+        )
+    }
+
+    private suspend fun save(
+        db: InklessDatabase,
+        ownerUid: String,
+        result: SmsResult,
+        source: CaptureSource,
+        sender: String,
+        hash: String,
+        body: String,
+        receivedAt: Long,
+        timestamp: Long,
+    ): CaptureResult {
+        val now = clock.millis()
+        val parsed = (result as? SmsResult.Parsed)?.txn
+        val transactionId = parsed?.let { UUID.randomUUID().toString() }
+        val capture = RawCaptureEntity(
+            id = UUID.randomUUID().toString(),
+            source = source,
+            sender = sender,
+            bodyHash = hash,
+            body = body,
+            receivedAt = receivedAt,
+            status = if (parsed != null) RawCaptureStatus.PARSED else RawCaptureStatus.UNPARSED,
             transactionId = transactionId,
         )
 
         return db.withTransaction {
             if (db.rawCaptureDao().insert(capture) == -1L) return@withTransaction CaptureResult(CaptureOutcome.DUPLICATE)
-            if (result !is SmsResult.Parsed || transactionId == null) return@withTransaction CaptureResult(CaptureOutcome.UNPARSED)
+            if (parsed == null || transactionId == null) return@withTransaction CaptureResult(CaptureOutcome.UNPARSED)
 
-            val merchant = MerchantMemory.findOrCreate(db, result.txn.vpa, result.txn.payee, ownerUid, now)
-            val decision = Categorizer.decide(
-                vpa = result.txn.vpa,
-                payee = result.txn.payee,
-                rules = db.ruleDao().getAll().map { it.toRule() },
-                merchantCategoryId = merchant?.defaultCategoryId,
-            )
-            val transaction = CaptureMapper.toTransaction(transactionId, result.txn, sms, merchant?.id, ownerUid, now, decision)
-            db.transactionDao().insert(transaction)
-            CaptureResult(CaptureOutcome.SAVED, transaction)
+            val incoming = build(db, ownerUid, parsed, transactionId, timestamp, source, now)
+
+            val dao = db.transactionDao()
+            val candidates = dao.around(timestamp - Deduplicator.WINDOW_MS, timestamp + Deduplicator.WINDOW_MS) +
+                (parsed.upiRef?.let { dao.byRef(it) } ?: emptyList())
+            val match = Deduplicator.findMatch(incoming, candidates.distinctBy { it.id })
+            if (match != null) {
+                val merged = Deduplicator.merge(match, incoming, now)
+                dao.update(merged)
+                db.rawCaptureDao().linkTransaction(capture.id, merged.id)
+                return@withTransaction CaptureResult(CaptureOutcome.MERGED, merged)
+            }
+
+            dao.insert(incoming)
+            CaptureResult(CaptureOutcome.SAVED, incoming)
         }
+    }
+
+    private suspend fun build(
+        db: InklessDatabase,
+        ownerUid: String,
+        parsed: ParsedTxn,
+        id: String,
+        timestamp: Long,
+        source: CaptureSource,
+        now: Long,
+    ): TransactionEntity {
+        val merchant = MerchantMemory.findOrCreate(db, parsed.vpa, parsed.payee, ownerUid, now)
+        val decision = Categorizer.decide(
+            vpa = parsed.vpa,
+            payee = parsed.payee,
+            rules = db.ruleDao().getAll().map { it.toRule() },
+            merchantCategoryId = merchant?.defaultCategoryId,
+        )
+        val draft = CaptureMapper.toTransaction(id, parsed, timestamp, source, merchant?.id, ownerUid, now, decision)
+        // Own-account transfers, allowance from home and refunds of earlier payments.
+        return classifier.classify(db, draft)
     }
 }

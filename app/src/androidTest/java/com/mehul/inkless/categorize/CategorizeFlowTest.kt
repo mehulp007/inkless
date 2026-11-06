@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import com.mehul.inkless.capture.CaptureProcessor
 import com.mehul.inkless.capture.IncomingSms
+import com.mehul.inkless.capture.TransactionClassifier
 import com.mehul.inkless.data.db.InklessDatabase
 import com.mehul.inkless.data.db.entity.CaptureSource
 import com.mehul.inkless.data.db.entity.Direction
@@ -28,7 +29,7 @@ class CategorizeFlowTest {
 
     private lateinit var db: InklessDatabase
     private val clock = Clock.fixed(Instant.parse("2026-11-06T10:00:00Z"), ZoneOffset.UTC)
-    private val processor = CaptureProcessor(clock)
+    private val processor = CaptureProcessor(clock, TransactionClassifier())
 
     // SBI names the payee but gives no UPI ID, and nothing in the name says what it is.
     private fun sbi(amount: String, ref: String, sentAt: Long) = IncomingSms(

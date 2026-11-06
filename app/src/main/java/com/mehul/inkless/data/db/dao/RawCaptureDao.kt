@@ -23,6 +23,9 @@ interface RawCaptureDao {
     @Query("SELECT MAX(receivedAt) FROM raw_captures WHERE source = 'SMS'")
     suspend fun latestSmsTime(): Long?
 
+    @Query("UPDATE raw_captures SET transactionId = :transactionId WHERE id = :id")
+    suspend fun linkTransaction(id: String, transactionId: String)
+
     @Query("DELETE FROM raw_captures WHERE id = :id")
     suspend fun delete(id: String)
 }
