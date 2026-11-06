@@ -37,6 +37,7 @@ class MigrationTest {
         helper.runMigrationsAndValidate(dbName, 3, true).close()
         helper.runMigrationsAndValidate(dbName, 4, true).close()
         helper.runMigrationsAndValidate(dbName, 5, true).close()
+        helper.runMigrationsAndValidate(dbName, 6, true).close()
 
         val db = Room.databaseBuilder(ApplicationProvider.getApplicationContext(), InklessDatabase::class.java, dbName).build()
         try {
@@ -48,6 +49,8 @@ class MigrationTest {
             assertThat(db.myAccountDao().getAll()).isEmpty()
             assertThat(db.transactionItemDao().get("t1")).isEmpty()
             assertThat(db.budgetDao().get()).isNull()
+            assertThat(db.friendDao().friends()).isEmpty()
+            assertThat(db.friendDao().splitFor("t1")).isNull()
             // The old payment shows up in the new spending view.
             assertThat(db.spendDao().between(0, 2_000).map { it.amountPaise }).containsExactly(4500L)
         } finally {
