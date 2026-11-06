@@ -4,6 +4,8 @@
     <!-- Bank alerts: live ones as they arrive, and past ones from the inbox on first setup. -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_SMS" />
+    <!-- "What was this?" questions about payments Inkless couldn't place (Android 13+ asks). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Still installable on tablets without a SIM; capture just never turns on there. -->
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
@@ -27,6 +29,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <receiver
+            android:name=".categorize.CategorizeReceiver"
+            android:exported="false" />
 
         <receiver
             android:name=".capture.sms.SmsReceiver"

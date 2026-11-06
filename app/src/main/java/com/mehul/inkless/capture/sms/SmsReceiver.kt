@@ -6,6 +6,7 @@ import android.content.Intent
 import android.provider.Telephony
 import com.mehul.inkless.capture.CaptureRunner
 import com.mehul.inkless.capture.IncomingSms
+import com.mehul.inkless.categorize.ReviewNotifier
 import com.mehul.inkless.di.ApplicationScope
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -20,6 +21,8 @@ import javax.inject.Inject
 class SmsReceiver : BroadcastReceiver() {
 
     @Inject lateinit var runner: CaptureRunner
+
+    @Inject lateinit var notifier: ReviewNotifier
 
     @Inject @ApplicationScope lateinit var scope: CoroutineScope
 
@@ -43,7 +46,9 @@ class SmsReceiver : BroadcastReceiver() {
         val pending = goAsync()
         scope.launch {
             try {
-                runner.capture(messages)
+                val saved = runner.capture(messages)
+                // Only live payments get a question; history imports would flood the shade.
+                runner.currentAccount()?.let { (_, db) -> notifier.askAbout(db, saved) }
             } finally {
                 pending.finish()
             }

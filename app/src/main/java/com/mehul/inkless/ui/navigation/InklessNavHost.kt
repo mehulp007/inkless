@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navDeepLink
 import com.mehul.inkless.ui.capture.SmsSetupScreen
 import com.mehul.inkless.ui.capture.UnreadScreen
 import com.mehul.inkless.ui.home.HomeScreen
@@ -45,7 +46,8 @@ fun InklessNavHost() {
                 onOpenUnread = { navController.navigate(UnreadRoute) },
             )
         }
-        composable<TransactionRoute> {
+        // The "what was this?" notification opens a payment through inkless://transaction/<id>.
+        composable<TransactionRoute>(deepLinks = listOf(navDeepLink<TransactionRoute>(basePath = "inkless://transaction"))) {
             TransactionScreen(onBack = { navController.popBackStack() })
         }
         composable<SmsSetupRoute> {

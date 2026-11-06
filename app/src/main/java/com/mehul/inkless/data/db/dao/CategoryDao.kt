@@ -13,6 +13,9 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE deleted = 0 ORDER BY sortOrder")
     fun observeAll(): Flow<List<CategoryEntity>>
 
+    @Query("SELECT * FROM categories WHERE deleted = 0 ORDER BY sortOrder")
+    suspend fun getAll(): List<CategoryEntity>
+
     @Query("SELECT COUNT(*) FROM categories")
     suspend fun count(): Int
 

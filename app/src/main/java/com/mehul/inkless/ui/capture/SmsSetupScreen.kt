@@ -1,6 +1,9 @@
 package com.mehul.inkless.ui.capture
 
+import android.Manifest
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -34,12 +37,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -67,9 +72,16 @@ fun SmsSetupScreen(
         viewModel.refreshPermission(result.values.all { it })
     }
 
-    // The user might flip the permission in system settings and come back.
+    // Android 13+ needs a runtime "allow notifications" for the "what was this?" questions.
+    var notificationsAllowed by remember { mutableStateOf(notificationsGranted(context)) }
+    val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        notificationsAllowed = it
+    }
+
+    // The user might flip a permission in system settings and come back.
     LifecycleResumeEffect(Unit) {
         viewModel.refreshPermission()
+        notificationsAllowed = notificationsGranted(context)
         onPauseOrDispose {}
     }
 
@@ -143,6 +155,10 @@ fun SmsSetupScreen(
                         style = MaterialTheme.typography.titleSmall,
                     )
                 }
+                NotificationsSection(
+                    allowed = notificationsAllowed,
+                    onAllow = { notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) },
+                )
                 ImportSection(
                     state = importState,
                     started = importStarted,
@@ -154,6 +170,25 @@ fun SmsSetupScreen(
             }
         }
     }
+}
+
+private fun notificationsGranted(context: Context): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+@Composable
+private fun NotificationsSection(allowed: Boolean, onAllow: () -> Unit) {
+    if (allowed) {
+        Promise("When Inkless can't tell what a new payment was, it'll ask with a notification. One tap files it.")
+        return
+    }
+    Text("Want a quick question for new merchants?", style = MaterialTheme.typography.titleMedium)
+    Text(
+        "Inkless can send \"₹45 to SHARMA CANTEEN — what was this?\" with your usual categories as buttons. " +
+            "It remembers your answer for that merchant.",
+        style = MaterialTheme.typography.bodyMedium,
+    )
+    OutlinedButton(onClick = onAllow, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Allow notifications") }
 }
 
 @Composable
