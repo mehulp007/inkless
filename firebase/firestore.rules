@@ -1,0 +1,66 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function usernameDoc(name) {
+      return /databases/$(database)/documents/usernames/$(name);
+    }
+
+    function profileDoc(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    // usernames/{username} -> { uid, email }
+    // Anyone may look up a single name (login by username needs the email before signing in),
+    // but nobody can list them. A claim is written in the same transaction as the profile, which
+    // is what limits each account to one username.
+    match /usernames/{username} {
+      allow get: if true;
+      allow list: if false;
+
+      allow create: if signedIn()
+        && username.matches('^[a-z0-9_]{3,20}$')
+        && request.resource.data.keys().hasOnly(['uid', 'email'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && !exists(profileDoc(request.auth.uid))
+        && getAfter(profileDoc(request.auth.uid)).data.username == username;
+
+      allow update: if false;
+      // Only together with the profile (deleting the account), so a profile never points at a
+      // name someone else could then claim.
+      allow delete: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && !existsAfter(profileDoc(request.auth.uid));
+    }
+
+    // users/{uid}: the profile, plus (later) everything the app syncs under it.
+    match /users/{uid} {
+      allow read: if isUser(uid);
+
+      allow create: if isUser(uid)
+        && request.resource.data.keys().hasOnly(['username', 'email', 'createdAt'])
+        && request.resource.data.createdAt == request.time
+        && getAfter(usernameDoc(request.resource.data.username)).data.uid == uid;
+
+      // The username is fixed once claimed.
+      allow update: if isUser(uid) && request.resource.data.username == resource.data.username;
+      allow delete: if isUser(uid);
+
+      // {path=**} alone would also match the profile itself (it matches zero segments), so
+      // require a sub-collection name in front.
+      match /{subcollection}/{path=**} {
+        allow read, write: if isUser(uid);
+      }
+    }
+  }
+}
