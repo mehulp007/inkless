@@ -17,9 +17,14 @@ data class FeatureCount(val feature: String, val categoryId: String, val count: 
  * Plain Naive Bayes multiplies the evidence of every feature, so a long payee name (dozens of
  * letter pieces) makes it absurdly sure of itself. Here the text counts as [TEXT_WEIGHT] pieces
  * of evidence however long it is, and amount, time and day as one each, which keeps the
- * confidence honest enough to use against the 0.8 auto-file threshold.
+ * confidence honest enough to use against the 0.8 auto-file threshold. The merchant itself, when
+ * it has been seen before, counts three times: it's the best single clue there is (comparing
+ * against a logistic regression in `ml/` showed it was being outvoted by amount and time).
  */
-class NaiveBayesCategorizer(private val textWeight: Double = TEXT_WEIGHT) {
+class NaiveBayesCategorizer(
+    private val textWeight: Double = TEXT_WEIGHT,
+    private val merchantWeight: Double = MERCHANT_WEIGHT,
+) {
 
     // feature -> category -> count
     private val counts = HashMap<String, HashMap<String, Int>>()
@@ -58,7 +63,7 @@ class NaiveBayesCategorizer(private val textWeight: Double = TEXT_WEIGHT) {
         val scores = examples.keys.associateWith { category ->
             val prior = ln(examples.getValue(category) / total)
             val fromText = if (text.isEmpty()) 0.0 else textWeight * text.sumOf { logLikelihood(it, category) } / text.size
-            prior + fromText + context.sumOf { logLikelihood(it, category) }
+            prior + fromText + context.sumOf { (if (it.startsWith("m:")) merchantWeight else 1.0) * logLikelihood(it, category) }
         }
         // Softmax, shifted by the best score so exp() can't overflow.
         val best = scores.values.max()
@@ -83,6 +88,7 @@ class NaiveBayesCategorizer(private val textWeight: Double = TEXT_WEIGHT) {
 
     companion object {
         const val TEXT_WEIGHT = 2.0
+        const val MERCHANT_WEIGHT = 3.0
         const val EXAMPLES = "#examples"
 
         fun fromCounts(rows: List<FeatureCount>): NaiveBayesCategorizer = NaiveBayesCategorizer().apply {
