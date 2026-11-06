@@ -4,6 +4,7 @@ import com.mehul.inkless.data.db.dao.CategoryTotal
 import com.mehul.inkless.data.db.dao.TransactionListItem
 import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.db.entity.Direction
+import com.mehul.inkless.data.db.entity.TransactionType
 import com.mehul.inkless.ui.format.Titles
 import java.time.Instant
 import java.time.LocalDate
@@ -55,6 +56,8 @@ data class TransactionRow(
     val categoryId: String?,
     val amountPaise: Long,
     val isCredit: Boolean,
+    /** Between the user's own accounts: shown, but never counted as spending. */
+    val isTransfer: Boolean = false,
     val emoji: String,
     val colorArgb: Long,
     val timestamp: Long,
@@ -87,7 +90,12 @@ internal object HomeStateBuilder {
                 categoryId = txn.categoryId,
                 amountPaise = txn.amountPaise,
                 isCredit = isCredit,
-                emoji = category?.emoji ?: if (isCredit) "💰" else "❓",
+                isTransfer = txn.type == TransactionType.SELF_TRANSFER,
+                emoji = category?.emoji ?: when {
+                    txn.type == TransactionType.SELF_TRANSFER -> "🔁"
+                    isCredit -> "💰"
+                    else -> "❓"
+                },
                 colorArgb = category?.colorArgb ?: NEUTRAL_COLOR,
                 timestamp = txn.timestamp,
             )
@@ -131,7 +139,7 @@ internal object HomeStateBuilder {
             .map { (date, dayRows) ->
                 DayGroup(
                     date = date,
-                    spentPaise = dayRows.filterNot { it.isCredit }.sumOf { it.amountPaise },
+                    spentPaise = dayRows.filterNot { it.isCredit || it.isTransfer }.sumOf { it.amountPaise },
                     rows = dayRows,
                 )
             }

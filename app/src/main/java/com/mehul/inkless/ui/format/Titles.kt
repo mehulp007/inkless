@@ -7,6 +7,7 @@ object Titles {
     fun fallback(type: TransactionType): String = when (type) {
         TransactionType.REFUND -> "Refund"
         TransactionType.INCOME -> "Money in"
+        TransactionType.SELF_TRANSFER -> "Own account transfer"
         else -> "Payment"
     }
 }

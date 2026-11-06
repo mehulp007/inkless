@@ -1,6 +1,7 @@
 package com.mehul.inkless.data.repo
 
 import androidx.room.withTransaction
+import com.mehul.inkless.capture.AccountReclassifier
 import com.mehul.inkless.categorize.MerchantMemory
 import com.mehul.inkless.categorize.Recategorizer
 import com.mehul.inkless.categorize.RuleField
@@ -12,7 +13,10 @@ import com.mehul.inkless.data.db.dao.TransactionListItem
 import com.mehul.inkless.data.db.entity.CaptureSource
 import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.db.entity.Direction
+import com.mehul.inkless.data.db.entity.AccountMatch
+import com.mehul.inkless.data.db.entity.AccountRole
 import com.mehul.inkless.data.db.entity.MerchantEntity
+import com.mehul.inkless.data.db.entity.MyAccountEntity
 import com.mehul.inkless.data.db.entity.RawCaptureEntity
 import com.mehul.inkless.data.db.entity.RuleEntity
 import com.mehul.inkless.data.db.entity.SyncState
@@ -34,6 +38,7 @@ import javax.inject.Singleton
 class LedgerRepository @Inject constructor(
     private val databases: DatabaseProvider,
     private val recategorizer: Recategorizer,
+    private val accountReclassifier: AccountReclassifier,
     private val clock: Clock,
 ) {
     // Re-subscribes whenever a different user's database is opened, and goes quiet when it's closed.
@@ -116,6 +121,36 @@ class LedgerRepository @Inject constructor(
         val since = clock.millis() - QUICK_PICK_WINDOW_MS
         val used = db().transactionDao().mostUsedCategories(since, count)
         return (used + DEFAULT_QUICK_PICKS).distinct().take(count)
+    }
+
+    fun myAccounts(): Flow<List<MyAccountEntity>> = fromCurrentDb { it.myAccountDao().observeAll() }
+
+    suspend fun addMyAccount(match: AccountMatch, value: String, role: AccountRole, label: String?, ownerUid: String) {
+        val db = db()
+        db.myAccountDao().insert(
+            MyAccountEntity(
+                id = UUID.randomUUID().toString(),
+                match = match,
+                value = value.trim(),
+                role = role,
+                label = label?.trim()?.ifEmpty { null },
+                ownerUid = ownerUid,
+                updatedAt = clock.millis(),
+            ),
+        )
+        reclassify(db, ownerUid)
+    }
+
+    suspend fun removeMyAccount(account: MyAccountEntity) {
+        val db = db()
+        db.myAccountDao().update(account.copy(deleted = true, updatedAt = clock.millis(), syncState = SyncState.DIRTY))
+        reclassify(db, account.ownerUid)
+    }
+
+    private suspend fun reclassify(db: InklessDatabase, ownerUid: String) {
+        accountReclassifier.run(db, clock.millis())
+        // Payments that stopped being transfers go back through the categoriser.
+        recategorizer.run(db, ownerUid)
     }
 
     fun rules(): Flow<List<RuleEntity>> = fromCurrentDb { it.ruleDao().observeAll() }

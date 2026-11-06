@@ -49,6 +49,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mehul.inkless.R
+import com.mehul.inkless.capture.notification.NotificationAccess
 import com.mehul.inkless.capture.sms.SmsPermissions
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,6 +75,7 @@ fun SmsSetupScreen(
 
     // Android 13+ needs a runtime "allow notifications" for the "what was this?" questions.
     var notificationsAllowed by remember { mutableStateOf(notificationsGranted(context)) }
+    var listenerOn by remember { mutableStateOf(NotificationAccess.granted(context)) }
     val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         notificationsAllowed = it
     }
@@ -82,6 +84,7 @@ fun SmsSetupScreen(
     LifecycleResumeEffect(Unit) {
         viewModel.refreshPermission()
         notificationsAllowed = notificationsGranted(context)
+        listenerOn = NotificationAccess.granted(context)
         onPauseOrDispose {}
     }
 
@@ -163,6 +166,10 @@ fun SmsSetupScreen(
                         }
                     },
                 )
+                UpiAppsSection(
+                    on = listenerOn,
+                    onTurnOn = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) },
+                )
                 ImportSection(
                     state = importState,
                     started = importStarted,
@@ -179,6 +186,22 @@ fun SmsSetupScreen(
 private fun notificationsGranted(context: Context): Boolean =
     Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
         ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+@Composable
+private fun UpiAppsSection(on: Boolean, onTurnOn: () -> Unit) {
+    if (on) {
+        Promise("Also reading GPay, PhonePe and Paytm notifications, for nicer names and UPI Lite payments. One payment still shows once.")
+        return
+    }
+    Text("Read UPI app notifications too?", style = MaterialTheme.typography.titleMedium)
+    Text(
+        "GPay, PhonePe and Paytm notifications have the shop's real name and cover UPI Lite payments, which send no bank SMS. " +
+            "Inkless only reads those apps' notifications, and merges them with the SMS so nothing is counted twice. " +
+            "Find Inkless in the list and switch it on.",
+        style = MaterialTheme.typography.bodyMedium,
+    )
+    OutlinedButton(onClick = onTurnOn, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Turn on notification access") }
+}
 
 @Composable
 private fun NotificationsSection(allowed: Boolean, onAllow: () -> Unit) {

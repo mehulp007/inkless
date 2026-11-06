@@ -50,6 +50,8 @@ fun SettingsScreen(
     onOpenSmsSetup: () -> Unit,
     onOpenUnread: () -> Unit,
     onOpenRules: () -> Unit,
+    onOpenMyAccounts: () -> Unit,
+    onOpenHealth: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val capture by viewModel.capture.collectAsStateWithLifecycle()
@@ -147,6 +149,16 @@ fun SettingsScreen(
                         "Bank SMS",
                         supporting = if (capture.smsOn) "On — payments are added from your bank's SMS" else "Off — tap to set up",
                         onClick = onOpenSmsSetup,
+                    )
+                    ActionItem(
+                        "Capture health",
+                        supporting = "SMS, app notifications, battery: what's on and what needs fixing",
+                        onClick = onOpenHealth,
+                    )
+                    ActionItem(
+                        "My accounts",
+                        supporting = "Your own and home's UPI IDs, for transfers and allowance",
+                        onClick = onOpenMyAccounts,
                     )
                     ActionItem(
                         "Categorising rules",

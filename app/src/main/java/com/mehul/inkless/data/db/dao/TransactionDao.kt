@@ -123,6 +123,9 @@ interface TransactionDao {
     @Query("UPDATE transactions SET merchantId = :merchantId WHERE id = :id")
     suspend fun linkMerchant(id: String, merchantId: String)
 
+    @Query("SELECT * FROM transactions WHERE deleted = 0 AND status != 'CONFIRMED' AND timestamp >= :since")
+    suspend fun recentUnconfirmed(since: Long): List<TransactionEntity>
+
     /** The latest payment to a merchant in a time range, for spotting refunds. */
     @Query(
         """

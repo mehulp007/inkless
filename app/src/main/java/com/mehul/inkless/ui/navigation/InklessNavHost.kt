@@ -5,8 +5,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navDeepLink
+import com.mehul.inkless.ui.accounts.MyAccountsScreen
 import com.mehul.inkless.ui.capture.SmsSetupScreen
 import com.mehul.inkless.ui.capture.UnreadScreen
+import com.mehul.inkless.ui.health.CaptureHealthScreen
 import com.mehul.inkless.ui.home.HomeScreen
 import com.mehul.inkless.ui.review.ReviewScreen
 import com.mehul.inkless.ui.rules.RulesScreen
@@ -35,6 +37,12 @@ object ReviewRoute
 @Serializable
 object RulesRoute
 
+@Serializable
+object MyAccountsRoute
+
+@Serializable
+object CaptureHealthRoute
+
 @Composable
 fun InklessNavHost() {
     val navController = rememberNavController()
@@ -60,6 +68,17 @@ fun InklessNavHost() {
                 onOpenSmsSetup = { navController.navigate(SmsSetupRoute) },
                 onOpenUnread = { navController.navigate(UnreadRoute) },
                 onOpenRules = { navController.navigate(RulesRoute) },
+                onOpenMyAccounts = { navController.navigate(MyAccountsRoute) },
+                onOpenHealth = { navController.navigate(CaptureHealthRoute) },
+            )
+        }
+        composable<MyAccountsRoute> {
+            MyAccountsScreen(onBack = { navController.popBackStack() })
+        }
+        composable<CaptureHealthRoute> {
+            CaptureHealthScreen(
+                onBack = { navController.popBackStack() },
+                onOpenSmsSetup = { navController.navigate(SmsSetupRoute) },
             )
         }
         composable<RulesRoute> {
