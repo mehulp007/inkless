@@ -61,6 +61,7 @@ fun SettingsScreen(
     onOpenMyAccounts: () -> Unit,
     onOpenHealth: () -> Unit,
     onOpenBudget: () -> Unit,
+    onOpenData: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val capture by viewModel.capture.collectAsStateWithLifecycle()
@@ -122,6 +123,8 @@ fun SettingsScreen(
                         supportingContent = { Text("Everything you see is made-up sample data.") },
                     )
                     ActionItem("Exit demo", onClick = viewModel::exitDemo)
+                    SectionTitle("Privacy")
+                    ActionItem("Privacy & your data", supporting = PRIVACY_SUMMARY, onClick = onOpenData)
                 }
                 is SettingsMode.Account -> {
                     SectionTitle("Account")
@@ -214,6 +217,8 @@ fun SettingsScreen(
                         supporting = "Bank messages Inkless didn't understand",
                         onClick = onOpenUnread,
                     )
+                    SectionTitle("Privacy")
+                    ActionItem("Privacy & your data", supporting = PRIVACY_SUMMARY, onClick = onOpenData)
                     ActionItem(
                         "Delete account",
                         supporting = "Removes your account, its cloud backup and everything on this phone",
@@ -425,3 +430,5 @@ private fun DeleteAccountDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
+
+private const val PRIVACY_SUMMARY = "App lock, export to a spreadsheet, a backup file"
