@@ -12,7 +12,13 @@ It's local-first: your ledger lives in a database on your phone, and the SMS tex
   <img src="docs/screenshots/home-dark.png" width="260" alt="Food Delivery tab in dark mode" />
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/tour.gif" width="300" alt="A tour of the demo: Home, a category tab, a payment, Insights, Ask Inkless, Wrapped and a friend's balance" />
+</p>
+
 <sub>Screenshots use the built-in demo data — none of it is real.</sub>
+
+**Want to try it?** [docs/INSTALL.md](docs/INSTALL.md) explains which APK to pick and how to install it (it's not on the Play Store, since apps that read SMS need Google's approval).
 
 ## What it does
 
@@ -25,6 +31,7 @@ It's local-first: your ledger lives in a database on your phone, and the SMS tex
 - **Split with friends** — split a payment equally, by amounts or by percentages; only your part counts as your spending, and Inkless keeps track of who owes whom. See [Split with friends](#split-with-friends).
 - **Insights** — spending alerts, payments that come round every week or month, your month wrapped up as a picture to share, and how well the guessing is going. See [Insights](#insights).
 - **Ask Inkless** — *"How much on food this month?"*, *"Biggest payment in October"*, *"kitna kharcha kal?"*, answered from the phone's own data. See [Insights](#insights).
+- **Locked and yours** — an optional app lock (fingerprint, face or screen lock), payments exported as a spreadsheet, and a password-locked backup file you can restore anywhere. See [Privacy & your data](#privacy--your-data).
 - **Cloud backup** — everything is backed up to your account as you go; log in on a new phone and it all comes back. See [Cloud backup](#cloud-backup).
 - **Category tabs** — swipe between *All* and 13 categories (Food & Canteen, Food Delivery, Travel, Recharge & Subscriptions, Laundry & Hostel, Lent to Friends, …), each with its own monthly total and payment list.
 - **Month at a glance** — the total spent this month up top; step back through previous months.
@@ -99,7 +106,7 @@ Every captured payment goes through a small categoriser, most specific knowledge
 
 1. **Your rules** — Settings → Categorising rules, e.g. *UPI ID contains `canteen` → Food & Canteen*. They match the UPI ID, the payee name or either, by *contains*, *is exactly* or a regex, and run in the order you put them.
 2. **Merchant memory** — once you've said what a merchant is, every later payment to it is filed the same way. This is what handles opaque QR handles like `q829154@ybl` and SMS that only carry a name ("trf to RAMU BHAIYA"), which no keyword can guess.
-3. **The learned model** — a Naive Bayes classifier trained on the phone from every payment you've sorted. It looks at the payee's words (and pieces of words, so "Night Canteen" helps with "Block D Canteen"), the merchant itself, the amount, the time of day and the day of the week, so ₹20 at 5 pm at an unknown QR code reads as chai. It files a payment on its own only when it's at least 80% sure and has learned from enough payments, and never learns from its own guesses until you confirm them.
+3. **The learned model** — a Naive Bayes classifier trained on the phone from every payment you've sorted. It looks at the payee's words (and pieces of words, so "Night Canteen" helps with "Block D Canteen"), the merchant itself (which counts most, once seen), the amount, the time of day and the day of the week, so ₹20 at 5 pm at an unknown QR code reads as chai. It files a payment on its own only when it's at least 80% sure and has learned from enough payments, and never learns from its own guesses until you confirm them.
 4. **Built-in keywords** — Swiggy/Zomato → Food Delivery, Blinkit/Zepto/Instamart → Groceries, Uber/Rapido/IRCTC → Travel, Jio/Airtel/Netflix → Recharge & Subscriptions, and so on. Short keywords must be a whole word, so "ola" files *Ola* but not *Kolapur Stores*.
 5. **Otherwise it asks.** A notification — *"₹30 to RAMU BHAIYA — what was this?"* — carries the model's best guesses (then your most-used categories) as buttons, and the payment's page opens with its best guess already picked; tapping one files the payment and teaches the merchant without opening the app. Anything still unsorted waits on the home screen under *N payments to sort*, where one tap per merchant clears it.
 
@@ -136,7 +143,7 @@ Every spend number (category totals, budgets, safe to spend, the widget, the sum
 
 The chart icon on Home opens *Insights*:
 
-- **How well Inkless guesses** — every payment that arrives gets the model's guess before anyone sorts it. The chart shows, week by week, how often that guess matched the category the payment ended up in, next to how many payments Inkless filed by itself and you then changed. It's the number that should climb as you correct it. Replaying the demo's 215 payments in order (guess first, then learn the real category), the model is right 60% of the time over the first quarter and 96% over the last; the replay runs as a unit test, so the numbers stay honest.
+- **How well Inkless guesses** — every payment that arrives gets the model's guess before anyone sorts it. The chart shows, week by week, how often that guess matched the category the payment ended up in, next to how many payments Inkless filed by itself and you then changed. It's the number that should climb as you correct it. Replaying the demo's 215 payments in order (guess first, then learn the real category), the model is right 62% of the time over the first quarter and 100% over the last; the replay runs as a unit test, so the numbers stay honest. [`ml/`](ml/) compares it with a standard TF-IDF + logistic regression in scikit-learn (99.3% vs 100% on the last quarter of five months of demo data); that comparison is what showed the model was underrating the merchant itself.
 - **Spending alerts** — *"🍜 Food Delivery: ₹1,240 this week. About 2.3× a usual week (₹540)."* "Usual" is the median of the last eight weeks (or 28 days), and "unusual" is measured with the median absolute deviation, so one big month can't skew it. It also has to be clearly more in rupees, and only categories you spend on most weeks (or most days) count, so a monthly recharge turning up on schedule isn't news. At most one notification a day, on its own quiet channel.
 - **Coming up** — payments that come round every week, month or year (laundry on Mondays, the phone recharge on the 3rd), with roughly how much and when the next one is due. Something missed twice in a row drops off the list.
 - **Wrapped** — any month in a few numbers: total and change on the month before, where most of it went, the top place, the most visited, the biggest payment, how many ₹30-or-less payments, the no-spend days. *Share as a picture* draws it as an image and opens the share sheet.
@@ -211,6 +218,18 @@ The phone's own database is always the real copy; the app reads nothing else, so
 - **Logging out with changes not yet backed up** (say, offline) asks first: back up and log out, or log out anyway. They stay on the phone either way.
 - **Switching backup off** applies to every phone on the account and deletes the cloud copy (after a confirmation); the phone keeps everything. Switching it back on uploads it all again. New accounts start with backup on.
 
+## Privacy & your data
+
+<p align="center">
+  <img src="docs/screenshots/get-started.png" width="260" alt="Welcome checklist: what's read and what isn't, then SMS, notifications, allowance and own UPI IDs" />
+  <img src="docs/screenshots/privacy.png" width="260" alt="Privacy and your data: app lock, export and backup file" />
+</p>
+
+- **Get started** — a new account opens on a short checklist: what Inkless reads and what it never does, then each piece of setup (bank SMS, UPI app notifications and the *Allow restricted settings* step for apps installed from a file, battery, allowance, your own UPI IDs) with its status and a button to the screen that does it.
+- **App lock** — Settings → *Privacy & your data*. Inkless then asks for a fingerprint, face or the phone's screen lock when it opens or comes back after 30 seconds, and stays out of the recent-apps preview. It uses Android's `BiometricPrompt`, so the app never sees the fingerprint or the PIN.
+- **Export** — payments as a CSV for Excel or Google Sheets (with each split payment's own part and each broken-down payment's items), or everything as JSON. Files go wherever you pick in Android's own file picker; the app has no storage permission.
+- **Backup file** — everything (payments and items, categories, merchants, rules, budget, friends, splits) in one file locked with a password: PBKDF2 stretches the password into a 256-bit key and AES-GCM encrypts the file and detects any change to it, all with what Android ships with. Restoring it, on any phone and into any account, adds what's missing and keeps whichever copy of each payment was edited last. Without the password the file is unreadable, and the password is never stored.
+
 ## Privacy
 
 - Your transactions are stored in a Room database on the device, one file per account (`inkless_<id>.db`). Demo data lives in its own file and never mixes with anything else.
@@ -239,10 +258,36 @@ The phone's own database is always the real copy; the app reads nothing else, so
 | Notifications | Notification actions handled by a `BroadcastReceiver`, deep links into the payment and Insights |
 | On-device ML | Multinomial Naive Bayes in plain Kotlin (no ML library), retrained on every correction; robust statistics for alerts; a rule-based question parser |
 | Async | Kotlin Coroutines & Flow |
-| Tests | JUnit, Truth, Turbine; Room tests on a device/emulator; Firestore rules tests on the Firebase emulator |
+| Security | `BiometricPrompt` app lock; backup files encrypted with PBKDF2 + AES-GCM (`javax.crypto`); R8 in release builds |
+| Tests | JUnit, Truth, Turbine; Room tests on a device/emulator; Firestore rules tests on the Firebase emulator; a scikit-learn notebook in `ml/` |
 | Build | Gradle 9 (Kotlin DSL + version catalog), AGP 9, KSP |
 
 minSdk 26 · targetSdk 37
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Phone
+        SMS[Bank SMS] --> Filter
+        Notif[UPI app notifications] --> Filter
+        Filter[Filter: drops OTPs, promos, personal] --> Parse[Bank and UPI-app parsers]
+        Parse --> Dedupe[Deduplicate SMS + notification]
+        Dedupe --> Classify[Transfers, allowance, refunds]
+        Classify --> Categorize[Rules → merchant memory → model → keywords]
+        Categorize --> DB[(Room, one file per account)]
+        DB --> View[spend_parts view]
+        View --> UI[Home, budget, widget, Insights, Ask]
+        DB --> Model[Naive Bayes, retrained on each correction]
+        Model --> Categorize
+        DB --> Files[CSV, JSON, encrypted backup file]
+    end
+    DB <-->|parsed fields only| Backup[(Firestore backup)]
+    DB <-->|members only| Shared[(Firestore shared splits)]
+    Auth[Firebase Auth] --- Phone
+```
+
+Everything to the left of Firestore happens on the phone. Raw message text stops at the parsers' input: it's kept on the phone for re-parsing, and never reaches the backup, the logs or any file the app writes.
 
 ## Project layout
 
@@ -250,7 +295,8 @@ minSdk 26 · targetSdk 37
 app/        Android app — UI, Room database, accounts, SMS capture, Hilt wiring, demo data
 parsing/    Pure Kotlin module (no Android dependencies): SMS filter, bank and UPI-app parsers, shared-order parser, test fixtures
 firebase/   Firestore security rules, their tests, and Firebase setup steps
-docs/       Screenshots
+ml/         Notebook comparing the category model with a scikit-learn baseline, and its data
+docs/       Screenshots, the tour GIF, the install guide
 ```
 
 Inside `app/src/main/java/com/mehul/inkless/`:
@@ -264,6 +310,8 @@ budget/       Allowance cycle, safe to spend, runway, food cap, semesters, the w
 ml/           The category model: features, Naive Bayes, training, the replay evaluation
 insights/     Spending alerts, recurring payments, Wrapped, the accuracy report
 ask/          Ask Inkless: the question parser and the queries behind the answers
+lock/         The app lock
+export/       CSV and JSON export, the encrypted backup file and restoring it
 widget/       The home-screen widget
 breakdown/    Breaking a payment into items: the rules, and which notification a new payment gets
 share/        Share to Inkless: reading a shared order (OCR for screenshots) and matching it to a payment
@@ -296,6 +344,21 @@ The app needs an `app/google-services.json` from a Firebase project. It isn't co
 cd firebase && npm install && npm test
 ```
 
+**Release builds** are shrunk with R8 and signed with a key that never goes in the repo. Put a
+`keystore.properties` next to `settings.gradle.kts` (it's git-ignored):
+
+```properties
+storeFile=/path/to/inkless-release.jks
+storePassword=…
+keyAlias=inkless
+keyPassword=…
+```
+
+then `./gradlew assembleRelease` writes one APK per CPU type plus a universal one to
+`app/build/outputs/apk/release/` (about 14 MB for arm64 against 36 MB universal: Tesseract's native
+code is most of it). Without the file, release builds come out unsigned. For Google sign-in in a release
+build, add the key's SHA-1 and SHA-256 to the Firebase app (see [`firebase/README.md`](firebase/README.md)).
+
 On Windows use `gradlew.bat`. You can also just open the folder in Android Studio and hit Run.
 
-**Installing from an APK file:** Android treats apps that read SMS carefully when they don't come from an app store. Play Protect may refuse an APK opened from a browser or chat app (installing over USB with `adb install` works), and on Android 13+ the SMS permission starts out locked: open the app's info page, tap ⋮ → *Allow restricted settings*, then allow SMS. The in-app setup screen walks through this too.
+**Installing from an APK file:** see [docs/INSTALL.md](docs/INSTALL.md). In short: Play Protect may refuse an SMS-reading APK opened from a browser or chat app (installing over USB with `adb install` works), and on Android 13+ the SMS permission starts out locked until *Allow restricted settings* is tapped on the app's info page. The in-app checklist walks through this too.
