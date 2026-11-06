@@ -85,6 +85,10 @@
         </receiver>
 
         <receiver
+            android:name=".splits.SettleReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".categorize.CategorizeReceiver"
             android:exported="false" />
 

@@ -8,6 +8,7 @@ import com.mehul.inkless.capture.CaptureRunner
 import com.mehul.inkless.capture.IncomingSms
 import com.mehul.inkless.categorize.ReviewNotifier
 import com.mehul.inkless.di.ApplicationScope
+import com.mehul.inkless.splits.SettleSuggester
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -23,6 +24,8 @@ class SmsReceiver : BroadcastReceiver() {
     @Inject lateinit var runner: CaptureRunner
 
     @Inject lateinit var notifier: ReviewNotifier
+
+    @Inject lateinit var settle: SettleSuggester
 
     @Inject @ApplicationScope lateinit var scope: CoroutineScope
 
@@ -48,7 +51,10 @@ class SmsReceiver : BroadcastReceiver() {
             try {
                 val saved = runner.capture(messages)
                 // Only live payments get a question; history imports would flood the shade.
-                runner.currentAccount()?.let { (uid, db) -> notifier.askAbout(uid, db, saved) }
+                runner.currentAccount()?.let { (uid, db) ->
+                    notifier.askAbout(uid, db, saved)
+                    settle.suggest(db, saved)
+                }
             } finally {
                 pending.finish()
             }

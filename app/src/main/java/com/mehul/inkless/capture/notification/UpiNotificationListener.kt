@@ -11,6 +11,7 @@ import com.mehul.inkless.capture.IncomingNotification
 import com.mehul.inkless.categorize.ReviewNotifier
 import com.mehul.inkless.di.ApplicationScope
 import com.mehul.inkless.parsing.UpiApp
+import com.mehul.inkless.splits.SettleSuggester
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -26,6 +27,8 @@ class UpiNotificationListener : NotificationListenerService() {
     @Inject lateinit var runner: CaptureRunner
 
     @Inject lateinit var notifier: ReviewNotifier
+
+    @Inject lateinit var settle: SettleSuggester
 
     @Inject @ApplicationScope lateinit var scope: CoroutineScope
 
@@ -45,7 +48,10 @@ class UpiNotificationListener : NotificationListenerService() {
         val incoming = IncomingNotification(sbn.packageName, sbn.key, text, sbn.postTime)
         scope.launch {
             val saved = runner.capture(incoming) ?: return@launch
-            runner.currentAccount()?.let { (uid, db) -> notifier.askAbout(uid, db, listOf(saved)) }
+            runner.currentAccount()?.let { (uid, db) ->
+                notifier.askAbout(uid, db, listOf(saved))
+                settle.suggest(db, listOf(saved))
+            }
         }
     }
 }
