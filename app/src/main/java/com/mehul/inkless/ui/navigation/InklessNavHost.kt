@@ -7,6 +7,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navDeepLink
 import com.mehul.inkless.ui.accounts.MyAccountsScreen
 import com.mehul.inkless.ui.breakdown.BreakdownScreen
+import com.mehul.inkless.ui.budget.BudgetScreen
+import com.mehul.inkless.ui.category.CategoryScreen
 import com.mehul.inkless.ui.capture.SmsSetupScreen
 import com.mehul.inkless.ui.capture.UnreadScreen
 import com.mehul.inkless.ui.health.CaptureHealthScreen
@@ -29,6 +31,12 @@ data class TransactionRoute(val id: String)
 /** [draft] is a breakdown read from a shared order, waiting in ShareDrafts. */
 @Serializable
 data class BreakdownRoute(val transactionId: String, val draft: String? = null)
+
+@Serializable
+object BudgetRoute
+
+@Serializable
+data class CategoryRoute(val categoryId: String)
 
 @Serializable
 object SmsSetupRoute
@@ -59,7 +67,15 @@ fun InklessNavHost() {
                 onOpenTransaction = { navController.navigate(TransactionRoute(it)) },
                 onOpenSmsSetup = { navController.navigate(SmsSetupRoute) },
                 onOpenReview = { navController.navigate(ReviewRoute) },
+                onOpenBudget = { navController.navigate(BudgetRoute) },
+                onOpenCategory = { navController.navigate(CategoryRoute(it)) },
             )
+        }
+        composable<BudgetRoute> {
+            BudgetScreen(onBack = { navController.popBackStack() })
+        }
+        composable<CategoryRoute> {
+            CategoryScreen(onBack = { navController.popBackStack() })
         }
         composable<ReviewRoute> {
             ReviewScreen(
@@ -75,6 +91,7 @@ fun InklessNavHost() {
                 onOpenRules = { navController.navigate(RulesRoute) },
                 onOpenMyAccounts = { navController.navigate(MyAccountsRoute) },
                 onOpenHealth = { navController.navigate(CaptureHealthRoute) },
+                onOpenBudget = { navController.navigate(BudgetRoute) },
             )
         }
         composable<MyAccountsRoute> {

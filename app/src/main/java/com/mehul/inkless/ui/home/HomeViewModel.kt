@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mehul.inkless.auth.AuthException
 import com.mehul.inkless.auth.AuthRepository
+import com.mehul.inkless.budget.BudgetTracker
 import com.mehul.inkless.capture.sms.SmsCapture
 import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.repo.LedgerRepository
@@ -35,8 +36,24 @@ class HomeViewModel @Inject constructor(
     private val auth: AuthRepository,
     private val smsCapture: SmsCapture,
     cloudBackup: CloudBackup,
+    budgetTracker: BudgetTracker,
+    private val quickAdd: QuickAddRequests,
     private val clock: Clock,
 ) : ViewModel() {
+
+    /** The budget card: hidden while signed out, an offer to set one up, or where things stand. */
+    val budget: StateFlow<HomeBudget> = combine(sessions.session, budgetTracker.snapshot()) { session, snapshot ->
+        when {
+            session !is Session.SignedIn && session != Session.Demo -> HomeBudget.Hidden
+            snapshot == null -> HomeBudget.NotSet
+            else -> HomeBudget.Shown(snapshot)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeBudget.Hidden)
+
+    /** The home-screen widget's Cash button asks for the quick-add sheet. */
+    val quickAddRequested: StateFlow<Boolean> = quickAdd.pending
+
+    fun quickAddShown() = quickAdd.handled()
 
     private val verificationSent = MutableStateFlow(false)
 

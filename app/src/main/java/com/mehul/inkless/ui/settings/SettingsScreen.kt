@@ -60,6 +60,7 @@ fun SettingsScreen(
     onOpenRules: () -> Unit,
     onOpenMyAccounts: () -> Unit,
     onOpenHealth: () -> Unit,
+    onOpenBudget: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val capture by viewModel.capture.collectAsStateWithLifecycle()
@@ -153,6 +154,13 @@ fun SettingsScreen(
                         ActionItem("Change password", enabled = !busy) { dialog = SettingsDialog.CHANGE_PASSWORD }
                     }
                     ActionItem("Log out", enabled = !busy) { dialog = SettingsDialog.LOG_OUT }
+
+                    SectionTitle("Budget")
+                    ActionItem(
+                        "Allowance and budget",
+                        supporting = "Monthly allowance, the day it arrives, food cap, weekly summary",
+                        onClick = onOpenBudget,
+                    )
 
                     SectionTitle("Cloud backup")
                     val now = remember(backup) { System.currentTimeMillis() }

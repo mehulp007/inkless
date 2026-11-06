@@ -2,6 +2,8 @@ package com.mehul.inkless.demo
 
 import androidx.room.withTransaction
 import com.mehul.inkless.data.db.InklessDatabase
+import com.mehul.inkless.data.db.entity.BudgetEntity
+import com.mehul.inkless.data.db.entity.BudgetPeriod
 import com.mehul.inkless.data.seed.DefaultCategories
 import java.time.Clock
 import java.time.Duration
@@ -22,6 +24,20 @@ class DemoSeeder @Inject constructor(
         db.withTransaction {
             if (db.categoryDao().count() == 0) {
                 db.categoryDao().insertAll(DefaultCategories.create(Demo.OWNER_UID, nowMillis))
+            }
+            // The demo's allowance arrives on the 1st, like the generated one.
+            if (db.budgetDao().get() == null) {
+                db.budgetDao().save(
+                    BudgetEntity(
+                        id = BudgetEntity.MONTHLY_ID,
+                        period = BudgetPeriod.MONTH,
+                        amountPaise = 12_000_00,
+                        allowanceDay = 1,
+                        dailyFoodCapPaise = 200_00,
+                        ownerUid = Demo.OWNER_UID,
+                        updatedAt = nowMillis,
+                    ),
+                )
             }
 
             val latest = db.transactionDao().latestTimestamp()

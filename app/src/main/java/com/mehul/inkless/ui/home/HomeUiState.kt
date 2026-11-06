@@ -1,5 +1,6 @@
 package com.mehul.inkless.ui.home
 
+import com.mehul.inkless.budget.BudgetSnapshot
 import com.mehul.inkless.data.db.dao.CategoryTotal
 import com.mehul.inkless.data.db.dao.TransactionListItem
 import com.mehul.inkless.data.db.entity.CategoryEntity
@@ -23,6 +24,16 @@ data class HomeAccount(
     /** First login on this phone: the backup is still coming down. */
     val restoring: Boolean = false,
 )
+
+sealed interface HomeBudget {
+    /** Signed out, or still loading. */
+    data object Hidden : HomeBudget
+
+    /** Signed in, no allowance set yet: Home offers to set one. */
+    data object NotSet : HomeBudget
+
+    data class Shown(val snapshot: BudgetSnapshot) : HomeBudget
+}
 
 sealed interface HomeUiState {
     data object Loading : HomeUiState

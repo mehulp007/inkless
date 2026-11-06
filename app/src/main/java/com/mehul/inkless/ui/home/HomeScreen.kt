@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +57,10 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mehul.inkless.R
+import com.mehul.inkless.budget.BudgetSnapshot
+import com.mehul.inkless.budget.BudgetText
+import com.mehul.inkless.ui.budget.PaceChart
+import com.mehul.inkless.ui.budget.SpendRing
 import com.mehul.inkless.ui.format.Money
 import com.mehul.inkless.ui.theme.LocalInklessColors
 import kotlinx.coroutines.launch
@@ -71,13 +76,23 @@ fun HomeScreen(
     onOpenTransaction: (String) -> Unit,
     onOpenSmsSetup: () -> Unit,
     onOpenReview: () -> Unit,
+    onOpenBudget: () -> Unit,
+    onOpenCategory: (String) -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
+    val budget by viewModel.budget.collectAsStateWithLifecycle()
+    val quickAddRequested by viewModel.quickAddRequested.collectAsStateWithLifecycle()
     val toSort by viewModel.toSort.collectAsStateWithLifecycle()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val account by viewModel.account.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     var addingCash by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(quickAddRequested) {
+        if (quickAddRequested) {
+            addingCash = true
+            viewModel.quickAddShown()
+        }
+    }
 
     // Coming back from the email app is the moment the verification link was likely clicked.
     LifecycleResumeEffect(Unit) {
@@ -97,6 +112,9 @@ fun HomeScreen(
         onAddCash = { addingCash = true },
         toSort = toSort,
         onOpenReview = onOpenReview,
+        budget = budget,
+        onOpenBudget = onOpenBudget,
+        onOpenCategory = onOpenCategory,
     )
 
     if (addingCash) {
@@ -125,6 +143,9 @@ private fun HomeContent(
     onAddCash: () -> Unit,
     toSort: Int,
     onOpenReview: () -> Unit,
+    budget: HomeBudget,
+    onOpenBudget: () -> Unit,
+    onOpenCategory: (String) -> Unit,
 ) {
     Scaffold(
         floatingActionButton = {
@@ -159,7 +180,13 @@ private fun HomeContent(
             HomeUiState.Loading -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) {
                 CircularProgressIndicator()
             }
-            is HomeUiState.Ready -> ReadyContent(state, padding, onPreviousMonth, onNextMonth, onOpenTransaction) {
+            is HomeUiState.Ready -> ReadyContent(
+                state, padding, onPreviousMonth, onNextMonth, onOpenTransaction,
+                // The budget is about now, so it's shown on the current month only.
+                budget = budget.takeIf { !state.canGoForward } ?: HomeBudget.Hidden,
+                onOpenBudget = onOpenBudget,
+                onOpenCategory = onOpenCategory,
+            ) {
                 account.unverifiedEmail?.let { email ->
                     VerifyEmailBanner(email, account.verificationSent, onResendVerification)
                 }
@@ -178,6 +205,9 @@ private fun ReadyContent(
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onOpenTransaction: (String) -> Unit,
+    budget: HomeBudget,
+    onOpenBudget: () -> Unit,
+    onOpenCategory: (String) -> Unit,
     banner: @Composable () -> Unit,
 ) {
     val pagerState = rememberPagerState { state.tabs.size }
@@ -211,6 +241,9 @@ private fun ReadyContent(
                 today = state.today,
                 bottomPadding = padding.calculateBottomPadding(),
                 onOpenTransaction = onOpenTransaction,
+                budget = budget,
+                onOpenBudget = onOpenBudget,
+                onOpenCategory = onOpenCategory,
             )
         }
     }
@@ -260,6 +293,9 @@ private fun CategoryPage(
     today: LocalDate,
     bottomPadding: Dp,
     onOpenTransaction: (String) -> Unit,
+    budget: HomeBudget,
+    onOpenBudget: () -> Unit,
+    onOpenCategory: (String) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -268,7 +304,17 @@ private fun CategoryPage(
     ) {
         // The month header already shows the overall total, so only categories get a summary row.
         if (tab.key != HomeStateBuilder.ALL_TAB_KEY) {
-            item(key = "summary") { CategorySummary(tab) }
+            item(key = "summary") { CategorySummary(tab, onClick = { onOpenCategory(tab.key) }) }
+        } else {
+            // Always there, even while empty: the budget loads a moment after the list, and a row
+            // appearing above the first visible one would land out of sight, above the top.
+            item(key = "budget") {
+                when (budget) {
+                    is HomeBudget.Shown -> BudgetCard(budget.snapshot, onClick = onOpenBudget)
+                    HomeBudget.NotSet -> SetBudgetCard(onClick = onOpenBudget)
+                    HomeBudget.Hidden -> Unit
+                }
+            }
         }
 
         if (tab.days.isEmpty()) {
@@ -290,9 +336,9 @@ private fun CategoryPage(
 }
 
 @Composable
-private fun CategorySummary(tab: CategoryTab) {
+private fun CategorySummary(tab: CategoryTab, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -310,6 +356,74 @@ private fun CategorySummary(tab: CategoryTab) {
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
         )
+        Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = "Details", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** Safe to spend today, the month's ring and how long the money lasts at this pace. */
+@Composable
+private fun BudgetCard(snapshot: BudgetSnapshot, onClick: () -> Unit) {
+    val over = snapshot.safeToSpendPaise < 0
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SpendRing(fraction = snapshot.usedFraction, size = 72.dp) {
+                    Text("${(snapshot.usedFraction * 100).toInt()}%", style = MaterialTheme.typography.labelLarge)
+                }
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        BudgetText.safeToSpendAmount(snapshot),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(BudgetText.safeToSpendLabel(snapshot), style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        BudgetText.spentOfBudget(snapshot),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            PaceChart(
+                cumulativePaise = snapshot.cumulativePaise,
+                budgetPaise = snapshot.budgetPaise,
+                cycleDays = snapshot.cycle.days,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(BudgetText.runway(snapshot), style = MaterialTheme.typography.bodyMedium)
+            BudgetText.food(snapshot)?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SetBudgetCard(onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Set your monthly allowance", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Then Inkless tells you what you can spend today, and when the money runs out at this pace.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null)
+        }
     }
 }
 
