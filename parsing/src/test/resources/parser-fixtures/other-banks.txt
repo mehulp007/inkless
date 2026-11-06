@@ -1,0 +1,52 @@
+# Banks we have no real samples for yet, written in the shapes these banks are commonly seen to
+# use. They go through the generic parser. Replace them with real (masked) alerts when someone
+# with an account there uses the app.
+#
+# The filter cases at the bottom (promotional -P headers, telecom recharges, merchant receipts,
+# 15-digit SBI references in sbi.txt) follow behaviour documented by two MIT-licensed parsers:
+# transaction-sms-parser and upi_sms_parser.
+
+---
+sender: VM-KOTAKB-S
+expect: DEBIT 120.00 vpa=zomato@kotak acct=4321 ref=631000112233
+Sent Rs.120.00 from Kotak Bank AC X4321 to zomato@kotak on 06-11-26.UPI Ref 631000112233. Not you, https://kotak.com/KBANKT/Fraud
+---
+sender: VM-KOTAKB-S
+expect: CREDIT 300.00 vpa=aman.s@oksbi acct=4321 ref=631000223344
+Received Rs.300.00 in your Kotak Bank AC X4321 from aman.s@oksbi on 06-11-26.UPI Ref:631000223344.
+---
+sender: VM-PNBSMS-S
+expect: DEBIT 50.00 acct=4567 ref=631000334455
+A/c XX4567 debited INR 50.00 Dt 06-11-26 16:40:08 thru UPI:631000334455.Bal INR 1,234.56 Not u?Fwd this SMS to 9264092640 to block UPI.Download PNB ONE-PNB
+---
+sender: VM-BOBTXN-S
+expect: DEBIT 75.00 vpa=chaiwala@ybl acct=6789 ref=631000445566 bal=2,345.67
+Rs.75.00 Dr. from A/C XXXXXX6789 and Cr. to chaiwala@ybl. Ref:631000445566. AvlBal:Rs2,345.67(2026:11:06 16:40:08). Not you? Call 18005700-BOB
+---
+sender: VM-CANBNK-S
+expect: DEBIT 50.00 acct=8901 ref=631000556677 bal=1,234.56
+An amount of INR 50.00 has been DEBITED to your account XXX8901 on 06/11/2026 towards UPI/631000556677. Total Avail.bal INR 1,234.56. - Canara Bank
+---
+sender: VM-IDFCFB-S
+expect: DEBIT 99.00 vpa=spotify@icici acct=2345 ref=631000667788 bal=4,500.00
+Your A/C XXXXXXX2345 has been debited by INR 99.00 on 06/11/2026 15:20. Info: UPI/631000667788/spotify@icici. Avl Bal: INR 4,500.00. IDFC FIRST Bank
+---
+
+# Not bank transactions
+---
+sender: AP-AIRTEL-P
+expect: REJECT PROMO
+1GB data aur naye Rs. 48 wale Prepaid pack ke saath. Abhi recharge karein!
+---
+sender: AD-AIRTEL-S
+expect: REJECT NOT_A_TRANSACTION
+Hi, recharge of Rs. 299 successfully credited to your Airtel number 98XXXXXX21, validity extended till 05-12-2026.
+---
+sender: TX-SWIGGY-S
+expect: REJECT UNKNOWN_SENDER
+Payment Confirmed! Your Swiggy Order #236100011122233 of Rs. 356.0 was successfully paid on 26/10/2026 at 10:38 PM. Txn ID: 260200011122233. Enjoy your order!
+---
+sender: VM-HDFCBK-S
+expect: REJECT NOT_A_TRANSACTION
+Low balance alert! Available balance in your A/c XX5521 is Rs.212.40. Add money to avoid declined payments.
+---
