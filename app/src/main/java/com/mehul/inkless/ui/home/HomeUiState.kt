@@ -77,7 +77,11 @@ data class TransactionRow(
     val timestamp: Long,
     /** A broken-down payment shows under its biggest item, with a "+N more" badge for the rest. */
     val moreItems: Int = 0,
-)
+    /** Friends' parts of a split payment; only the rest is the user's spending. */
+    val friendsSharePaise: Long = 0,
+) {
+    val myPaise: Long get() = amountPaise - friendsSharePaise
+}
 
 internal object HomeStateBuilder {
 
@@ -117,6 +121,7 @@ internal object HomeStateBuilder {
                 colorArgb = category?.colorArgb ?: NEUTRAL_COLOR,
                 timestamp = txn.timestamp,
                 moreItems = (txn.itemCount - 1).coerceAtLeast(0),
+                friendsSharePaise = txn.friendsSharePaise,
             )
         }
         val rowsByDay = rows.groupBy { dayOf(it, zone) }
@@ -124,7 +129,7 @@ internal object HomeStateBuilder {
         // What a payment spent in one category: its item(s) there if it's broken down, else all or nothing.
         fun spentIn(row: TransactionRow, categoryId: String): Long {
             if (row.isCredit || row.isTransfer) return 0
-            val parts = itemsByPayment[row.id] ?: return if (row.categoryId == categoryId) row.amountPaise else 0
+            val parts = itemsByPayment[row.id] ?: return if (row.categoryId == categoryId) row.myPaise else 0
             return parts.filter { it.categoryId == categoryId }.sumOf { it.amountPaise }
         }
 
@@ -136,7 +141,7 @@ internal object HomeStateBuilder {
             colorArgb = NEUTRAL_COLOR,
             totalPaise = spent,
             count = rows.size,
-            days = groupByDay(rows, zone) { _, dayRows -> dayRows.filterNot { it.isCredit || it.isTransfer }.sumOf { it.amountPaise } },
+            days = groupByDay(rows, zone) { _, dayRows -> dayRows.filterNot { it.isCredit || it.isTransfer }.sumOf { it.myPaise } },
         )
         val categoryTabs = categories.map { category ->
             val categoryRows = rows.filter { it.categoryId == category.id }

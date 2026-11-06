@@ -9,6 +9,9 @@ import com.mehul.inkless.data.db.entity.TransactionItemEntity
 import com.mehul.inkless.data.db.entity.CaptureSource
 import com.mehul.inkless.data.db.entity.Direction
 import com.mehul.inkless.data.db.entity.MerchantEntity
+import com.mehul.inkless.data.db.entity.SplitEntity
+import com.mehul.inkless.data.db.entity.SplitMethod
+import com.mehul.inkless.data.db.entity.SplitShareEntity
 import com.mehul.inkless.data.db.entity.TransactionEntity
 import com.mehul.inkless.data.db.entity.TransactionStatus
 import com.mehul.inkless.data.db.entity.TransactionType
@@ -178,6 +181,33 @@ class TransactionDaoTest {
             CategoryIds.SHOPPING to 3000_00L,
             CategoryIds.COLLEGE to 2000_00L,
             CategoryIds.SHOPPING to -1000_00L,
+        )
+    }
+
+    @Test
+    fun aSplitPaymentCountsOnlyTheUsersPart() = runTest {
+        db.transactionDao().insertAll(
+            listOf(
+                txn("dinner", 900_00, 100, CategoryIds.FOOD_DELIVERY),
+                txn("cab", 300_00, 200, CategoryIds.TRAVEL),
+            ),
+        )
+        val dao = db.friendDao()
+        dao.saveSplit(SplitEntity("s1", "dinner", SplitMethod.EQUAL, ownerUid = "test", updatedAt = 1))
+        dao.replaceShares(
+            "s1",
+            listOf(
+                SplitShareEntity("a", "s1", "f1", 300_00, ownerUid = "test"),
+                SplitShareEntity("b", "s1", "f2", 300_00, settled = true, ownerUid = "test"),
+            ),
+        )
+        // A removed split counts in full again.
+        dao.saveSplit(SplitEntity("s2", "cab", SplitMethod.EQUAL, ownerUid = "test", updatedAt = 1, deleted = true))
+        dao.replaceShares("s2", listOf(SplitShareEntity("c", "s2", "f1", 150_00, ownerUid = "test")))
+
+        assertThat(db.spendDao().between(0, 1000).associate { it.categoryId to it.amountPaise }).containsExactly(
+            CategoryIds.FOOD_DELIVERY, 300_00L,
+            CategoryIds.TRAVEL, 300_00L,
         )
     }
 }

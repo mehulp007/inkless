@@ -24,6 +24,8 @@ data class TransactionListItem(
     val status: TransactionStatus,
     /** How many items the payment is broken down into; 0 when it isn't. */
     val itemCount: Int = 0,
+    /** Friends' parts of it when it's split; the user's own spending is the rest. */
+    val friendsSharePaise: Long = 0,
 )
 
 /** A payment still waiting for a category, with what's needed to try again. */
@@ -94,7 +96,9 @@ interface TransactionDao {
         """
         SELECT t.id, t.amountPaise, t.direction, t.type, t.timestamp, t.categoryId,
                t.vpa, t.payeeRaw, m.displayName AS merchantName, t.status,
-               (SELECT COUNT(*) FROM transaction_items i WHERE i.transactionId = t.id) AS itemCount
+               (SELECT COUNT(*) FROM transaction_items i WHERE i.transactionId = t.id) AS itemCount,
+               COALESCE((SELECT SUM(s.sharePaise) FROM split_shares s JOIN splits sp ON sp.id = s.splitId
+                         WHERE sp.transactionId = t.id AND sp.deleted = 0), 0) AS friendsSharePaise
         FROM transactions t
         LEFT JOIN merchants m ON m.id = t.merchantId
         WHERE t.deleted = 0 AND t.status = 'NEEDS_REVIEW'
@@ -170,7 +174,9 @@ interface TransactionDao {
         """
         SELECT t.id, t.amountPaise, t.direction, t.type, t.timestamp, t.categoryId,
                t.vpa, t.payeeRaw, m.displayName AS merchantName, t.status,
-               (SELECT COUNT(*) FROM transaction_items i WHERE i.transactionId = t.id) AS itemCount
+               (SELECT COUNT(*) FROM transaction_items i WHERE i.transactionId = t.id) AS itemCount,
+               COALESCE((SELECT SUM(s.sharePaise) FROM split_shares s JOIN splits sp ON sp.id = s.splitId
+                         WHERE sp.transactionId = t.id AND sp.deleted = 0), 0) AS friendsSharePaise
         FROM transactions t
         LEFT JOIN merchants m ON m.id = t.merchantId
         WHERE t.deleted = 0 AND t.timestamp >= :startMillis AND t.timestamp < :endMillis
