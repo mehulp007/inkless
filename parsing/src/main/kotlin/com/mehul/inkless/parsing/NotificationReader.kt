@@ -37,13 +37,21 @@ object NotificationReader {
     )
 
     private val debitWords = Regex("""\b(?:paid|sent to|payment (?:of|to)|debited|you paid|transferred to)\b""", ignoreCase)
-    private val creditWords = Regex("""\b(?:received|sent you|paid you|credited|added to your)\b""", ignoreCase)
+    private val creditWords = Regex(
+        """\b(?:received|sent you|paid you|credited|added to your|to your bank account)\b""",
+        ignoreCase,
+    )
+
+    // PhonePe names the receiving account: "to your bank account State Bank of India-2402".
+    private val bankAccount = Regex("""your bank account\b.{0,40}?-\s?(\d{4})\b""", ignoreCase)
 
     private val amount = Regex("""(?:₹|rs\.?|inr)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)""", ignoreCase)
 
     private val payeePatterns = listOf(
+        // PhonePe: "Aadi Abhishek Chaudhary has sent ₹1 to your bank account State Bank of India-2402"
+        Regex("""^(.+?)\s+has\s+(?:sent|paid|transferred)\b""", ignoreCase),
         // "₹45 paid to Sharma Canteen", "Sent ₹200 to Rohan", "Payment of ₹45 to Sharma Canteen successful"
-        Regex("""\b(?:paid|sent|payment of [^ ]+|transferred)\s+(?:₹\s?[0-9.,]+\s+)?to\s+(.+?)(?:\s+(?:successful(?:ly)?|is successful|via|using|from|on)\b|[.!\n]|$)""", ignoreCase),
+        Regex("""\b(?:paid|sent|payment of [^ ]+|transferred)\s+(?:₹\s?[0-9.,]+\s+)?to\s+(?!your\b)(.+?)(?:\s+(?:successful(?:ly)?|is successful|via|using|from|on)\b|[.!\n]|$)""", ignoreCase),
         // "Received ₹500 from Rohan Kumar", "₹500 received from Rohan"
         Regex("""\bfrom\s+(.+?)(?:\s+(?:on|via|in|to)\b|[.!\n]|$)""", ignoreCase),
         // "Rohan Kumar sent you ₹500", "Rohan paid you ₹500"
@@ -70,6 +78,7 @@ object NotificationReader {
                 vpa = Fields.vpa(flat),
                 payee = payee,
                 upiRef = Fields.upiRef(flat),
+                accountLast4 = bankAccount.find(flat)?.groupValues?.get(1),
                 isRefund = direction == TxnDirection.CREDIT && Fields.isRefund(flat),
                 bankCode = UpiApp.of(packageName)?.name,
             ),

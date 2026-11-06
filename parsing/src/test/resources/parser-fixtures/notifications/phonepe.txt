@@ -1,0 +1,13 @@
+# PhonePe. Real notification layouts; names and account digits replaced with made-up ones.
+
+---
+sender: com.phonepe.app
+expect: CREDIT 1.00 acct=7310 payee=Rahul Kumar Verma
+Money received
+Rahul Kumar Verma has sent ₹1 to your bank account State Bank of India-7310
+---
+sender: com.phonepe.app
+expect: CREDIT 250.00 acct=5521 payee=Priya Sharma
+Money received
+Priya Sharma has sent ₹250 to your bank account HDFC Bank-5521
+---
