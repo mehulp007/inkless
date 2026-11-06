@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.mehul.inkless.ui.navigation.InklessNavHost
+import com.mehul.inkless.ui.navigation.InklessRoot
 import com.mehul.inkless.ui.theme.InklessTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -16,7 +16,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             InklessTheme {
-                InklessNavHost()
+                InklessRoot()
             }
         }
     }
