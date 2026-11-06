@@ -6,9 +6,13 @@ import androidx.room.Query
 import androidx.room.Upsert
 import com.mehul.inkless.data.db.entity.BudgetEntity
 import com.mehul.inkless.data.db.entity.CategoryEntity
+import com.mehul.inkless.data.db.entity.FriendEntity
+import com.mehul.inkless.data.db.entity.IouEntity
 import com.mehul.inkless.data.db.entity.MerchantEntity
 import com.mehul.inkless.data.db.entity.MyAccountEntity
 import com.mehul.inkless.data.db.entity.RuleEntity
+import com.mehul.inkless.data.db.entity.SplitEntity
+import com.mehul.inkless.data.db.entity.SplitShareEntity
 import com.mehul.inkless.data.db.entity.TransactionEntity
 import com.mehul.inkless.data.db.entity.TransactionItemEntity
 import kotlinx.coroutines.flow.Flow
@@ -31,6 +35,9 @@ interface SyncDao {
              + (SELECT COUNT(*) FROM rules WHERE syncState = 'DIRTY')
              + (SELECT COUNT(*) FROM my_accounts WHERE syncState = 'DIRTY')
              + (SELECT COUNT(*) FROM budgets WHERE syncState = 'DIRTY')
+             + (SELECT COUNT(*) FROM friends WHERE syncState = 'DIRTY')
+             + (SELECT COUNT(*) FROM splits WHERE syncState = 'DIRTY')
+             + (SELECT COUNT(*) FROM ious WHERE syncState = 'DIRTY')
         """,
     )
     fun observePending(): Flow<Int>
@@ -147,4 +154,64 @@ interface SyncDao {
 
     @Query("UPDATE budgets SET syncState = 'DIRTY'")
     suspend fun markBudgetsDirty()
+
+    // Friends
+
+    @Query("SELECT * FROM friends WHERE syncState = 'DIRTY' LIMIT :limit")
+    suspend fun dirtyFriends(limit: Int): List<FriendEntity>
+
+    @Query("UPDATE friends SET syncState = 'SYNCED' WHERE id = :id AND updatedAt = :updatedAt")
+    suspend fun friendSynced(id: String, updatedAt: Long)
+
+    @Query("SELECT * FROM friends WHERE id IN (:ids)")
+    suspend fun friendsById(ids: List<String>): List<FriendEntity>
+
+    @Upsert
+    suspend fun saveFriends(rows: List<FriendEntity>)
+
+    @Query("UPDATE friends SET syncState = 'DIRTY'")
+    suspend fun markFriendsDirty()
+
+    // Splits; their shares travel inside them
+
+    @Query("SELECT * FROM splits WHERE syncState = 'DIRTY' LIMIT :limit")
+    suspend fun dirtySplits(limit: Int): List<SplitEntity>
+
+    @Query("UPDATE splits SET syncState = 'SYNCED' WHERE id = :id AND updatedAt = :updatedAt")
+    suspend fun splitSynced(id: String, updatedAt: Long)
+
+    @Query("SELECT * FROM splits WHERE id IN (:ids)")
+    suspend fun splitsById(ids: List<String>): List<SplitEntity>
+
+    @Upsert
+    suspend fun saveSplits(rows: List<SplitEntity>)
+
+    @Query("UPDATE splits SET syncState = 'DIRTY'")
+    suspend fun markSplitsDirty()
+
+    @Query("SELECT * FROM split_shares WHERE splitId IN (:splitIds)")
+    suspend fun sharesOf(splitIds: List<String>): List<SplitShareEntity>
+
+    @Query("DELETE FROM split_shares WHERE splitId IN (:splitIds)")
+    suspend fun deleteSharesOf(splitIds: List<String>)
+
+    @Insert
+    suspend fun insertShares(shares: List<SplitShareEntity>)
+
+    // IOUs
+
+    @Query("SELECT * FROM ious WHERE syncState = 'DIRTY' LIMIT :limit")
+    suspend fun dirtyIous(limit: Int): List<IouEntity>
+
+    @Query("UPDATE ious SET syncState = 'SYNCED' WHERE id = :id AND updatedAt = :updatedAt")
+    suspend fun iouSynced(id: String, updatedAt: Long)
+
+    @Query("SELECT * FROM ious WHERE id IN (:ids)")
+    suspend fun iousById(ids: List<String>): List<IouEntity>
+
+    @Upsert
+    suspend fun saveIous(rows: List<IouEntity>)
+
+    @Query("UPDATE ious SET syncState = 'DIRTY'")
+    suspend fun markIousDirty()
 }

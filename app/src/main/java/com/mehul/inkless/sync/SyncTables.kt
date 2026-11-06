@@ -1,6 +1,7 @@
 package com.mehul.inkless.sync
 
 import com.mehul.inkless.data.db.dao.SyncDao
+import com.mehul.inkless.data.db.entity.SplitEntity
 import com.mehul.inkless.data.db.entity.TransactionEntity
 
 /**
@@ -106,6 +107,51 @@ object SyncTables {
         markAllDirty = { markBudgetsDirty() },
     )
 
+    internal val friends = SyncTable(
+        collection = "friends",
+        id = { it.id },
+        updatedAt = { it.updatedAt },
+        toDoc = CloudDocs::friend,
+        fromDoc = CloudDocs::friend,
+        dirty = { dirtyFriends(it) },
+        markSynced = { id, at -> friendSynced(id, at) },
+        local = { friendsById(it) },
+        save = { saveFriends(it) },
+        markAllDirty = { markFriendsDirty() },
+    )
+
+    internal val splits = SyncTable(
+        collection = "splits",
+        id = { it.split.id },
+        updatedAt = { it.split.updatedAt },
+        toDoc = { it.toMap() },
+        fromDoc = SplitDoc::fromMap,
+        dirty = { withShares(dirtySplits(it)) },
+        markSynced = { id, at -> splitSynced(id, at) },
+        local = { withShares(splitsById(it)) },
+        save = { docs ->
+            saveSplits(docs.map { it.split })
+            deleteSharesOf(docs.map { it.split.id })
+            insertShares(docs.flatMap { it.shares })
+        },
+        markAllDirty = { markSplitsDirty() },
+        // Which shared document it went out as is this phone's business; keep it if the cloud copy has none.
+        keepLocal = { remote, local -> remote.copy(split = remote.split.copy(sharedSplitId = remote.split.sharedSplitId ?: local.split.sharedSplitId)) },
+    )
+
+    internal val ious = SyncTable(
+        collection = "ious",
+        id = { it.id },
+        updatedAt = { it.updatedAt },
+        toDoc = CloudDocs::iou,
+        fromDoc = CloudDocs::iou,
+        dirty = { dirtyIous(it) },
+        markSynced = { id, at -> iouSynced(id, at) },
+        local = { iousById(it) },
+        save = { saveIous(it) },
+        markAllDirty = { markIousDirty() },
+    )
+
     internal val transactions = SyncTable(
         collection = "transactions",
         id = { it.transaction.id },
@@ -126,7 +172,7 @@ object SyncTables {
     )
 
     /** In upload and download order: what a transaction points at arrives before the transaction. */
-    val all: List<SyncTable<*>> = listOf(categories, merchants, rules, myAccounts, budgets, transactions)
+    val all: List<SyncTable<*>> = listOf(categories, merchants, rules, myAccounts, budgets, friends, transactions, splits, ious)
 
     val collections: List<String> = all.map { it.collection }
 }
@@ -134,4 +180,9 @@ object SyncTables {
 private suspend fun SyncDao.withItems(transactions: List<TransactionEntity>): List<TransactionDoc> {
     val items = itemsOf(transactions.map { it.id }).groupBy { it.transactionId }
     return transactions.map { TransactionDoc(it, items[it.id].orEmpty()) }
+}
+
+private suspend fun SyncDao.withShares(splits: List<SplitEntity>): List<SplitDoc> {
+    val shares = sharesOf(splits.map { it.id }).groupBy { it.splitId }
+    return splits.map { SplitDoc(it, shares[it.id].orEmpty()) }
 }

@@ -47,6 +47,6 @@ class LastWriteWinsTest {
 
     @Test
     fun `categories and merchants arrive before the transactions that point at them`() {
-        assertThat(SyncTables.collections).containsExactly("categories", "merchants", "rules", "myAccounts", "budgets", "transactions").inOrder()
+        assertThat(SyncTables.collections).containsExactly("categories", "merchants", "rules", "myAccounts", "budgets", "friends", "transactions", "splits", "ious").inOrder()
     }
 }

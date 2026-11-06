@@ -10,9 +10,14 @@ import com.mehul.inkless.data.db.entity.AccountRole
 import com.mehul.inkless.data.db.entity.CaptureSource
 import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.db.entity.Direction
+import com.mehul.inkless.data.db.entity.FriendEntity
+import com.mehul.inkless.data.db.entity.IouEntity
 import com.mehul.inkless.data.db.entity.MerchantEntity
 import com.mehul.inkless.data.db.entity.MyAccountEntity
 import com.mehul.inkless.data.db.entity.RuleEntity
+import com.mehul.inkless.data.db.entity.SplitEntity
+import com.mehul.inkless.data.db.entity.SplitMethod
+import com.mehul.inkless.data.db.entity.SplitShareEntity
 import com.mehul.inkless.data.db.entity.SyncState
 import com.mehul.inkless.data.db.entity.TransactionEntity
 import com.mehul.inkless.data.db.entity.TransactionItemEntity
@@ -129,5 +134,32 @@ class CloudDocsTest {
         assertThat(CloudDocs.budget("monthly", asFirestore(CloudDocs.budget(budget)), "u1")).isEqualTo(budget)
         val noDay = budget.copy(allowanceDay = null, dailyFoodCapPaise = null)
         assertThat(CloudDocs.budget("monthly", asFirestore(CloudDocs.budget(noDay)), "u1")).isEqualTo(noDay)
+    }
+
+    @Test
+    fun `friends and what they owe round trip`() {
+        val friend = FriendEntity("f1", "Rohan Mehta", listOf("rohan@okicici"), "uid-r", "rohan", "u1", 9, syncState = SyncState.SYNCED)
+        assertThat(CloudDocs.friend("f1", asFirestore(CloudDocs.friend(friend)), "u1")).isEqualTo(friend)
+        val iou = IouEntity("i1", "f1", 15_000, theyOwe = true, note = "Auto", timestamp = 5, ownerUid = "u1", updatedAt = 9, syncState = SyncState.SYNCED)
+        assertThat(CloudDocs.iou("i1", asFirestore(CloudDocs.iou(iou)), "u1")).isEqualTo(iou)
+    }
+
+    @Test
+    fun `a split comes back with its shares`() {
+        val split = SplitEntity("s1", "t1", SplitMethod.PERCENT, sharedSplitId = "s1", ownerUid = "u1", updatedAt = 9, syncState = SyncState.SYNCED)
+        val shares = listOf(
+            SplitShareEntity("a", "s1", "f1", 1_500, basisPoints = 3_333, settled = true, settledByTxnId = "t9", ownerUid = "u1"),
+            SplitShareEntity("b", "s1", "f2", 1_500, basisPoints = 3_333, ownerUid = "u1"),
+        )
+        val back = SplitDoc.fromMap("s1", asFirestore(SplitDoc(split, shares.reversed()).toMap()), "u1")
+        assertThat(back?.split).isEqualTo(split)
+        assertThat(back?.shares).containsExactlyElementsIn(shares)
+    }
+
+    @Test
+    fun `a split with a broken share is skipped rather than half read`() {
+        val split = SplitEntity("s1", "t1", SplitMethod.EQUAL, ownerUid = "u1", updatedAt = 9)
+        val doc = SplitDoc(split, emptyList()).toMap() + ("shares" to listOf(mapOf("id" to "a")))
+        assertThat(SplitDoc.fromMap("s1", asFirestore(doc), "u1")).isNull()
     }
 }

@@ -9,9 +9,14 @@ import com.mehul.inkless.data.db.entity.BudgetPeriod
 import com.mehul.inkless.data.db.entity.CaptureSource
 import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.db.entity.Direction
+import com.mehul.inkless.data.db.entity.FriendEntity
+import com.mehul.inkless.data.db.entity.IouEntity
 import com.mehul.inkless.data.db.entity.MerchantEntity
 import com.mehul.inkless.data.db.entity.MyAccountEntity
 import com.mehul.inkless.data.db.entity.RuleEntity
+import com.mehul.inkless.data.db.entity.SplitEntity
+import com.mehul.inkless.data.db.entity.SplitMethod
+import com.mehul.inkless.data.db.entity.SplitShareEntity
 import com.mehul.inkless.data.db.entity.SyncState
 import com.mehul.inkless.data.db.entity.TransactionEntity
 import com.mehul.inkless.data.db.entity.TransactionItemEntity
@@ -154,6 +159,58 @@ object CloudDocs {
         )
     }
 
+    fun friend(f: FriendEntity): Map<String, Any?> = mapOf(
+        "name" to f.name,
+        "vpas" to f.vpas,
+        "linkedUid" to f.linkedUid,
+        "linkedUsername" to f.linkedUsername,
+        UPDATED_AT to f.updatedAt,
+        DELETED to f.deleted,
+    )
+
+    fun friend(id: String, data: Map<String, Any?>, ownerUid: String): FriendEntity? = read(data) {
+        FriendEntity(
+            id = id,
+            name = string("name"),
+            vpas = strings("vpas"),
+            linkedUid = stringOrNull("linkedUid"),
+            linkedUsername = stringOrNull("linkedUsername"),
+            ownerUid = ownerUid,
+            updatedAt = long(UPDATED_AT),
+            deleted = bool(DELETED),
+            syncState = SyncState.SYNCED,
+        )
+    }
+
+    fun iou(i: IouEntity): Map<String, Any?> = mapOf(
+        "friendId" to i.friendId,
+        "amountPaise" to i.amountPaise,
+        "theyOwe" to i.theyOwe,
+        "note" to i.note,
+        "timestamp" to i.timestamp,
+        "settled" to i.settled,
+        "settledByTxnId" to i.settledByTxnId,
+        UPDATED_AT to i.updatedAt,
+        DELETED to i.deleted,
+    )
+
+    fun iou(id: String, data: Map<String, Any?>, ownerUid: String): IouEntity? = read(data) {
+        IouEntity(
+            id = id,
+            friendId = string("friendId"),
+            amountPaise = long("amountPaise"),
+            theyOwe = bool("theyOwe"),
+            note = stringOrNull("note"),
+            timestamp = long("timestamp"),
+            settled = bool("settled"),
+            settledByTxnId = stringOrNull("settledByTxnId"),
+            ownerUid = ownerUid,
+            updatedAt = long(UPDATED_AT),
+            deleted = bool(DELETED),
+            syncState = SyncState.SYNCED,
+        )
+    }
+
     /** Null when the document is damaged or from a newer app version this one can't read. */
     private fun <T> read(data: Map<String, Any?>, build: Fields.() -> T): T? =
         try {
@@ -241,6 +298,63 @@ data class TransactionDoc(
                         categoryId = item.string("categoryId"),
                         note = item.stringOrNull("note"),
                         sortOrder = index,
+                        ownerUid = ownerUid,
+                    )
+                },
+            )
+        } catch (e: IllegalArgumentException) {
+            null
+        }
+    }
+}
+
+/** A split and its friends' shares, as one document: they sync, and win or lose a conflict, together. */
+data class SplitDoc(val split: SplitEntity, val shares: List<SplitShareEntity>) {
+
+    fun toMap(): Map<String, Any?> = with(split) {
+        mapOf(
+            "transactionId" to transactionId,
+            "method" to method.name,
+            "sharedSplitId" to sharedSplitId,
+            "shares" to shares.sortedBy { it.friendId }.map { share ->
+                mapOf(
+                    "id" to share.id,
+                    "friendId" to share.friendId,
+                    "sharePaise" to share.sharePaise,
+                    "basisPoints" to share.basisPoints?.toLong(),
+                    "settled" to share.settled,
+                    "settledByTxnId" to share.settledByTxnId,
+                )
+            },
+            CloudDocs.UPDATED_AT to updatedAt,
+            CloudDocs.DELETED to deleted,
+        )
+    }
+
+    companion object {
+        fun fromMap(id: String, data: Map<String, Any?>, ownerUid: String): SplitDoc? = try {
+            val f = Fields(data)
+            SplitDoc(
+                split = SplitEntity(
+                    id = id,
+                    transactionId = f.string("transactionId"),
+                    method = SplitMethod.valueOf(f.string("method")),
+                    sharedSplitId = f.stringOrNull("sharedSplitId"),
+                    ownerUid = ownerUid,
+                    updatedAt = f.long(CloudDocs.UPDATED_AT),
+                    deleted = f.bool(CloudDocs.DELETED),
+                    syncState = SyncState.SYNCED,
+                ),
+                shares = (data["shares"] as? List<*>).orEmpty().mapIndexed { index, raw ->
+                    val share = Fields(requireNotNull(raw as? Map<*, *>) { "share $index" }.mapKeys { it.key.toString() })
+                    SplitShareEntity(
+                        id = share.string("id"),
+                        splitId = id,
+                        friendId = share.string("friendId"),
+                        sharePaise = share.long("sharePaise"),
+                        basisPoints = share.longOrNull("basisPoints")?.toInt(),
+                        settled = share.bool("settled"),
+                        settledByTxnId = share.stringOrNull("settledByTxnId"),
                         ownerUid = ownerUid,
                     )
                 },

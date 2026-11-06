@@ -19,9 +19,14 @@ import com.mehul.inkless.data.db.entity.BudgetEntity
 import com.mehul.inkless.data.db.entity.BudgetPeriod
 import com.mehul.inkless.data.db.entity.CaptureSource
 import com.mehul.inkless.data.db.entity.Direction
+import com.mehul.inkless.data.db.entity.FriendEntity
+import com.mehul.inkless.data.db.entity.IouEntity
 import com.mehul.inkless.data.db.entity.MerchantEntity
 import com.mehul.inkless.data.db.entity.MyAccountEntity
 import com.mehul.inkless.data.db.entity.RuleEntity
+import com.mehul.inkless.data.db.entity.SplitEntity
+import com.mehul.inkless.data.db.entity.SplitMethod
+import com.mehul.inkless.data.db.entity.SplitShareEntity
 import com.mehul.inkless.data.db.entity.SyncState
 import com.mehul.inkless.data.db.entity.TransactionEntity
 import com.mehul.inkless.data.db.entity.TransactionItemEntity
@@ -233,6 +238,32 @@ class SyncFlowTest {
         phoneB.sync()
         phoneA.sync()
         assertThat(phoneA.db.transactionItemDao().get("order")).isEmpty()
+    }
+
+    @Test
+    fun friendsSplitsAndLoansReachTheNewPhone() = runTest {
+        val a = phoneA.db.friendDao()
+        phoneA.db.transactionDao().insert(payment("dinner").copy(amountPaise = 90_000))
+        a.saveFriend(FriendEntity("f1", "Rohan", listOf("rohan@okicici"), ownerUid = uid, updatedAt = 1_000))
+        a.saveSplit(SplitEntity("s1", "dinner", SplitMethod.EQUAL, ownerUid = uid, updatedAt = 1_000))
+        a.replaceShares("s1", listOf(SplitShareEntity("sh1", "s1", "f1", 45_000, ownerUid = uid)))
+        a.saveIou(IouEntity("i1", "f1", 15_000, theyOwe = true, timestamp = 1_000, ownerUid = uid, updatedAt = 1_000))
+        phoneA.sync()
+        assertThat(phoneA.pending()).isEqualTo(0)
+        phoneB.sync()
+
+        val b = phoneB.db.friendDao()
+        assertThat(b.friends().map { it.name }).containsExactly("Rohan")
+        assertThat(b.splitFor("dinner")?.id).isEqualTo("s1")
+        assertThat(b.shares("s1").map { it.sharePaise }).containsExactly(45_000L)
+        assertThat(b.openIous("f1").map { it.amountPaise }).containsExactly(15_000L)
+
+        // Settled on B: the split as a whole is the newer edit, shares and all.
+        b.setShareSettled("sh1", true, null)
+        b.saveSplit(b.split("s1")!!.copy(updatedAt = 5_000, syncState = SyncState.DIRTY))
+        phoneB.sync()
+        phoneA.sync()
+        assertThat(a.shares("s1").single().settled).isTrue()
     }
 }
 
