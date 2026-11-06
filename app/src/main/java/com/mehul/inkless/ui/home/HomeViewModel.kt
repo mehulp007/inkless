@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mehul.inkless.auth.AuthException
 import com.mehul.inkless.auth.AuthRepository
+import com.mehul.inkless.capture.sms.SmsCapture
+import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.repo.LedgerRepository
 import com.mehul.inkless.session.Session
 import com.mehul.inkless.session.SessionManager
@@ -28,21 +30,32 @@ class HomeViewModel @Inject constructor(
     private val repository: LedgerRepository,
     private val sessions: SessionManager,
     private val auth: AuthRepository,
+    private val smsCapture: SmsCapture,
     private val clock: Clock,
 ) : ViewModel() {
 
     private val verificationSent = MutableStateFlow(false)
 
-    val account: StateFlow<HomeAccount> = combine(sessions.session, verificationSent) { session, sent ->
-        when (session) {
-            Session.Demo -> HomeAccount(isDemo = true)
-            is Session.SignedIn -> HomeAccount(
-                unverifiedEmail = session.user.email.takeUnless { session.user.emailVerified },
-                verificationSent = sent,
-            )
-            else -> HomeAccount()
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeAccount())
+    val account: StateFlow<HomeAccount> =
+        combine(sessions.session, verificationSent, smsCapture.settingsChanged) { session, sent, _ ->
+            when (session) {
+                Session.Demo -> HomeAccount(isDemo = true)
+                is Session.SignedIn -> HomeAccount(
+                    unverifiedEmail = session.user.email.takeUnless { session.user.emailVerified },
+                    verificationSent = sent,
+                    offerSmsSetup = !smsCapture.isEnabled(session.user.uid) && !smsCapture.setupSeen(session.user.uid),
+                )
+                else -> HomeAccount()
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeAccount())
+
+    val categories: StateFlow<List<CategoryEntity>> = repository.categories()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun addCash(amountPaise: Long, categoryId: String, note: String?) {
+        val owner = sessions.currentOwnerUid() ?: return
+        viewModelScope.launch { repository.addCash(amountPaise, categoryId, note, owner) }
+    }
 
     private val selectedMonth = MutableStateFlow(YearMonth.now(clock))
 

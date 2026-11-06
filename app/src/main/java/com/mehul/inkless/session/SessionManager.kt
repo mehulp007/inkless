@@ -67,6 +67,13 @@ class SessionManager @Inject constructor(
             .onEach(::openDatabaseFor)
             .stateIn(scope, SharingStarted.Eagerly, Session.Loading)
 
+    /** Who a new entry belongs to: the signed-in account or the demo. Null when nobody is in. */
+    fun currentOwnerUid(): String? = when (val current = session.value) {
+        is Session.SignedIn -> current.user.uid
+        Session.Demo -> Demo.OWNER_UID
+        else -> null
+    }
+
     fun start() {
         scope.launch { auth.refresh() }
     }

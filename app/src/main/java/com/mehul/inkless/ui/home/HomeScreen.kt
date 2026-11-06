@@ -1,6 +1,7 @@
 package com.mehul.inkless.ui.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -34,8 +36,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -61,10 +66,14 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun HomeScreen(
     onOpenSettings: () -> Unit,
+    onOpenTransaction: (String) -> Unit,
+    onOpenSmsSetup: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val account by viewModel.account.collectAsStateWithLifecycle()
+    val categories by viewModel.categories.collectAsStateWithLifecycle()
+    var addingCash by rememberSaveable { mutableStateOf(false) }
 
     // Coming back from the email app is the moment the verification link was likely clicked.
     LifecycleResumeEffect(Unit) {
@@ -79,7 +88,21 @@ fun HomeScreen(
         onNextMonth = viewModel::nextMonth,
         onOpenSettings = onOpenSettings,
         onResendVerification = viewModel::resendVerification,
+        onOpenTransaction = onOpenTransaction,
+        onOpenSmsSetup = onOpenSmsSetup,
+        onAddCash = { addingCash = true },
     )
+
+    if (addingCash) {
+        QuickAddSheet(
+            categories = categories,
+            onAdd = { amount, categoryId, note ->
+                viewModel.addCash(amount, categoryId, note)
+                addingCash = false
+            },
+            onDismiss = { addingCash = false },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,8 +114,20 @@ private fun HomeContent(
     onNextMonth: () -> Unit,
     onOpenSettings: () -> Unit,
     onResendVerification: () -> Unit,
+    onOpenTransaction: (String) -> Unit,
+    onOpenSmsSetup: () -> Unit,
+    onAddCash: () -> Unit,
 ) {
     Scaffold(
+        floatingActionButton = {
+            if (state is HomeUiState.Ready) {
+                ExtendedFloatingActionButton(
+                    onClick = onAddCash,
+                    icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
+                    text = { Text("Cash") },
+                )
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -116,10 +151,11 @@ private fun HomeContent(
             HomeUiState.Loading -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) {
                 CircularProgressIndicator()
             }
-            is HomeUiState.Ready -> ReadyContent(state, padding, onPreviousMonth, onNextMonth) {
+            is HomeUiState.Ready -> ReadyContent(state, padding, onPreviousMonth, onNextMonth, onOpenTransaction) {
                 account.unverifiedEmail?.let { email ->
                     VerifyEmailBanner(email, account.verificationSent, onResendVerification)
                 }
+                if (account.offerSmsSetup) SmsSetupCard(onClick = onOpenSmsSetup)
             }
         }
     }
@@ -131,6 +167,7 @@ private fun ReadyContent(
     padding: PaddingValues,
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
+    onOpenTransaction: (String) -> Unit,
     banner: @Composable () -> Unit,
 ) {
     val pagerState = rememberPagerState { state.tabs.size }
@@ -163,6 +200,7 @@ private fun ReadyContent(
                 tab = state.tabs[page],
                 today = state.today,
                 bottomPadding = padding.calculateBottomPadding(),
+                onOpenTransaction = onOpenTransaction,
             )
         }
     }
@@ -207,10 +245,16 @@ private fun MonthHeader(
 }
 
 @Composable
-private fun CategoryPage(tab: CategoryTab, today: LocalDate, bottomPadding: Dp) {
+private fun CategoryPage(
+    tab: CategoryTab,
+    today: LocalDate,
+    bottomPadding: Dp,
+    onOpenTransaction: (String) -> Unit,
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = bottomPadding + 16.dp),
+        // Room at the bottom so the Cash button never covers the last row.
+        contentPadding = PaddingValues(bottom = bottomPadding + 88.dp),
     ) {
         // The month header already shows the overall total, so only categories get a summary row.
         if (tab.key != HomeStateBuilder.ALL_TAB_KEY) {
@@ -230,7 +274,7 @@ private fun CategoryPage(tab: CategoryTab, today: LocalDate, bottomPadding: Dp) 
 
         tab.days.forEach { day ->
             item(key = "day-${day.date}") { DayHeader(day, today) }
-            items(day.rows, key = { it.id }) { row -> TransactionItem(row) }
+            items(day.rows, key = { it.id }) { row -> TransactionItem(row, onClick = { onOpenTransaction(row.id) }) }
         }
     }
 }
@@ -287,12 +331,13 @@ private fun DayHeader(day: DayGroup, today: LocalDate) {
 }
 
 @Composable
-private fun TransactionItem(row: TransactionRow) {
+private fun TransactionItem(row: TransactionRow, onClick: () -> Unit) {
     val zone = remember { ZoneId.systemDefault() }
     val time = Instant.ofEpochMilli(row.timestamp).atZone(zone).format(TIME_FORMAT)
     val amountColor = if (row.isCredit) LocalInklessColors.current.credit else MaterialTheme.colorScheme.onSurface
 
     ListItem(
+        modifier = Modifier.clickable(onClick = onClick),
         headlineContent = { Text(row.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
             Text(
@@ -354,6 +399,41 @@ private fun VerifyEmailBanner(email: String, sent: Boolean, onResend: () -> Unit
                 )
             }
             TextButton(onClick = onResend, enabled = !sent) { Text("Resend") }
+        }
+    }
+}
+
+@Composable
+private fun SmsSetupCard(onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painterResource(R.drawable.ic_sms),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Turn on auto-capture",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    "Let Inkless read your bank's payment SMS so payments appear by themselves.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+            Icon(
+                painterResource(R.drawable.ic_chevron_right),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
         }
     }
 }

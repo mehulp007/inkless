@@ -32,6 +32,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mehul.inkless.R
 import com.mehul.inkless.auth.AuthValidation
@@ -46,8 +47,15 @@ private enum class SettingsDialog { CHANGE_PASSWORD, DELETE_ACCOUNT, LOG_OUT }
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onOpenSmsSetup: () -> Unit,
+    onOpenUnread: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
+    val capture by viewModel.capture.collectAsStateWithLifecycle()
+    LifecycleResumeEffect(Unit) {
+        viewModel.recheckPermission()
+        onPauseOrDispose {}
+    }
     val context = LocalContext.current
     val mode by viewModel.mode.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
@@ -132,6 +140,18 @@ fun SettingsScreen(
                         ActionItem("Change password", enabled = !busy) { dialog = SettingsDialog.CHANGE_PASSWORD }
                     }
                     ActionItem("Log out", enabled = !busy) { dialog = SettingsDialog.LOG_OUT }
+
+                    SectionTitle("Auto-capture")
+                    ActionItem(
+                        "Bank SMS",
+                        supporting = if (capture.smsOn) "On — payments are added from your bank's SMS" else "Off — tap to set up",
+                        onClick = onOpenSmsSetup,
+                    )
+                    ActionItem(
+                        "Couldn't read these" + if (capture.unreadCount > 0) " (${capture.unreadCount})" else "",
+                        supporting = "Bank messages Inkless didn't understand",
+                        onClick = onOpenUnread,
+                    )
                     ActionItem(
                         "Delete account",
                         supporting = "Removes your account and everything on this phone",

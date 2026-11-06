@@ -7,6 +7,8 @@ import com.mehul.inkless.auth.AuthException
 import com.mehul.inkless.auth.AuthFailure
 import com.mehul.inkless.auth.AuthRepository
 import com.mehul.inkless.auth.Reauth
+import com.mehul.inkless.capture.sms.SmsCapture
+import com.mehul.inkless.data.repo.LedgerRepository
 import com.mehul.inkless.session.Session
 import com.mehul.inkless.session.SessionManager
 import com.mehul.inkless.ui.auth.FormRunner
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -32,11 +35,28 @@ sealed interface SettingsMode {
     ) : SettingsMode
 }
 
+data class CaptureSettings(val smsOn: Boolean = false, val unreadCount: Int = 0)
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val sessions: SessionManager,
     private val auth: AuthRepository,
+    private val smsCapture: SmsCapture,
+    repository: LedgerRepository,
 ) : ViewModel() {
+
+    private val permissionCheck = MutableStateFlow(0)
+
+    val capture: StateFlow<CaptureSettings> =
+        combine(sessions.session, repository.unparsedCount(), smsCapture.settingsChanged, permissionCheck) { session, unread, _, _ ->
+            val uid = (session as? Session.SignedIn)?.user?.uid
+            CaptureSettings(smsOn = uid != null && smsCapture.isEnabled(uid), unreadCount = unread)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CaptureSettings())
+
+    /** The SMS permission can change in system settings while we're in the background. */
+    fun recheckPermission() {
+        permissionCheck.value++
+    }
 
     val mode: StateFlow<SettingsMode> = sessions.session
         .map { session ->

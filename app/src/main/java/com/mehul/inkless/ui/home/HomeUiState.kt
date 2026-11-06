@@ -15,6 +15,8 @@ data class HomeAccount(
     /** Set while the signed-in user hasn't clicked the verification link yet. */
     val unverifiedEmail: String? = null,
     val verificationSent: Boolean = false,
+    /** Signed in, SMS capture not set up, and the user hasn't said "not now" yet. */
+    val offerSmsSetup: Boolean = false,
 )
 
 sealed interface HomeUiState {
