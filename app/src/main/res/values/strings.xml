@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Inkless</string>
     <string name="share_label">Break down in Inkless</string>
+    <string name="widget_description">What you can spend today, and a button to add cash</string>
 </resources>

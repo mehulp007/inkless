@@ -71,6 +71,19 @@
             </intent-filter>
         </service>
 
+        <!-- Home-screen widget: safe to spend today and quick-add cash. -->
+        <receiver
+            android:name=".widget.SafeToSpendWidgetReceiver"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/safe_to_spend_widget" />
+        </receiver>
+
         <receiver
             android:name=".categorize.CategorizeReceiver"
             android:exported="false" />
