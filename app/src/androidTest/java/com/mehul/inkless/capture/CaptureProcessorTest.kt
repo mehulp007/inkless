@@ -38,7 +38,7 @@ class CaptureProcessorTest {
 
     @Test
     fun savesAPaymentWithItsMerchant() = runTest {
-        assertThat(processor.process(db, "u1", payment)).isEqualTo(CaptureOutcome.SAVED)
+        assertThat(processor.process(db, "u1", payment).outcome).isEqualTo(CaptureOutcome.SAVED)
 
         val merchant = db.merchantDao().findByVpa("swiggy@icici")
         assertThat(merchant).isNotNull()
@@ -55,7 +55,7 @@ class CaptureProcessorTest {
     @Test
     fun theSameSmsTwiceIsSavedOnce() = runTest {
         processor.process(db, "u1", payment)
-        val again = processor.process(db, "u1", payment.copy(receivedAt = 9_000L))
+        val again = processor.process(db, "u1", payment.copy(receivedAt = 9_000L)).outcome
 
         assertThat(again).isEqualTo(CaptureOutcome.DUPLICATE)
         assertThat(db.transactionDao().count()).isEqualTo(1)
@@ -74,7 +74,7 @@ class CaptureProcessorTest {
     fun otpsLeaveNoTraceAtAll() = runTest {
         val otp = IncomingSms("VM-HDFCBK", "482193 is the OTP for your transaction of Rs.1499.00. Do not share.", 1L, 2L)
 
-        assertThat(processor.process(db, "u1", otp)).isEqualTo(CaptureOutcome.SKIPPED)
+        assertThat(processor.process(db, "u1", otp).outcome).isEqualTo(CaptureOutcome.SKIPPED)
         assertThat(db.transactionDao().count()).isEqualTo(0)
         db.rawCaptureDao().observeUnparsedCount().test { assertThat(awaitItem()).isEqualTo(0) }
         assertThat(db.rawCaptureDao().latestSmsTime()).isNull()
@@ -84,7 +84,7 @@ class CaptureProcessorTest {
     fun unreadableBankAlertsAreKeptForTheCouldntReadList() = runTest {
         val odd = IncomingSms("VM-HDFCBK", "Your UPI-Lite balance was topped up. Transaction credited to wallet.", 1L, 2L)
 
-        assertThat(processor.process(db, "u1", odd)).isEqualTo(CaptureOutcome.UNPARSED)
+        assertThat(processor.process(db, "u1", odd).outcome).isEqualTo(CaptureOutcome.UNPARSED)
         assertThat(db.transactionDao().count()).isEqualTo(0)
         db.rawCaptureDao().observeUnparsed().test {
             val list = awaitItem()

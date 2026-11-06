@@ -3,6 +3,7 @@ package com.mehul.inkless.capture
 import com.mehul.inkless.capture.sms.SmsCapture
 import com.mehul.inkless.data.db.DatabaseProvider
 import com.mehul.inkless.data.db.InklessDatabase
+import com.mehul.inkless.data.db.entity.TransactionEntity
 import com.mehul.inkless.session.Session
 import com.mehul.inkless.session.SessionManager
 import kotlinx.coroutines.flow.filterNotNull
@@ -35,16 +36,12 @@ class CaptureRunner @Inject constructor(
         return uid to db
     }
 
-    suspend fun capture(messages: List<IncomingSms>): Map<CaptureOutcome, Int> {
-        val (uid, db) = currentAccount() ?: return emptyMap()
+    /** Saves what it can and returns what was saved. */
+    suspend fun capture(messages: List<IncomingSms>): List<TransactionEntity> {
+        val (uid, db) = currentAccount() ?: return emptyList()
         // Each account opts in on its own, even if another account on this phone already allowed SMS.
-        if (!smsCapture.isEnabled(uid)) return emptyMap()
-        val counts = mutableMapOf<CaptureOutcome, Int>()
-        for (sms in messages) {
-            val outcome = processor.process(db, uid, sms)
-            counts[outcome] = (counts[outcome] ?: 0) + 1
-        }
-        return counts
+        if (!smsCapture.isEnabled(uid)) return emptyList()
+        return messages.mapNotNull { processor.process(db, uid, it).transaction }
     }
 
     private companion object {

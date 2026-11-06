@@ -51,7 +51,7 @@ class InboxImportWorker(context: Context, params: WorkerParameters) : CoroutineW
         var saved = 0
         var unparsed = 0
         messages.forEachIndexed { index, sms ->
-            when (deps.processor().process(db, uid, sms)) {
+            when (deps.processor().process(db, uid, sms).outcome) {
                 CaptureOutcome.SAVED -> saved++
                 CaptureOutcome.UNPARSED -> unparsed++
                 else -> Unit

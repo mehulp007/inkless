@@ -1,5 +1,7 @@
 package com.mehul.inkless.capture
 
+import com.mehul.inkless.categorize.Categorizer
+import com.mehul.inkless.categorize.Decision
 import com.mehul.inkless.data.db.entity.CaptureSource
 import com.mehul.inkless.data.db.entity.Direction
 import com.mehul.inkless.data.db.entity.TransactionEntity
@@ -32,8 +34,8 @@ object CaptureMapper {
     }
 
     /**
-     * Payments land in Other and wait for review until categorising exists; incoming money isn't
-     * spending, so it gets no category. Refunds count against a category, so they wait too.
+     * Incoming money isn't spending, so it gets no category. Payments and refunds take the
+     * categoriser's [decision]; with no confident decision they land in Other and wait for review.
      */
     fun toTransaction(
         id: String,
@@ -42,6 +44,7 @@ object CaptureMapper {
         merchantId: String?,
         ownerUid: String,
         now: Long,
+        decision: Decision? = null,
     ): TransactionEntity {
         val isDebit = parsed.direction == TxnDirection.DEBIT
         val type = when {
@@ -50,6 +53,7 @@ object CaptureMapper {
             else -> TransactionType.INCOME
         }
         val needsCategory = type != TransactionType.INCOME
+        val filed = decision?.takeIf { it.confidence >= Categorizer.AUTO_FILE_THRESHOLD }
         return TransactionEntity(
             id = id,
             amountPaise = parsed.amountPaise,
@@ -63,9 +67,9 @@ object CaptureMapper {
             bankCode = parsed.bankCode,
             upiRef = parsed.upiRef,
             balanceAfterPaise = parsed.balancePaise,
-            categoryId = if (needsCategory) CategoryIds.OTHER else null,
-            confidence = if (needsCategory) 0f else 1f,
-            status = if (needsCategory) TransactionStatus.NEEDS_REVIEW else TransactionStatus.AUTO,
+            categoryId = if (needsCategory) filed?.categoryId ?: CategoryIds.OTHER else null,
+            confidence = if (needsCategory) filed?.confidence ?: 0f else 1f,
+            status = if (needsCategory && filed == null) TransactionStatus.NEEDS_REVIEW else TransactionStatus.AUTO,
             sources = setOf(CaptureSource.SMS),
             createdAt = now,
             updatedAt = now,

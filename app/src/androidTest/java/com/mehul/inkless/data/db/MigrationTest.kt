@@ -1,0 +1,49 @@
+package com.mehul.inkless.data.db
+
+import androidx.room.Room
+import androidx.room.testing.MigrationTestHelper
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.test.runTest
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+
+/** Opens databases written by older versions of the app and checks nothing is lost on upgrade. */
+@RunWith(AndroidJUnit4::class)
+class MigrationTest {
+
+    private val dbName = "migration-test.db"
+
+    @get:Rule
+    val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), InklessDatabase::class.java)
+
+    @Test
+    fun version1To2KeepsTransactionsAndAddsRules() = runTest {
+        helper.createDatabase(dbName, 1).use { db ->
+            db.execSQL(
+                """
+                INSERT INTO transactions (id, amountPaise, direction, type, timestamp, confidence, status, sources,
+                    tags, createdAt, updatedAt, ownerUid, deleted, syncState, categoryId, payeeRaw)
+                VALUES ('t1', 4500, 'DEBIT', 'EXPENSE', 1000, 0.0, 'NEEDS_REVIEW', 'SMS',
+                    '[]', 1000, 1000, 'u1', 0, 'DIRTY', 'other', 'SHARMA CANTEEN')
+                """.trimIndent(),
+            )
+        }
+
+        helper.runMigrationsAndValidate(dbName, 2, true).close()
+
+        val db = Room.databaseBuilder(ApplicationProvider.getApplicationContext(), InklessDatabase::class.java, dbName).build()
+        try {
+            val kept = db.transactionDao().get("t1")
+            assertThat(kept).isNotNull()
+            assertThat(kept!!.amountPaise).isEqualTo(4500)
+            assertThat(kept.payeeRaw).isEqualTo("SHARMA CANTEEN")
+            assertThat(db.ruleDao().getAll()).isEmpty()
+        } finally {
+            db.close()
+        }
+    }
+}

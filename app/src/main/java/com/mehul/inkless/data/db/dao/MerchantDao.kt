@@ -21,6 +21,16 @@ interface MerchantDao {
     @Query("UPDATE merchants SET timesSeen = timesSeen + 1, updatedAt = :now, syncState = 'DIRTY' WHERE id = :id")
     suspend fun markSeen(id: String, now: Long)
 
+    @Query("SELECT * FROM merchants WHERE id = :id")
+    suspend fun get(id: String): MerchantEntity?
+
+    /** Merchant memory: what this merchant's payments should be filed under from now on. */
+    @Query("UPDATE merchants SET defaultCategoryId = :categoryId, updatedAt = :now, syncState = 'DIRTY' WHERE id = :id")
+    suspend fun setDefaultCategory(id: String, categoryId: String, now: Long)
+
+    @Query("UPDATE merchants SET displayName = :name, updatedAt = :now, syncState = 'DIRTY' WHERE id = :id")
+    suspend fun rename(id: String, name: String, now: Long)
+
     @Query("DELETE FROM merchants")
     suspend fun deleteAll()
 }

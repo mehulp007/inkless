@@ -36,6 +36,11 @@ android {
     buildFeatures {
         compose = true
     }
+
+    // Migration tests read the exported schemas.
+    sourceSets {
+        getByName("androidTest").assets.directories.add("$projectDir/schemas")
+    }
 }
 
 ksp {

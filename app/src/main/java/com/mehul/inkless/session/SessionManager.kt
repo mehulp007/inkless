@@ -6,6 +6,7 @@ import com.mehul.inkless.auth.AuthRepository
 import com.mehul.inkless.auth.AuthUser
 import com.mehul.inkless.auth.GoogleIdTokens
 import com.mehul.inkless.auth.Reauth
+import com.mehul.inkless.categorize.Recategorizer
 import com.mehul.inkless.data.db.DatabaseProvider
 import com.mehul.inkless.data.seed.AccountSeeder
 import com.mehul.inkless.demo.Demo
@@ -40,6 +41,7 @@ class SessionManager @Inject constructor(
     private val databases: DatabaseProvider,
     private val demoSeeder: DemoSeeder,
     private val accountSeeder: AccountSeeder,
+    private val recategorizer: Recategorizer,
     private val prefs: SessionPrefs,
     @param:ApplicationScope private val scope: CoroutineScope,
 ) {
@@ -170,7 +172,13 @@ class SessionManager @Inject constructor(
         }
         val db = databases.open(key)
         scope.launch {
-            if (session is Session.SignedIn) accountSeeder.prepare(db, session.user.uid) else demoSeeder.prepare(db)
+            if (session is Session.SignedIn) {
+                accountSeeder.prepare(db, session.user.uid)
+                // Re-sort anything still waiting, e.g. payments imported before categorising existed.
+                recategorizer.run(db, session.user.uid)
+            } else {
+                demoSeeder.prepare(db)
+            }
         }
     }
 

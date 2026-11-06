@@ -24,6 +24,17 @@ data class TransactionListItem(
     val status: TransactionStatus,
 )
 
+/** A payment still waiting for a category, with what's needed to try again. */
+data class ReviewCandidate(
+    val id: String,
+    val vpa: String?,
+    val payeeRaw: String?,
+    val merchantCategoryId: String?,
+)
+
+/** Captured before merchants were keyed by name too; linked up on the next re-sort. */
+data class UnlinkedPayment(val id: String, val vpa: String?, val payeeRaw: String?)
+
 data class CategoryTotal(
     val categoryId: String,
     val totalPaise: Long,
@@ -47,6 +58,70 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun get(id: String): TransactionEntity?
+
+    @Query(
+        """
+        SELECT t.id, t.vpa, t.payeeRaw, m.defaultCategoryId AS merchantCategoryId
+        FROM transactions t
+        LEFT JOIN merchants m ON m.id = t.merchantId
+        WHERE t.status = 'NEEDS_REVIEW' AND t.deleted = 0
+        """,
+    )
+    suspend fun needsReview(): List<ReviewCandidate>
+
+    @Query(
+        """
+        UPDATE transactions SET categoryId = :categoryId, status = :status, confidence = :confidence,
+            updatedAt = :now, syncState = 'DIRTY'
+        WHERE id = :id
+        """,
+    )
+    suspend fun file(id: String, categoryId: String, status: TransactionStatus, confidence: Float, now: Long)
+
+    /** Files every waiting payment to this merchant once the user has said what it is. */
+    @Query(
+        """
+        UPDATE transactions SET categoryId = :categoryId, status = 'AUTO', confidence = 1.0,
+            updatedAt = :now, syncState = 'DIRTY'
+        WHERE merchantId = :merchantId AND status = 'NEEDS_REVIEW' AND deleted = 0
+        """,
+    )
+    suspend fun fileWaitingForMerchant(merchantId: String, categoryId: String, now: Long): Int
+
+    @Query(
+        """
+        SELECT t.id, t.amountPaise, t.direction, t.type, t.timestamp, t.categoryId,
+               t.vpa, t.payeeRaw, m.displayName AS merchantName, t.status
+        FROM transactions t
+        LEFT JOIN merchants m ON m.id = t.merchantId
+        WHERE t.deleted = 0 AND t.status = 'NEEDS_REVIEW'
+        ORDER BY t.timestamp DESC
+        """,
+    )
+    fun observeNeedsReview(): Flow<List<TransactionListItem>>
+
+    /** Categories the user files things under most, for the quick-pick buttons. */
+    @Query(
+        """
+        SELECT categoryId FROM transactions
+        WHERE deleted = 0 AND categoryId IS NOT NULL AND categoryId != 'other'
+          AND type = 'EXPENSE' AND status != 'NEEDS_REVIEW' AND timestamp >= :since
+        GROUP BY categoryId ORDER BY COUNT(*) DESC LIMIT :limit
+        """,
+    )
+    suspend fun mostUsedCategories(since: Long, limit: Int): List<String>
+
+    @Query(
+        """
+        SELECT id, vpa, payeeRaw FROM transactions
+        WHERE merchantId IS NULL AND deleted = 0 AND type != 'INCOME' AND (vpa IS NOT NULL OR payeeRaw IS NOT NULL)
+          AND sources NOT LIKE '%MANUAL%'
+        """,
+    )
+    suspend fun unlinked(): List<UnlinkedPayment>
+
+    @Query("UPDATE transactions SET merchantId = :merchantId WHERE id = :id")
+    suspend fun linkMerchant(id: String, merchantId: String)
 
     @Query("SELECT COUNT(*) FROM transactions")
     suspend fun count(): Int
