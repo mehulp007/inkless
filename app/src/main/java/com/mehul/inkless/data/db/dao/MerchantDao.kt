@@ -12,6 +12,15 @@ interface MerchantDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(merchants: List<MerchantEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(merchant: MerchantEntity): Long
+
+    @Query("SELECT * FROM merchants WHERE vpa = :vpa LIMIT 1")
+    suspend fun findByVpa(vpa: String): MerchantEntity?
+
+    @Query("UPDATE merchants SET timesSeen = timesSeen + 1, updatedAt = :now, syncState = 'DIRTY' WHERE id = :id")
+    suspend fun markSeen(id: String, now: Long)
+
     @Query("DELETE FROM merchants")
     suspend fun deleteAll()
 }

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.mehul.inkless.data.db.entity.Direction
 import com.mehul.inkless.data.db.entity.TransactionEntity
 import com.mehul.inkless.data.db.entity.TransactionStatus
@@ -34,6 +35,18 @@ interface TransactionDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(transactions: List<TransactionEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insert(transaction: TransactionEntity)
+
+    @Update
+    suspend fun update(transaction: TransactionEntity)
+
+    @Query("SELECT * FROM transactions WHERE id = :id")
+    fun observe(id: String): Flow<TransactionEntity?>
+
+    @Query("SELECT * FROM transactions WHERE id = :id")
+    suspend fun get(id: String): TransactionEntity?
 
     @Query("SELECT COUNT(*) FROM transactions")
     suspend fun count(): Int
