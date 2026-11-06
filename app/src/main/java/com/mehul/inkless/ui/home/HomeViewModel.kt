@@ -10,6 +10,7 @@ import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.repo.LedgerRepository
 import com.mehul.inkless.session.Session
 import com.mehul.inkless.session.SessionManager
+import com.mehul.inkless.ui.onboarding.OnboardingPrefs
 import com.mehul.inkless.sync.CloudBackup
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -39,6 +40,7 @@ class HomeViewModel @Inject constructor(
     budgetTracker: BudgetTracker,
     private val quickAdd: QuickAddRequests,
     private val clock: Clock,
+    private val onboarding: OnboardingPrefs,
 ) : ViewModel() {
 
     /** The budget card: hidden while signed out, an offer to set one up, or where things stand. */
@@ -55,6 +57,10 @@ class HomeViewModel @Inject constructor(
 
     fun quickAddShown() = quickAdd.handled()
 
+    fun onboardingShown() {
+        sessions.currentOwnerUid()?.let(onboarding::markShown)
+    }
+
     private val verificationSent = MutableStateFlow(false)
 
     private val restoring = sessions.session.flatMapLatest { session ->
@@ -70,6 +76,8 @@ class HomeViewModel @Inject constructor(
                     verificationSent = sent,
                     offerSmsSetup = !smsCapture.isEnabled(session.user.uid) && !smsCapture.setupSeen(session.user.uid),
                     restoring = restoring,
+                    // Accounts already capturing (set up before the checklist existed) don't need it.
+                    showOnboarding = !onboarding.shown(session.user.uid) && !smsCapture.isEnabled(session.user.uid),
                 )
                 else -> HomeAccount()
             }

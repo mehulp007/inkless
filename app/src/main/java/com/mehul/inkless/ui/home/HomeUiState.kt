@@ -23,6 +23,8 @@ data class HomeAccount(
     val offerSmsSetup: Boolean = false,
     /** First login on this phone: the backup is still coming down. */
     val restoring: Boolean = false,
+    /** A new account on this phone: open the welcome checklist once. */
+    val showOnboarding: Boolean = false,
 )
 
 sealed interface HomeBudget {

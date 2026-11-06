@@ -10,6 +10,7 @@ import com.mehul.inkless.ui.ask.AskScreen
 import com.mehul.inkless.ui.breakdown.BreakdownScreen
 import com.mehul.inkless.ui.budget.BudgetScreen
 import com.mehul.inkless.ui.category.CategoryScreen
+import com.mehul.inkless.ui.data.DataScreen
 import com.mehul.inkless.ui.friends.FriendScreen
 import com.mehul.inkless.ui.friends.FriendsScreen
 import com.mehul.inkless.ui.capture.SmsSetupScreen
@@ -17,6 +18,7 @@ import com.mehul.inkless.ui.capture.UnreadScreen
 import com.mehul.inkless.ui.health.CaptureHealthScreen
 import com.mehul.inkless.ui.home.HomeScreen
 import com.mehul.inkless.ui.insights.InsightsScreen
+import com.mehul.inkless.ui.onboarding.OnboardingScreen
 import com.mehul.inkless.ui.review.ReviewScreen
 import com.mehul.inkless.ui.rules.RulesScreen
 import com.mehul.inkless.ui.settings.SettingsScreen
@@ -52,6 +54,12 @@ data class FriendRoute(val friendId: String)
 
 @Serializable
 data class SplitRoute(val transactionId: String)
+
+@Serializable
+object DataRoute
+
+@Serializable
+object OnboardingRoute
 
 @Serializable
 object InsightsRoute
@@ -96,6 +104,16 @@ fun InklessNavHost() {
                 onOpenCategory = { navController.navigate(CategoryRoute(it)) },
                 onOpenFriends = { navController.navigate(FriendsRoute) },
                 onOpenInsights = { navController.navigate(InsightsRoute) },
+                onOpenOnboarding = { navController.navigate(OnboardingRoute) },
+            )
+        }
+        composable<OnboardingRoute> {
+            OnboardingScreen(
+                onDone = { navController.popBackStack() },
+                onOpenSmsSetup = { navController.navigate(SmsSetupRoute) },
+                onOpenHealth = { navController.navigate(CaptureHealthRoute) },
+                onOpenBudget = { navController.navigate(BudgetRoute) },
+                onOpenMyAccounts = { navController.navigate(MyAccountsRoute) },
             )
         }
         // The spending alert notification opens inkless://insights.
@@ -151,7 +169,11 @@ fun InklessNavHost() {
                 onOpenMyAccounts = { navController.navigate(MyAccountsRoute) },
                 onOpenHealth = { navController.navigate(CaptureHealthRoute) },
                 onOpenBudget = { navController.navigate(BudgetRoute) },
+                onOpenData = { navController.navigate(DataRoute) },
             )
+        }
+        composable<DataRoute> {
+            DataScreen(onBack = { navController.popBackStack() })
         }
         composable<MyAccountsRoute> {
             MyAccountsScreen(onBack = { navController.popBackStack() })

@@ -80,6 +80,7 @@ fun HomeScreen(
     onOpenCategory: (String) -> Unit,
     onOpenFriends: () -> Unit,
     onOpenInsights: () -> Unit,
+    onOpenOnboarding: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val budget by viewModel.budget.collectAsStateWithLifecycle()
@@ -93,6 +94,13 @@ fun HomeScreen(
         if (quickAddRequested) {
             addingCash = true
             viewModel.quickAddShown()
+        }
+    }
+
+    LaunchedEffect(account.showOnboarding) {
+        if (account.showOnboarding) {
+            viewModel.onboardingShown()
+            onOpenOnboarding()
         }
     }
 
