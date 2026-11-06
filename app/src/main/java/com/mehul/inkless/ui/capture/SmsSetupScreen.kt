@@ -2,6 +2,7 @@ package com.mehul.inkless.ui.capture
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -108,10 +109,15 @@ fun SmsSetupScreen(
             if (!granted) {
                 if (blocked) {
                     Text(
-                        "SMS access was turned down. You can allow it from Inkless's page in system settings.",
+                        "SMS access is off. You can allow it from Inkless's page in system settings.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
+                    // Android 13+ locks SMS access for apps installed from an APK until the user
+                    // unlocks "restricted settings"; the Allow option is greyed out until then.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        RestrictedSettingsSteps()
+                    }
                     Button(
                         onClick = {
                             context.startActivity(
@@ -145,6 +151,27 @@ fun SmsSetupScreen(
                     onImport = { viewModel.importHistory(months) },
                     onDone = onDone,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RestrictedSettingsSteps() {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Is \"Allow\" greyed out?", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "Android locks SMS access for apps installed from a file. To unlock it:",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            listOf(
+                "Tap Open app settings below.",
+                "Tap ⋮ in the top-right corner, then Allow restricted settings, and confirm.",
+                "Go to Permissions → SMS and choose Allow.",
+                "Come back here.",
+            ).forEachIndexed { index, step ->
+                Text("${index + 1}. $step", style = MaterialTheme.typography.bodyMedium)
             }
         }
     }

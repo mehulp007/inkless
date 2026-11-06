@@ -136,3 +136,5 @@ cd firebase && npm install && npm test
 ```
 
 On Windows use `gradlew.bat`. You can also just open the folder in Android Studio and hit Run.
+
+**Installing from an APK file:** Android treats apps that read SMS carefully when they don't come from an app store. Play Protect may refuse an APK opened from a browser or chat app (installing over USB with `adb install` works), and on Android 13+ the SMS permission starts out locked: open the app's info page, tap ⋮ → *Allow restricted settings*, then allow SMS. The in-app setup screen walks through this too.
