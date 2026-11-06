@@ -2,6 +2,7 @@ package com.mehul.inkless.categorize
 
 import com.google.common.truth.Truth.assertThat
 import com.mehul.inkless.data.seed.CategoryIds
+import com.mehul.inkless.ml.Guess
 import org.junit.Test
 
 class CategorizerTest {
@@ -86,5 +87,16 @@ class CategorizerTest {
         assertThat(Keywords.categoryFor("jiomart@sbi", null)).isEqualTo(CategoryIds.GROCERIES)
         assertThat(Keywords.categoryFor("jio@hdfc", null)).isEqualTo(CategoryIds.RECHARGE)
         assertThat(Keywords.categoryFor(null, "District Hospital")).isEqualTo(CategoryIds.HEALTH)
+    }
+
+    @Test
+    fun `a sure model beats keywords but not memory, and an unsure one is ignored`() {
+        val swiggy = "swiggy.upi@axisbank"
+        val sure = Guess(CategoryIds.GROCERIES, 0.92f)
+        assertThat(Categorizer.decide(swiggy, null, emptyList(), null, sure)!!.source).isEqualTo(DecisionSource.MODEL)
+        assertThat(Categorizer.decide(swiggy, null, emptyList(), CategoryIds.FUN, sure)!!.source).isEqualTo(DecisionSource.MERCHANT_MEMORY)
+        val unsure = Guess(CategoryIds.GROCERIES, 0.6f)
+        assertThat(Categorizer.decide(swiggy, null, emptyList(), null, unsure)!!.source).isEqualTo(DecisionSource.KEYWORD)
+        assertThat(Categorizer.decide("q829154@ybl", null, emptyList(), null, unsure)).isNull()
     }
 }

@@ -2,7 +2,10 @@ package com.mehul.inkless.categorize
 
 import androidx.room.withTransaction
 import com.mehul.inkless.data.db.InklessDatabase
+import com.mehul.inkless.capture.toPredictionSource
 import com.mehul.inkless.data.db.entity.TransactionStatus
+import com.mehul.inkless.data.db.entity.TransactionType
+import com.mehul.inkless.ml.CategoryModel
 import java.time.Clock
 import javax.inject.Inject
 
@@ -13,6 +16,8 @@ import javax.inject.Inject
  */
 class Recategorizer @Inject constructor(
     private val clock: Clock,
+    // Left out in tests that don't need the learned model.
+    private val model: CategoryModel? = null,
 ) {
     /** Returns how many payments got filed. */
     suspend fun run(db: InklessDatabase, ownerUid: String): Int {
@@ -29,10 +34,21 @@ class Recategorizer @Inject constructor(
             val rules = db.ruleDao().getAll().map { it.toRule() }
             var filed = 0
             for (candidate in transactions.needsReview()) {
-                val decision = Categorizer.decide(candidate.vpa, candidate.payeeRaw, rules, candidate.merchantCategoryId)
+                // The model learned from spending, so refunds are left to rules and memory.
+                val look = model?.takeIf { candidate.type == TransactionType.EXPENSE }
+                    ?.look(db, candidate.vpa, candidate.payeeRaw, candidate.amountPaise, candidate.timestamp)
+                val decision = Categorizer.decide(
+                    candidate.vpa,
+                    candidate.payeeRaw,
+                    rules,
+                    candidate.merchantCategoryId,
+                    look?.best?.takeIf { look.trusted },
+                )
                     ?.takeIf { it.confidence >= Categorizer.AUTO_FILE_THRESHOLD }
                     ?: continue
                 transactions.file(candidate.id, decision.categoryId, TransactionStatus.AUTO, decision.confidence, now)
+                // So the accuracy chart knows who filed it, and the model doesn't learn from its own guess.
+                db.insightDao().markFiled(candidate.id, decision.source.toPredictionSource(), decision.categoryId)
                 filed++
             }
             filed

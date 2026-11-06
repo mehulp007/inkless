@@ -1,5 +1,7 @@
 package com.mehul.inkless.categorize
 
+import com.mehul.inkless.ml.Guess
+
 enum class RuleField { UPI_ID, PAYEE, EITHER }
 
 enum class RuleMatch { CONTAINS, EXACT, REGEX }
@@ -13,15 +15,14 @@ data class CategoryRule(
     val priority: Int,
 )
 
-enum class DecisionSource { RULE, MERCHANT_MEMORY, KEYWORD }
+enum class DecisionSource { RULE, MERCHANT_MEMORY, MODEL, KEYWORD }
 
 data class Decision(val categoryId: String, val source: DecisionSource, val confidence: Float)
 
 /**
- * Picks a category for a payment, most specific knowledge first:
- * the user's own rules, then what they chose for this merchant before, then the built-in
- * keyword list. Null means nobody knows and the payment goes to the review inbox.
- * (Phase 8's learned model slots in between memory and keywords.)
+ * Picks a category for a payment, most specific knowledge first: the user's own rules, then what
+ * they chose for this merchant before, then the learned model when it's sure enough, then the
+ * built-in keyword list. Null means nobody knows and the payment goes to the review inbox.
  */
 object Categorizer {
 
@@ -33,11 +34,14 @@ object Categorizer {
         payee: String?,
         rules: List<CategoryRule>,
         merchantCategoryId: String?,
+        /** The model's best guess, only when it has learned enough to be trusted with filing. */
+        model: Guess? = null,
     ): Decision? {
         rules.sortedBy { it.priority }.firstOrNull { it.matches(vpa, payee) }?.let {
             return Decision(it.categoryId, DecisionSource.RULE, 1f)
         }
         merchantCategoryId?.let { return Decision(it, DecisionSource.MERCHANT_MEMORY, 1f) }
+        model?.takeIf { it.confidence >= AUTO_FILE_THRESHOLD }?.let { return Decision(it.categoryId, DecisionSource.MODEL, it.confidence) }
         Keywords.categoryFor(vpa, payee)?.let { return Decision(it, DecisionSource.KEYWORD, Keywords.CONFIDENCE) }
         return null
     }

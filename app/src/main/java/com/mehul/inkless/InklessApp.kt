@@ -3,6 +3,7 @@ package com.mehul.inkless
 import android.app.Application
 import com.mehul.inkless.budget.DigestScheduler
 import com.mehul.inkless.capture.sms.SmsCapture
+import com.mehul.inkless.ml.CategoryModel
 import com.mehul.inkless.session.SessionManager
 import com.mehul.inkless.sync.SyncScheduler
 import com.mehul.inkless.widget.WidgetRefresher
@@ -22,6 +23,8 @@ class InklessApp : Application() {
 
     @Inject lateinit var digestScheduler: DigestScheduler
 
+    @Inject lateinit var categoryModel: CategoryModel
+
     override fun onCreate() {
         super.onCreate()
         sessionManager.start()
@@ -29,5 +32,6 @@ class InklessApp : Application() {
         syncScheduler.start()
         widgetRefresher.start()
         digestScheduler.apply()
+        categoryModel.start()
     }
 }

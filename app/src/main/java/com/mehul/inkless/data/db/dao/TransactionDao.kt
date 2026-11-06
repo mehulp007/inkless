@@ -34,6 +34,9 @@ data class ReviewCandidate(
     val vpa: String?,
     val payeeRaw: String?,
     val merchantCategoryId: String?,
+    val amountPaise: Long,
+    val timestamp: Long,
+    val type: TransactionType,
 )
 
 /** Captured before merchants were keyed by name too; linked up on the next re-sort. */
@@ -65,7 +68,7 @@ interface TransactionDao {
 
     @Query(
         """
-        SELECT t.id, t.vpa, t.payeeRaw, m.defaultCategoryId AS merchantCategoryId
+        SELECT t.id, t.vpa, t.payeeRaw, m.defaultCategoryId AS merchantCategoryId, t.amountPaise, t.timestamp, t.type
         FROM transactions t
         LEFT JOIN merchants m ON m.id = t.merchantId
         WHERE t.status = 'NEEDS_REVIEW' AND t.deleted = 0

@@ -4,10 +4,19 @@ import androidx.room.withTransaction
 import com.mehul.inkless.categorize.Categorizer
 import com.mehul.inkless.categorize.MerchantMemory
 import com.mehul.inkless.data.db.InklessDatabase
+import com.mehul.inkless.categorize.Decision
+import com.mehul.inkless.categorize.DecisionSource
 import com.mehul.inkless.data.db.entity.CaptureSource
+import com.mehul.inkless.data.db.entity.Direction
+import com.mehul.inkless.data.db.entity.PredictionEntity
+import com.mehul.inkless.data.db.entity.PredictionSource
 import com.mehul.inkless.data.db.entity.RawCaptureEntity
 import com.mehul.inkless.data.db.entity.RawCaptureStatus
 import com.mehul.inkless.data.db.entity.TransactionEntity
+import com.mehul.inkless.data.db.entity.TransactionStatus
+import com.mehul.inkless.data.db.entity.TransactionType
+import com.mehul.inkless.ml.CategoryModel
+import com.mehul.inkless.ml.ModelLook
 import com.mehul.inkless.parsing.BankParsers
 import com.mehul.inkless.parsing.NotificationReader
 import com.mehul.inkless.parsing.ParsedTxn
@@ -31,6 +40,8 @@ data class CaptureResult(val outcome: CaptureOutcome, val transaction: Transacti
 class CaptureProcessor @Inject constructor(
     private val clock: Clock,
     private val classifier: TransactionClassifier,
+    // Left out in tests that don't need the learned model.
+    private val model: CategoryModel? = null,
 ) {
     private val reader = SmsReader(BankParsers.all)
 
@@ -97,7 +108,7 @@ class CaptureProcessor @Inject constructor(
             if (db.rawCaptureDao().insert(capture) == -1L) return@withTransaction CaptureResult(CaptureOutcome.DUPLICATE)
             if (parsed == null || transactionId == null) return@withTransaction CaptureResult(CaptureOutcome.UNPARSED)
 
-            val incoming = build(db, ownerUid, parsed, transactionId, timestamp, source, now)
+            val (incoming, prediction) = build(db, ownerUid, parsed, transactionId, timestamp, source, now)
 
             val dao = db.transactionDao()
             val candidates = dao.around(timestamp - Deduplicator.WINDOW_MS, timestamp + Deduplicator.WINDOW_MS) +
@@ -116,6 +127,7 @@ class CaptureProcessor @Inject constructor(
             }
 
             dao.insert(incoming)
+            prediction?.let { db.insightDao().savePrediction(it) }
             CaptureResult(CaptureOutcome.SAVED, incoming)
         }
     }
@@ -128,16 +140,40 @@ class CaptureProcessor @Inject constructor(
         timestamp: Long,
         source: CaptureSource,
         now: Long,
-    ): TransactionEntity {
+    ): Pair<TransactionEntity, PredictionEntity?> {
         val merchant = MerchantMemory.findOrCreate(db, parsed.vpa, parsed.payee, ownerUid, now)
+        val look = model?.look(db, parsed.vpa, parsed.payee, parsed.amountPaise, timestamp) ?: ModelLook(null, trusted = false)
         val decision = Categorizer.decide(
             vpa = parsed.vpa,
             payee = parsed.payee,
             rules = db.ruleDao().getAll().map { it.toRule() },
             merchantCategoryId = merchant?.defaultCategoryId,
+            model = look.best?.takeIf { look.trusted },
         )
         val draft = CaptureMapper.toTransaction(id, parsed, timestamp, source, merchant?.id, ownerUid, now, decision)
         // Own-account transfers, allowance from home and refunds of earlier payments.
-        return classifier.classify(db, draft)
+        val txn = classifier.classify(db, draft)
+        return txn to predictionFor(txn, decision, look, now)
     }
+
+    /** What was guessed about a new spending payment, kept for the accuracy chart. */
+    private fun predictionFor(txn: TransactionEntity, decision: Decision?, look: ModelLook, now: Long): PredictionEntity? {
+        if (txn.type != TransactionType.EXPENSE || txn.direction != Direction.DEBIT) return null
+        val filed = txn.status == TransactionStatus.AUTO && decision != null && decision.categoryId == txn.categoryId
+        return PredictionEntity(
+            transactionId = txn.id,
+            source = if (filed) decision!!.source.toPredictionSource() else PredictionSource.NONE,
+            filedCategoryId = txn.categoryId.takeIf { filed },
+            modelCategoryId = look.best?.categoryId,
+            modelConfidence = look.best?.confidence,
+            createdAt = now,
+        )
+    }
+}
+
+fun DecisionSource.toPredictionSource() = when (this) {
+    DecisionSource.RULE -> PredictionSource.RULE
+    DecisionSource.MERCHANT_MEMORY -> PredictionSource.MERCHANT_MEMORY
+    DecisionSource.MODEL -> PredictionSource.MODEL
+    DecisionSource.KEYWORD -> PredictionSource.KEYWORD
 }
