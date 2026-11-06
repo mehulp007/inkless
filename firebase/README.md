@@ -18,6 +18,11 @@ firebase use <your-project-id>
 
 firebase apps:create ANDROID Inkless --package-name com.mehul.inkless
 firebase apps:list ANDROID          # note the app id, 1:…:android:…
+
+# Also register a web app, even though there's no website. It gives the project a
+# Web API key, which Firebase puts into verification and password-reset links. Without
+# it those links open a page that just says "The selected page mode is invalid".
+firebase apps:create WEB "Inkless email links"
 ```
 
 ## 2. Signing fingerprints (Google sign-in needs these)
