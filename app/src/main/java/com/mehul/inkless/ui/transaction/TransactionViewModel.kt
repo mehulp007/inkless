@@ -9,6 +9,8 @@ import com.mehul.inkless.data.db.entity.MerchantEntity
 import com.mehul.inkless.data.db.entity.TransactionEntity
 import com.mehul.inkless.data.db.entity.TransactionItemEntity
 import com.mehul.inkless.data.repo.LedgerRepository
+import com.mehul.inkless.splits.FriendsRepository
+import com.mehul.inkless.splits.SplitView
 import com.mehul.inkless.ui.navigation.TransactionRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,6 +29,8 @@ data class TransactionScreenState(
     val categories: List<CategoryEntity> = emptyList(),
     val merchant: MerchantEntity? = null,
     val items: List<TransactionItemEntity> = emptyList(),
+    val split: SplitView? = null,
+    val friendNames: Map<String, String> = emptyMap(),
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -34,6 +38,7 @@ data class TransactionScreenState(
 class TransactionViewModel @Inject constructor(
     savedState: SavedStateHandle,
     private val repository: LedgerRepository,
+    friends: FriendsRepository,
 ) : ViewModel() {
 
     private val id = savedState.toRoute<TransactionRoute>().id
@@ -41,13 +46,15 @@ class TransactionViewModel @Inject constructor(
     val state: StateFlow<TransactionScreenState> = repository.transaction(id)
         .flatMapLatest { txn ->
             val merchant = txn?.merchantId?.let(repository::merchant) ?: flowOf(null)
-            combine(repository.categories(), merchant, repository.items(id)) { categories, m, items ->
+            combine(repository.categories(), merchant, repository.items(id), friends.split(id), friends.friends()) { categories, m, items, split, people ->
                 TransactionScreenState(
                     loading = false,
                     transaction = txn?.takeUnless { it.deleted },
                     categories = categories,
                     merchant = m,
                     items = items,
+                    split = split,
+                    friendNames = people.associate { it.id to it.name },
                 )
             }
         }

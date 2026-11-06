@@ -45,6 +45,7 @@ import com.mehul.inkless.data.db.entity.Direction
 import com.mehul.inkless.data.db.entity.TransactionEntity
 import com.mehul.inkless.data.db.entity.TransactionStatus
 import com.mehul.inkless.data.db.entity.TransactionType
+import com.mehul.inkless.splits.SplitView
 import com.mehul.inkless.ui.components.CategoryPicker
 import com.mehul.inkless.ui.format.Money
 import com.mehul.inkless.ui.format.Titles
@@ -58,6 +59,7 @@ import java.time.format.DateTimeFormatter
 fun TransactionScreen(
     onBack: () -> Unit,
     onBreakDown: (transactionId: String) -> Unit,
+    onSplit: (transactionId: String) -> Unit,
     viewModel: TransactionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -96,6 +98,7 @@ fun TransactionScreen(
                 onRename = viewModel::renameMerchant,
                 onBreakDown = { onBreakDown(txn.id) },
                 onRemoveBreakdown = viewModel::removeBreakdown,
+                onSplit = { onSplit(txn.id) },
             )
         }
     }
@@ -124,6 +127,7 @@ private fun Details(
     onRename: (String) -> Unit,
     onBreakDown: () -> Unit,
     onRemoveBreakdown: () -> Unit,
+    onSplit: () -> Unit,
 ) {
     var renaming by rememberSaveable { mutableStateOf(false) }
     // Keyed by id so the fields reset if the screen is reused for another entry.
@@ -133,9 +137,12 @@ private fun Details(
         (txn.status == TransactionStatus.NEEDS_REVIEW && categoryId != null)
     val isCredit = txn.direction == Direction.CREDIT
     val takesCategory = txn.type == TransactionType.EXPENSE || txn.type == TransactionType.REFUND
-    // Only spending can be split into what it was for; refunds and money in stay whole.
-    val canBreakDown = txn.type == TransactionType.EXPENSE && !isCredit
+    // Only spending can be split into what it was for, or with friends; refunds and money in stay whole.
+    // A payment is one or the other: broken down into items, or split with friends.
     val brokenDown = state.items.isNotEmpty()
+    val split = state.split
+    val canBreakDown = txn.type == TransactionType.EXPENSE && !isCredit && split == null
+    val canSplit = txn.type == TransactionType.EXPENSE && !isCredit && !brokenDown
 
     Column(
         modifier = modifier
@@ -193,6 +200,14 @@ private fun Details(
             }
         }
 
+        if (split != null) {
+            SplitSummary(txn, split, state.friendNames, onEdit = onSplit)
+        } else if (canSplit) {
+            OutlinedButton(onClick = onSplit, modifier = Modifier.fillMaxWidth()) {
+                Text("Split with friends")
+            }
+        }
+
         OutlinedTextField(
             value = note,
             onValueChange = { note = it.take(200) },
@@ -240,6 +255,32 @@ private fun BreakdownList(state: TransactionScreenState, onEdit: () -> Unit, onR
             OutlinedButton(onClick = onEdit) { Text("Edit items") }
             TextButton(onClick = onRemove) { Text("Back to one category") }
         }
+    }
+}
+
+@Composable
+private fun SplitSummary(txn: TransactionEntity, split: SplitView, names: Map<String, String>, onEdit: () -> Unit) {
+    val mine = txn.amountPaise - split.shares.sumOf { it.sharePaise }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Split with ${split.shares.size} ${if (split.shares.size == 1) "friend" else "friends"}", style = MaterialTheme.typography.titleSmall)
+        split.shares.forEach { share ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(names[share.friendId] ?: "Removed friend", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        if (share.settled) "paid you back" else "owes you",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (share.settled) LocalInklessColors.current.credit else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(Money.format(share.sharePaise), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            }
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Your part", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            Text(Money.format(mine), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+        }
+        OutlinedButton(onClick = onEdit) { Text("Edit split") }
     }
 }
 

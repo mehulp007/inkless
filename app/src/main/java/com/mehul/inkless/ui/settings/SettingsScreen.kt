@@ -175,7 +175,7 @@ fun SettingsScreen(
                     if (backup.on) {
                         ActionItem(
                             "Back up now",
-                            supporting = "Payments, categories, merchants, rules and your accounts. " +
+                            supporting = "Payments, categories, merchants, rules, your accounts, budget, friends and splits. " +
                                 "Never the text of your SMS, and only the last 4 digits of account numbers.",
                             enabled = !busy && !backup.running,
                             onClick = viewModel::backUpNow,
@@ -403,7 +403,7 @@ private fun DeleteAccountDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "This deletes your account and its cloud backup, frees your username and wipes your " +
+                    "This deletes your account, its cloud backup and the splits you shared with friends, frees your username and wipes your " +
                         "Inkless data from this phone. It can't be undone.",
                 )
                 if (usesPassword) {

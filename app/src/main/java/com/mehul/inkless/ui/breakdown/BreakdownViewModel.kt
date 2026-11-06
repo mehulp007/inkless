@@ -11,6 +11,7 @@ import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.db.entity.TransactionEntity
 import com.mehul.inkless.data.repo.LedgerRepository
 import com.mehul.inkless.parsing.Amounts
+import com.mehul.inkless.splits.FriendsRepository
 import com.mehul.inkless.ui.navigation.BreakdownRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,12 +42,15 @@ data class BreakdownState(
     val lastNote: String = "",
     /** True when the lines came from a shared order. */
     val fromShare: Boolean = false,
+    /** A payment split with friends can't also be broken down. */
+    val split: Boolean = false,
 ) {
     private val total get() = transaction?.amountPaise ?: 0
     private val drafts get() = lines.map { DraftItem(it.amountPaise, it.categoryId, it.note) }
 
     val restPaise: Long get() = Breakdown.rest(total, drafts)
-    val problem: String? get() = Breakdown.problem(total, drafts, lastCategoryId)
+    val problem: String? get() =
+        if (split) "This payment is split with friends. Remove the split to break it down." else Breakdown.problem(total, drafts, lastCategoryId)
 
     fun items(): List<DraftItem>? = Breakdown.complete(total, drafts, lastCategoryId, lastNote)
 }
@@ -56,6 +60,7 @@ class BreakdownViewModel @Inject constructor(
     savedState: SavedStateHandle,
     private val repository: LedgerRepository,
     shareDrafts: ShareDrafts,
+    private val friends: FriendsRepository,
 ) : ViewModel() {
 
     private val route = savedState.toRoute<BreakdownRoute>()
@@ -72,8 +77,9 @@ class BreakdownViewModel @Inject constructor(
             val saved = repository.items(route.transactionId).first().map { DraftItem(it.amountPaise, it.categoryId, it.note) }
             // A shared order first, then the breakdown already saved, else a fresh start.
             val start = shared?.takeIf { it.isNotEmpty() } ?: saved.takeIf { it.size >= 2 }
+            val split = friends.split(route.transactionId).first() != null
             _state.value = if (start == null) {
-                BreakdownState(loading = false, transaction = txn, categories = categories, lines = listOf(ItemLine(nextKey++)))
+                BreakdownState(loading = false, transaction = txn, categories = categories, lines = listOf(ItemLine(nextKey++)), split = split)
             } else {
                 val last = start.last()
                 BreakdownState(
@@ -84,6 +90,7 @@ class BreakdownViewModel @Inject constructor(
                     lastCategoryId = last.categoryId,
                     lastNote = last.note.orEmpty(),
                     fromShare = shared != null,
+                    split = split,
                 )
             }
         }

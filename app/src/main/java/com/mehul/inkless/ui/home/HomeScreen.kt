@@ -78,6 +78,7 @@ fun HomeScreen(
     onOpenReview: () -> Unit,
     onOpenBudget: () -> Unit,
     onOpenCategory: (String) -> Unit,
+    onOpenFriends: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val budget by viewModel.budget.collectAsStateWithLifecycle()
@@ -115,6 +116,7 @@ fun HomeScreen(
         budget = budget,
         onOpenBudget = onOpenBudget,
         onOpenCategory = onOpenCategory,
+        onOpenFriends = onOpenFriends,
     )
 
     if (addingCash) {
@@ -146,6 +148,7 @@ private fun HomeContent(
     budget: HomeBudget,
     onOpenBudget: () -> Unit,
     onOpenCategory: (String) -> Unit,
+    onOpenFriends: () -> Unit,
 ) {
     Scaffold(
         floatingActionButton = {
@@ -169,6 +172,9 @@ private fun HomeContent(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onOpenFriends) {
+                        Icon(painterResource(R.drawable.ic_people), contentDescription = "Friends")
+                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings")
                     }
@@ -470,7 +476,11 @@ private fun TransactionItem(row: TransactionRow, onClick: () -> Unit) {
         },
         supportingContent = {
             Text(
-                text = listOfNotNull(time, row.vpa).joinToString("  ·  "),
+                text = listOfNotNull(
+                    time,
+                    "split · yours ${Money.format(row.myPaise)}".takeIf { row.friendsSharePaise > 0 },
+                    row.vpa,
+                ).joinToString("  ·  "),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

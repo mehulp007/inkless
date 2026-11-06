@@ -9,6 +9,8 @@ import com.mehul.inkless.ui.accounts.MyAccountsScreen
 import com.mehul.inkless.ui.breakdown.BreakdownScreen
 import com.mehul.inkless.ui.budget.BudgetScreen
 import com.mehul.inkless.ui.category.CategoryScreen
+import com.mehul.inkless.ui.friends.FriendScreen
+import com.mehul.inkless.ui.friends.FriendsScreen
 import com.mehul.inkless.ui.capture.SmsSetupScreen
 import com.mehul.inkless.ui.capture.UnreadScreen
 import com.mehul.inkless.ui.health.CaptureHealthScreen
@@ -16,6 +18,7 @@ import com.mehul.inkless.ui.home.HomeScreen
 import com.mehul.inkless.ui.review.ReviewScreen
 import com.mehul.inkless.ui.rules.RulesScreen
 import com.mehul.inkless.ui.settings.SettingsScreen
+import com.mehul.inkless.ui.split.SplitScreen
 import com.mehul.inkless.ui.transaction.TransactionScreen
 import kotlinx.serialization.Serializable
 
@@ -37,6 +40,15 @@ object BudgetRoute
 
 @Serializable
 data class CategoryRoute(val categoryId: String)
+
+@Serializable
+object FriendsRoute
+
+@Serializable
+data class FriendRoute(val friendId: String)
+
+@Serializable
+data class SplitRoute(val transactionId: String)
 
 @Serializable
 object SmsSetupRoute
@@ -69,7 +81,23 @@ fun InklessNavHost() {
                 onOpenReview = { navController.navigate(ReviewRoute) },
                 onOpenBudget = { navController.navigate(BudgetRoute) },
                 onOpenCategory = { navController.navigate(CategoryRoute(it)) },
+                onOpenFriends = { navController.navigate(FriendsRoute) },
             )
+        }
+        composable<FriendsRoute> {
+            FriendsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenFriend = { navController.navigate(FriendRoute(it)) },
+            )
+        }
+        composable<FriendRoute> {
+            FriendScreen(
+                onBack = { navController.popBackStack() },
+                onOpenTransaction = { navController.navigate(TransactionRoute(it)) },
+            )
+        }
+        composable<SplitRoute> {
+            SplitScreen(onDone = { navController.popBackStack() })
         }
         composable<BudgetRoute> {
             BudgetScreen(onBack = { navController.popBackStack() })
@@ -111,6 +139,7 @@ fun InklessNavHost() {
             TransactionScreen(
                 onBack = { navController.popBackStack() },
                 onBreakDown = { navController.navigate(BreakdownRoute(it)) },
+                onSplit = { navController.navigate(SplitRoute(it)) },
             )
         }
         // From the payment, the "break it down?" notifications (inkless://breakdown/<id>) and Share to Inkless.

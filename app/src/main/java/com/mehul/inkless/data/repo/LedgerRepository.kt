@@ -117,6 +117,7 @@ class LedgerRepository @Inject constructor(
         val dao = db.transactionDao()
         val current = dao.get(transactionId) ?: return
         require(Breakdown.isValid(current.amountPaise, items.map { it.amountPaise })) { "Items don't add up to the payment" }
+        require(db.friendDao().splitFor(transactionId)?.deleted != false) { "A split payment can't also be broken down" }
         val primary = checkNotNull(Breakdown.primary(items) { it.amountPaise })
         val now = clock.millis()
         db.withTransaction {
@@ -296,11 +297,19 @@ class LedgerRepository @Inject constructor(
         )
     }
 
-    /** Hidden rather than removed, so the deletion can reach other devices once sync exists. */
+    /** Hidden rather than removed, so the deletion reaches other devices. A split goes with it. */
     suspend fun delete(id: String) {
-        val dao = db().transactionDao()
+        val db = db()
+        val dao = db.transactionDao()
         val current = dao.get(id) ?: return
-        dao.update(current.copy(deleted = true, updatedAt = clock.millis(), syncState = SyncState.DIRTY))
+        val now = clock.millis()
+        db.withTransaction {
+            dao.update(current.copy(deleted = true, updatedAt = now, syncState = SyncState.DIRTY))
+            db.friendDao().splitFor(id)?.takeUnless { it.deleted }?.let { split ->
+                db.friendDao().deleteShares(split.id)
+                db.friendDao().saveSplit(split.copy(deleted = true, updatedAt = now, syncState = SyncState.DIRTY))
+            }
+        }
     }
 
     suspend fun addCash(amountPaise: Long, categoryId: String, note: String?, ownerUid: String) {
