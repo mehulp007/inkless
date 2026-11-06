@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
+import com.mehul.inkless.data.db.entity.TransactionItemEntity
 import com.mehul.inkless.data.db.entity.CaptureSource
 import com.mehul.inkless.data.db.entity.Direction
 import com.mehul.inkless.data.db.entity.MerchantEntity
@@ -114,5 +115,43 @@ class TransactionDaoTest {
             cursor.getString(0) to cursor.getString(1)
         }
         assertThat(stored).isEqualTo("SMS,NOTIFICATION" to """["hostel"]""")
+    }
+
+    @Test
+    fun aBrokenDownPaymentCountsEachItemInItsOwnCategory() = runTest {
+        db.categoryDao().insertAll(DefaultCategories.create("test", 0))
+        db.transactionDao().insertAll(
+            listOf(
+                txn("order", 5000_00, 100, CategoryIds.SHOPPING),
+                txn("shoes-back", 1000_00, 200, CategoryIds.SHOPPING, Direction.CREDIT, TransactionType.REFUND),
+                txn("chai", 45_00, 300, CategoryIds.FOOD_CANTEEN),
+            ),
+        )
+        db.transactionItemDao().replace(
+            "order",
+            listOf(
+                TransactionItemEntity("i1", "order", 3000_00, CategoryIds.SHOPPING, "shoes", 0, "test"),
+                TransactionItemEntity("i2", "order", 1500_00, CategoryIds.COLLEGE, "calculator", 1, "test"),
+                TransactionItemEntity("i3", "order", 500_00, CategoryIds.HEALTH, null, 2, "test"),
+            ),
+        )
+
+        db.transactionDao().observeCategoryTotals(startMillis = 0, endMillis = 1000).test {
+            assertThat(awaitItem().associate { it.categoryId to it.totalPaise }).containsExactly(
+                CategoryIds.SHOPPING, 2000_00L,
+                CategoryIds.COLLEGE, 1500_00L,
+                CategoryIds.HEALTH, 500_00L,
+                CategoryIds.FOOD_CANTEEN, 45_00L,
+            )
+        }
+        db.transactionDao().observeBetween(0, 1000).test {
+            assertThat(awaitItem().first { it.id == "order" }.itemCount).isEqualTo(3)
+        }
+
+        // Back to one category: the whole payment counts there again.
+        db.transactionItemDao().replace("order", emptyList())
+        db.transactionDao().observeCategoryTotals(startMillis = 0, endMillis = 1000).test {
+            assertThat(awaitItem().associate { it.categoryId to it.totalPaise }[CategoryIds.SHOPPING]).isEqualTo(4000_00L)
+        }
     }
 }

@@ -35,6 +35,7 @@ class MigrationTest {
 
         helper.runMigrationsAndValidate(dbName, 2, true).close()
         helper.runMigrationsAndValidate(dbName, 3, true).close()
+        helper.runMigrationsAndValidate(dbName, 4, true).close()
 
         val db = Room.databaseBuilder(ApplicationProvider.getApplicationContext(), InklessDatabase::class.java, dbName).build()
         try {
@@ -44,6 +45,7 @@ class MigrationTest {
             assertThat(kept.payeeRaw).isEqualTo("SHARMA CANTEEN")
             assertThat(db.ruleDao().getAll()).isEmpty()
             assertThat(db.myAccountDao().getAll()).isEmpty()
+            assertThat(db.transactionItemDao().get("t1")).isEmpty()
         } finally {
             db.close()
         }

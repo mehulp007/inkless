@@ -22,6 +22,8 @@ data class TransactionListItem(
     val payeeRaw: String?,
     val merchantName: String?,
     val status: TransactionStatus,
+    /** How many items the payment is broken down into; 0 when it isn't. */
+    val itemCount: Int = 0,
 )
 
 /** A payment still waiting for a category, with what's needed to try again. */
@@ -91,7 +93,8 @@ interface TransactionDao {
     @Query(
         """
         SELECT t.id, t.amountPaise, t.direction, t.type, t.timestamp, t.categoryId,
-               t.vpa, t.payeeRaw, m.displayName AS merchantName, t.status
+               t.vpa, t.payeeRaw, m.displayName AS merchantName, t.status,
+               (SELECT COUNT(*) FROM transaction_items i WHERE i.transactionId = t.id) AS itemCount
         FROM transactions t
         LEFT JOIN merchants m ON m.id = t.merchantId
         WHERE t.deleted = 0 AND t.status = 'NEEDS_REVIEW'
@@ -141,6 +144,16 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE deleted = 0 AND timestamp BETWEEN :from AND :to")
     suspend fun around(from: Long, to: Long): List<TransactionEntity>
 
+    /** Spending since [since], newest first: what a shared order can be matched to. */
+    @Query(
+        """
+        SELECT * FROM transactions
+        WHERE deleted = 0 AND type = 'EXPENSE' AND direction = 'DEBIT' AND timestamp >= :since
+        ORDER BY timestamp DESC LIMIT :limit
+        """,
+    )
+    suspend fun recentSpending(since: Long, limit: Int): List<TransactionEntity>
+
     @Query("SELECT * FROM transactions WHERE deleted = 0 AND upiRef = :ref")
     suspend fun byRef(ref: String): List<TransactionEntity>
 
@@ -156,7 +169,8 @@ interface TransactionDao {
     @Query(
         """
         SELECT t.id, t.amountPaise, t.direction, t.type, t.timestamp, t.categoryId,
-               t.vpa, t.payeeRaw, m.displayName AS merchantName, t.status
+               t.vpa, t.payeeRaw, m.displayName AS merchantName, t.status,
+               (SELECT COUNT(*) FROM transaction_items i WHERE i.transactionId = t.id) AS itemCount
         FROM transactions t
         LEFT JOIN merchants m ON m.id = t.merchantId
         WHERE t.deleted = 0 AND t.timestamp >= :startMillis AND t.timestamp < :endMillis
@@ -166,7 +180,8 @@ interface TransactionDao {
     fun observeBetween(startMillis: Long, endMillis: Long): Flow<List<TransactionListItem>>
 
     /**
-     * Spend per category in a time range. Refunds count against the category they came back to.
+     * Spend per category in a time range. Refunds count against the category they came back to,
+     * and a broken-down payment counts each item in its own category.
      * This is the only place category totals are worked out; anything showing spend per category
      * reads it (through LedgerRepository.categoryTotalsBetween) rather than adding up payments itself.
      */
@@ -174,12 +189,18 @@ interface TransactionDao {
         """
         SELECT categoryId,
                SUM(CASE WHEN direction = 'DEBIT' THEN amountPaise ELSE -amountPaise END) AS totalPaise,
-               COUNT(*) AS count
-        FROM transactions
-        WHERE deleted = 0
-          AND categoryId IS NOT NULL
-          AND type IN ('EXPENSE', 'REFUND')
-          AND timestamp >= :startMillis AND timestamp < :endMillis
+               COUNT(DISTINCT transactionId) AS count
+        FROM (
+            SELECT t.id AS transactionId, t.direction,
+                   COALESCE(i.categoryId, t.categoryId) AS categoryId,
+                   COALESCE(i.amountPaise, t.amountPaise) AS amountPaise
+            FROM transactions t
+            LEFT JOIN transaction_items i ON i.transactionId = t.id
+            WHERE t.deleted = 0
+              AND t.type IN ('EXPENSE', 'REFUND')
+              AND t.timestamp >= :startMillis AND t.timestamp < :endMillis
+        )
+        WHERE categoryId IS NOT NULL
         GROUP BY categoryId
         """,
     )
