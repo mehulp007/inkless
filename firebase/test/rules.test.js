@@ -11,9 +11,11 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
 } from 'firebase/firestore';
 
@@ -259,6 +261,24 @@ describe('backup', () => {
     await assertFails(setDoc(ref(db, 'merchants', 'm2'), synced({ vpa: 'x@ybl', displayName: 'X', timesSeen: 1, sms: 'hi' })));
   });
 
+  test('friends, splits and loans hold only their own fields', async () => {
+    const db = alice();
+    await assertSucceeds(setDoc(ref(db, 'friends', 'f1'), synced({
+      name: 'Bob', vpas: ['bob@okicici'], linkedUid: 'bob', linkedUsername: 'bob',
+    })));
+    const share = { id: 'sh1', friendId: 'f1', sharePaise: 30000, basisPoints: null, settled: false, settledByTxnId: null };
+    await assertSucceeds(setDoc(ref(db, 'splits', 's1'), synced({
+      transactionId: 't1', method: 'EQUAL', sharedSplitId: 's1', shares: [share],
+    })));
+    await assertFails(setDoc(ref(db, 'splits', 's2'), synced({ transactionId: 't1', method: 'EQUAL', shares: 'all' })));
+    await assertSucceeds(setDoc(ref(db, 'ious', 'i1'), synced({
+      friendId: 'f1', amountPaise: 15000, theyOwe: true, note: 'Auto', timestamp: 1, settled: false, settledByTxnId: null,
+    })));
+    await assertFails(setDoc(ref(db, 'ious', 'i2'), synced({ friendId: 'f1', amountPaise: 1.5, theyOwe: true, timestamp: 1 })));
+    await assertFails(setDoc(ref(db, 'friends', 'f2'), synced({ name: 'Carol', phone: '98xxxxxx' })));
+    await assertFails(getDoc(ref(bob(), 'friends', 'f1')));
+  });
+
   test('collections that are not part of the backup are closed', async () => {
     await assertFails(setDoc(ref(alice(), 'rawCaptures', 'c1'), synced({ body: 'Rs.45 debited' })));
     await assertFails(getDoc(ref(alice(), 'rawCaptures', 'c1')));
@@ -269,7 +289,7 @@ describe('shared splits', () => {
   const split = (extra = {}) => ({
     memberUids: ['alice', 'bob'], payerUid: 'alice', total: 60000,
     shares: { alice: 30000, bob: 30000 }, settled: { alice: true, bob: false },
-    note: 'Saturday dinner', createdAt: serverTimestamp(), ...extra,
+    names: { alice: 'alice', bob: 'bob' }, note: 'Saturday dinner', createdAt: serverTimestamp(), ...extra,
   });
 
   async function seedSplit() {
@@ -297,6 +317,12 @@ describe('shared splits', () => {
     await assertFails(getDoc(doc(nobody(), 'sharedSplits', 's1')));
   });
 
+  test('a split that does not exist yet reads as missing', async () => {
+    const missing = await assertSucceeds(getDoc(doc(alice(), 'sharedSplits', 'new')));
+    if (missing.exists()) throw new Error('expected no document');
+    await assertFails(getDoc(doc(nobody(), 'sharedSplits', 'new')));
+  });
+
   test('a member ticks only their own share as settled', async () => {
     await seedSplit();
     await assertSucceeds(updateDoc(doc(bob(), 'sharedSplits', 's1'), { 'settled.bob': true }));
@@ -304,6 +330,22 @@ describe('shared splits', () => {
     await assertFails(updateDoc(doc(bob(), 'sharedSplits', 's1'), { total: 1 }));
     await assertFails(updateDoc(doc(bob(), 'sharedSplits', 's1'), { 'shares.bob': 0 }));
     await assertFails(updateDoc(doc(carol(), 'sharedSplits', 's1'), { 'settled.carol': true }));
+  });
+
+  test("the payer can tick a friend's share, but not change the amounts", async () => {
+    await seedSplit();
+    await assertSucceeds(updateDoc(doc(alice(), 'sharedSplits', 's1'), { settled: { alice: true, bob: true } }));
+    await assertFails(updateDoc(doc(alice(), 'sharedSplits', 's1'), { 'shares.bob': 100 }));
+  });
+
+  test('a member finds the splits they are in, and no others', async () => {
+    await seedSplit();
+    await assertSucceeds(getDocs(query(collection(bob(), 'sharedSplits'), where('memberUids', 'array-contains', 'bob'))));
+    await assertFails(getDocs(collection(bob(), 'sharedSplits')));
+  });
+
+  test('a split cannot carry anything beyond its own fields', async () => {
+    await assertFails(setDoc(doc(alice(), 'sharedSplits', 's1'), split({ sms: 'Rs.600 debited' })));
   });
 
   test('only the payer removes a split', async () => {

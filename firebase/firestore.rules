@@ -100,6 +100,27 @@ service cloud.firestore {
           && synced(['match', 'value', 'role', 'label']);
       }
 
+      match /friends/{id} {
+        allow read, delete: if isUser(uid);
+        allow create, update: if isUser(uid)
+          && synced(['name', 'vpas', 'linkedUid', 'linkedUsername']);
+      }
+
+      match /splits/{id} {
+        allow read, delete: if isUser(uid);
+        allow create, update: if isUser(uid)
+          && synced(['transactionId', 'method', 'sharedSplitId', 'shares'])
+          && request.resource.data.shares is list
+          && request.resource.data.shares.size() <= 50;
+      }
+
+      match /ious/{id} {
+        allow read, delete: if isUser(uid);
+        allow create, update: if isUser(uid)
+          && synced(['friendId', 'amountPaise', 'theyOwe', 'note', 'timestamp', 'settled', 'settledByTxnId'])
+          && request.resource.data.amountPaise is int;
+      }
+
       match /budgets/{id} {
         allow read, delete: if isUser(uid);
         allow create, update: if isUser(uid)
@@ -125,14 +146,16 @@ service cloud.firestore {
       return value == null || (value is string && value.size() <= 4);
     }
 
-    // sharedSplits/{id} -> { memberUids[], payerUid, total, shares{uid: paise}, settled{uid: bool}, note, createdAt }
+    // sharedSplits/{id} -> { memberUids[], payerUid, total, shares{uid: paise}, settled{uid: bool}, names{uid: username}, note, createdAt }
     // A bill split between friends who all use Inkless. Only its members see it, only the payer
-    // creates or removes it, and each member can only tick their own share as settled.
+    // creates or removes it. Each member can tick their own share as settled, and the payer can
+    // tick anyone's (their repayment arrived on the payer's phone).
     match /sharedSplits/{splitId} {
-      allow read: if signedIn() && request.auth.uid in resource.data.memberUids;
+      // A split that doesn't exist yet reads as missing, so the payer can check before creating it.
+      allow read: if signedIn() && (resource == null || request.auth.uid in resource.data.memberUids);
 
       allow create: if signedIn()
-        && request.resource.data.keys().hasOnly(['memberUids', 'payerUid', 'total', 'shares', 'settled', 'note', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['memberUids', 'payerUid', 'total', 'shares', 'settled', 'names', 'note', 'createdAt'])
         && request.resource.data.payerUid == request.auth.uid
         && request.resource.data.memberUids is list
         && request.auth.uid in request.resource.data.memberUids
@@ -142,8 +165,9 @@ service cloud.firestore {
       allow update: if signedIn()
         && request.auth.uid in resource.data.memberUids
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['settled'])
-        && request.resource.data.settled.diff(resource.data.settled).affectedKeys().hasOnly([request.auth.uid])
-        && request.resource.data.settled[request.auth.uid] is bool;
+        && (request.auth.uid == resource.data.payerUid
+            || (request.resource.data.settled.diff(resource.data.settled).affectedKeys().hasOnly([request.auth.uid])
+                && request.resource.data.settled[request.auth.uid] is bool));
 
       allow delete: if signedIn() && resource.data.payerUid == request.auth.uid;
     }

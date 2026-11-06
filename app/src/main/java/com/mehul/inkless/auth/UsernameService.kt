@@ -21,6 +21,10 @@ class UsernameService @Inject constructor(
     suspend fun isAvailable(username: String): Boolean =
         !usernames.document(username).get(Source.SERVER).await().exists()
 
+    /** The account behind a username, for linking a friend. Null when nobody has it. */
+    suspend fun uidOf(username: String): String? =
+        usernames.document(username).get(Source.SERVER).await().getString("uid")
+
     suspend fun emailFor(username: String): String? =
         usernames.document(username).get(Source.SERVER).await().getString("email")
 
