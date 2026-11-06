@@ -9,13 +9,19 @@ import com.mehul.inkless.data.db.entity.FriendEntity
 import com.mehul.inkless.data.db.entity.IouEntity
 import com.mehul.inkless.data.db.entity.SplitEntity
 import com.mehul.inkless.data.db.entity.SplitMethod
+import com.mehul.inkless.data.db.entity.PredictionEntity
+import com.mehul.inkless.data.db.entity.PredictionSource
 import com.mehul.inkless.data.db.entity.SplitShareEntity
 import com.mehul.inkless.data.db.entity.TransactionEntity
+import com.mehul.inkless.data.db.entity.TransactionType
 import com.mehul.inkless.data.seed.CategoryIds
 import com.mehul.inkless.data.seed.DefaultCategories
+import com.mehul.inkless.ml.Evaluation
+import com.mehul.inkless.ml.LabelledPayment
 import com.mehul.inkless.splits.SplitMath
 import java.time.Clock
 import java.time.Duration
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import javax.inject.Inject
 
@@ -58,7 +64,31 @@ class DemoSeeder @Inject constructor(
             db.merchantDao().insertAll(data.merchants)
             db.transactionDao().insertAll(data.transactions)
             seedFriends(db, data.transactions, nowMillis)
+            seedGuesses(db, data.transactions)
         }
+    }
+
+    /**
+     * The guess history the accuracy chart shows, as if every payment had arrived live: guessed
+     * by the model trained on the ones before it, then sorted by the user.
+     */
+    private suspend fun seedGuesses(db: InklessDatabase, transactions: List<TransactionEntity>) {
+        val spending = transactions.filter { it.type == TransactionType.EXPENSE && it.direction == Direction.DEBIT && it.categoryId != null }
+        val byPayment = spending.associateBy { LabelledPayment(it.vpa, it.payeeRaw, it.amountPaise, it.timestamp, it.categoryId!!) }
+        val replayed = Evaluation.replay(byPayment.keys.toList(), ZoneId.systemDefault())
+        db.insightDao().clearPredictions()
+        db.insightDao().savePredictions(
+            replayed.map { (payment, guess) ->
+                PredictionEntity(
+                    transactionId = byPayment.getValue(payment).id,
+                    source = PredictionSource.NONE,
+                    filedCategoryId = null,
+                    modelCategoryId = guess?.categoryId,
+                    modelConfidence = guess?.confidence,
+                    createdAt = payment.timestamp,
+                )
+            },
+        )
     }
 
     /** Two friends, the latest big food order split three ways, and some money lent. */
