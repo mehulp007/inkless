@@ -8,6 +8,7 @@ import com.mehul.inkless.capture.CaptureRunner
 import com.mehul.inkless.capture.IncomingSms
 import com.mehul.inkless.categorize.ReviewNotifier
 import com.mehul.inkless.di.ApplicationScope
+import com.mehul.inkless.insights.SpendAlerts
 import com.mehul.inkless.splits.SettleSuggester
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -26,6 +27,8 @@ class SmsReceiver : BroadcastReceiver() {
     @Inject lateinit var notifier: ReviewNotifier
 
     @Inject lateinit var settle: SettleSuggester
+
+    @Inject lateinit var alerts: SpendAlerts
 
     @Inject @ApplicationScope lateinit var scope: CoroutineScope
 
@@ -54,6 +57,7 @@ class SmsReceiver : BroadcastReceiver() {
                 runner.currentAccount()?.let { (uid, db) ->
                     notifier.askAbout(uid, db, saved)
                     settle.suggest(db, saved)
+                    alerts.check(uid, db, saved)
                 }
             } finally {
                 pending.finish()
