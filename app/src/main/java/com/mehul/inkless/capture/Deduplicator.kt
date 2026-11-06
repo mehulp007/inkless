@@ -15,6 +15,9 @@ object Deduplicator {
     /** How far apart the SMS and the notification for one payment can arrive. */
     const val WINDOW_MS = 3 * 60 * 1000L
 
+    /** One bank SMS read twice, e.g. restored from the backup and then imported from this phone's inbox. */
+    private const val SAME_SMS_MS = 1_000L
+
     private val word = Regex("[a-z0-9]{3,}")
 
     fun isSamePayment(a: TransactionEntity, b: TransactionEntity): Boolean {
@@ -22,6 +25,9 @@ object Deduplicator {
         if (a.upiRef != null && b.upiRef != null) return a.upiRef == b.upiRef
         if (a.amountPaise != b.amountPaise || a.direction != b.direction) return false
         if (abs(a.timestamp - b.timestamp) > WINDOW_MS) return false
+        if (CaptureSource.SMS in a.sources && CaptureSource.SMS in b.sources && abs(a.timestamp - b.timestamp) <= SAME_SMS_MS) {
+            return compatiblePayee(a, b)
+        }
         // Two SMS (or two notifications) for the same amount minutes apart are two payments: two chais, not one.
         if ((a.sources intersect b.sources).isNotEmpty()) return false
         return compatiblePayee(a, b)

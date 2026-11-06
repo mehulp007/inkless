@@ -55,6 +55,14 @@ class DeduplicatorTest {
     }
 
     @Test
+    fun `the same bank sms read on two phones is one payment`() {
+        // Restored from the backup, then imported again from this phone's inbox: same SMS, same time.
+        val restored = txn("a", CaptureSource.SMS, vpa = "q829154@ybl")
+        assertThat(Deduplicator.isSamePayment(restored, txn("b", CaptureSource.SMS, vpa = "q829154@ybl"))).isTrue()
+        assertThat(Deduplicator.isSamePayment(restored, txn("b", CaptureSource.SMS, vpa = "rohan@okaxis"))).isFalse()
+    }
+
+    @Test
     fun `two sms for the same amount are two payments`() {
         // Two ₹45 chais a minute apart.
         assertThat(Deduplicator.isSamePayment(txn("a", CaptureSource.SMS), txn("b", CaptureSource.SMS, at = 11 * minute))).isFalse()

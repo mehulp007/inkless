@@ -105,6 +105,11 @@ class CaptureProcessor @Inject constructor(
             val match = Deduplicator.findMatch(incoming, candidates.distinctBy { it.id })
             if (match != null) {
                 val merged = Deduplicator.merge(match, incoming, now)
+                // Nothing new (the same SMS again): leave the row alone so it isn't uploaded again for nothing.
+                if (merged.copy(updatedAt = match.updatedAt, syncState = match.syncState) == match) {
+                    db.rawCaptureDao().linkTransaction(capture.id, match.id)
+                    return@withTransaction CaptureResult(CaptureOutcome.DUPLICATE, match)
+                }
                 dao.update(merged)
                 db.rawCaptureDao().linkTransaction(capture.id, merged.id)
                 return@withTransaction CaptureResult(CaptureOutcome.MERGED, merged)
