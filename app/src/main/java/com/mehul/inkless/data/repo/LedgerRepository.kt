@@ -7,7 +7,7 @@ import com.mehul.inkless.data.db.dao.TransactionListItem
 import com.mehul.inkless.data.db.entity.CategoryEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,9 +17,9 @@ import javax.inject.Singleton
 class LedgerRepository @Inject constructor(
     private val databases: DatabaseProvider,
 ) {
-    // Re-subscribes whenever a different user's database is opened.
+    // Re-subscribes whenever a different user's database is opened, and goes quiet when it's closed.
     private fun <T> fromCurrentDb(query: (InklessDatabase) -> Flow<T>): Flow<T> =
-        databases.current.filterNotNull().flatMapLatest(query)
+        databases.current.flatMapLatest { db -> if (db == null) emptyFlow() else query(db) }
 
     fun categories(): Flow<List<CategoryEntity>> =
         fromCurrentDb { it.categoryDao().observeAll() }

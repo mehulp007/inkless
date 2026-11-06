@@ -12,7 +12,6 @@ class InklessApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // No accounts yet, so the app always opens in demo mode.
-        sessionManager.startDemo()
+        sessionManager.start()
     }
 }
