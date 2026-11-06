@@ -4,6 +4,7 @@ import com.mehul.inkless.capture.sms.SmsCapture
 import com.mehul.inkless.data.db.DatabaseProvider
 import com.mehul.inkless.data.db.InklessDatabase
 import com.mehul.inkless.data.db.entity.TransactionEntity
+import com.mehul.inkless.demo.Demo
 import com.mehul.inkless.session.Session
 import com.mehul.inkless.session.SessionManager
 import kotlinx.coroutines.flow.filterNotNull
@@ -34,6 +35,21 @@ class CaptureRunner @Inject constructor(
             databases.current.filterNotNull().first { it.openHelper.databaseName == DatabaseProvider.fileName(uid) }
         } ?: return null
         return uid to db
+    }
+
+    /** The open ledger, the demo's included: for the widget and the weekly summary, which only read. */
+    suspend fun currentLedger(): InklessDatabase? {
+        val session = withTimeoutOrNull(SESSION_WAIT_MS) {
+            sessions.session.first { it != Session.Loading }
+        }
+        val name = when (session) {
+            is Session.SignedIn -> session.user.uid
+            Session.Demo -> Demo.DATABASE_NAME
+            else -> return null
+        }
+        return withTimeoutOrNull(SESSION_WAIT_MS) {
+            databases.current.filterNotNull().first { it.openHelper.databaseName == DatabaseProvider.fileName(name) }
+        }
     }
 
     /** Saves what it can and returns the new transactions (not ones merged into an existing payment). */
