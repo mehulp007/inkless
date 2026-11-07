@@ -9,7 +9,8 @@ import com.mehul.inkless.lock.AppLock
 import com.mehul.inkless.lock.LockGate
 import com.mehul.inkless.ui.home.QuickAddRequests
 import com.mehul.inkless.ui.navigation.InklessRoot
-import com.mehul.inkless.ui.theme.InklessTheme
+import com.mehul.inkless.ui.theme.AppearancePrefs
+import com.mehul.inkless.ui.theme.InklessAppTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -22,12 +23,14 @@ class MainActivity : FragmentActivity() {
 
     @Inject lateinit var appLock: AppLock
 
+    @Inject lateinit var appearance: AppearancePrefs
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) handle(intent)
         setContent {
-            InklessTheme {
+            InklessAppTheme(appearance) {
                 LockGate(appLock) { InklessRoot() }
             }
         }

@@ -13,7 +13,8 @@ import androidx.fragment.app.FragmentActivity
 import com.mehul.inkless.MainActivity
 import com.mehul.inkless.lock.AppLock
 import com.mehul.inkless.lock.LockGate
-import com.mehul.inkless.ui.theme.InklessTheme
+import com.mehul.inkless.ui.theme.AppearancePrefs
+import com.mehul.inkless.ui.theme.InklessAppTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -27,6 +28,8 @@ class ShareActivity : FragmentActivity() {
 
     @Inject lateinit var appLock: AppLock
 
+    @Inject lateinit var appearance: AppearancePrefs
+
     private val viewModel: ShareViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,7 +40,7 @@ class ShareActivity : FragmentActivity() {
         if (image == null && text == null) android.util.Log.w("ShareActivity", "Nothing usable shared: type=${intent.type}")
         viewModel.start(text, image)
         setContent {
-            InklessTheme {
+            InklessAppTheme(appearance) {
                 LockGate(appLock) { ShareScreen(viewModel, sharedFrom = sharedFrom(), onClose = ::finish, onContinue = ::openEditor) }
             }
         }
