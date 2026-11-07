@@ -7,13 +7,13 @@ Inkless is an Android expense tracker built around how students in India actuall
 It's local-first: your ledger lives in a database on your phone, and the SMS text never leaves it. The internet is only used for Firebase: signing in, the cloud backup you can switch off, and splits you share with friends who use Inkless too.
 
 <p align="center">
-  <img src="docs/screenshots/home-all.png" width="260" alt="Month view with every payment grouped by day" />
-  <img src="docs/screenshots/home-category.png" width="260" alt="Food &amp; Canteen tab with its monthly total" />
-  <img src="docs/screenshots/home-dark.png" width="260" alt="Food Delivery tab in dark mode" />
+  <img src="docs/screenshots/home-all.png" width="260" alt="Home: safe to spend today, the spending ring and the month's payments" />
+  <img src="docs/screenshots/home-category.png" width="260" alt="Home filtered to Food & Canteen, with its total and payments by day" />
+  <img src="docs/screenshots/home-dark.png" width="260" alt="Home in dark mode" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/tour.gif" width="300" alt="A tour of the demo: Home, a category tab, a payment, Insights, Ask Inkless, Wrapped and a friend's balance" />
+  <img src="docs/screenshots/tour.gif" width="300" alt="A tour of the demo: Home, a category, a payment, Money, Insights, Ask Inkless, Wrapped and a friend" />
 </p>
 
 <sub>Screenshots use the built-in demo data — none of it is real.</sub>
@@ -49,7 +49,7 @@ All amounts are stored as whole paise (`Long`), never floating point, and shown 
 
 <p align="center">
   <img src="docs/screenshots/sms-setup.png" width="260" alt="Auto-capture setup explaining what is and isn't read" />
-  <img src="docs/screenshots/transaction.png" width="260" alt="A captured payment waiting for a category" />
+  <img src="docs/screenshots/transaction.png" width="260" alt="A payment's details: date, source, account, masked UPI reference and its category" />
 </p>
 
 UPI apps have no API, but every bank sends an SMS for every UPI payment, whichever app was used. Inkless reads those:
@@ -73,8 +73,8 @@ Each account turns capture on separately, nothing is captured in demo mode or wh
 ## UPI app notifications
 
 <p align="center">
-  <img src="docs/screenshots/transfer.png" width="260" alt="A transfer to the user's own account shown with a transfer icon and left out of the month's spending" />
-  <img src="docs/screenshots/capture-health.png" width="260" alt="Capture health screen with SMS and notification access on, and battery and notifications needing attention" />
+  <img src="docs/screenshots/transfer.png" width="260" alt="A transfer to the user's own account marked Excluded and left out of the day's spending" />
+  <img src="docs/screenshots/capture-health.png" width="260" alt="Capture health: SMS working, notification access blocked with the Android 13+ steps, battery to check" />
 </p>
 
 With notification access switched on, Inkless also reads payment notifications from UPI apps (Google Pay, PhonePe, Paytm, BHIM, Amazon Pay, CRED, super.money, Navi). It ignores every other app's notifications without reading them, and drops cashback, offers, requests, reminders and failed or pending payments. Notifications bring:
@@ -97,10 +97,7 @@ Adding, changing or removing an account re-checks the last six months, so old tr
 ## Smart categories
 
 <p align="center">
-  <img src="docs/screenshots/category-question.png" width="520" alt="Notification asking what a ₹30 payment was, with category buttons" />
-</p>
-<p align="center">
-  <img src="docs/screenshots/review.png" width="260" alt="To-sort list with one-tap category chips" />
+  <img src="docs/screenshots/review.png" width="260" alt="To sort: payments with suggested categories to pick in one tap" />
 </p>
 
 Every captured payment goes through a small categoriser, most specific knowledge first:
@@ -116,9 +113,9 @@ Every correction retrains the model a moment later, so the next guess already kn
 ## Budget
 
 <p align="center">
-  <img src="docs/screenshots/budget-home.png" width="260" alt="Home with ₹162 safe to spend today, a 12% spending ring and a pace chart" />
-  <img src="docs/screenshots/category-detail.png" width="260" alt="Food &amp; Canteen detail with a budget bar, six months of spending and top places" />
-  <img src="docs/screenshots/widget.png" width="260" alt="Home-screen widget showing ₹139.79 safe to spend today and a Cash button" />
+  <img src="docs/screenshots/budget-home.png" width="260" alt="Money tab: what's left of the allowance and a pace chart with a forecast" />
+  <img src="docs/screenshots/category-detail.png" width="260" alt="Food & Canteen page with six months of spending and the usual places" />
+  <img src="docs/screenshots/widget.png" width="260" alt="Home-screen widget showing what's safe to spend today and a Cash button" />
 </p>
 
 Set the monthly allowance and the day it usually arrives (*Edit* on the Money tab, or the card on Home). Each budget month runs from that day to the day before the next allowance, and everything below is about the current one. The *Money* tab shows it all on one page: what's left of the allowance and how much is used, a chart of spending so far with where it's heading at this pace against an even pace, *"₹9,600 ÷ 25 days − ₹300 = ₹84"* for how today's figure comes about, this month's category budgets, the food cap and the semester:
@@ -130,7 +127,7 @@ Set the monthly allowance and the day it usually arrives (*Edit* on the Money ta
 - **Category pages** — pick a category's pill on Home and tap its total: this month against its budget (set or change it there), the last six months as bars, your usual places this month, and today's payments with where each came from (*Bank SMS + notification*).
 - **Category budgets** — *Manage* on the Money tab lists every category; give one a monthly amount and its bar shows up there (and on its category page). Calendar months; going over never blocks anything.
 - **Semester total** — spending since July (or January), on the Money tab, next to the weekly summary switch.
-- **Home-screen widget** — safe to spend today and a *Cash* button that opens the quick-add sheet. It updates as payments come in.
+- **Home-screen widget** — safe to spend today, what's left of the allowance and a *Cash* button that opens the quick-add sheet, in the app's green and in light or dark with the launcher. At one row tall (2×1) it shrinks to the amount and the button. It updates as payments come in.
 - **Weekly summary** — Sunday at 7 pm: the week's spending, the top three categories, and what's left until the allowance. It can be switched off on the budget page.
 
 Every spend number (category totals, budgets, safe to spend, the widget, the summary) comes from one database view, `spend_parts`, which already splits broken-down payments into their items, counts only your part of a payment split with friends, and counts refunds against their category. Nothing adds up payments on its own, so the numbers always agree.
@@ -139,7 +136,7 @@ Every spend number (category totals, budgets, safe to spend, the widget, the sum
 
 <p align="center">
   <img src="docs/screenshots/insights.png" width="260" alt="Insights with recurring payments and a weekly chart of how often Inkless guessed right" />
-  <img src="docs/screenshots/ask.png" width="260" alt="Ask Inkless answering how much went on food this month and how much Rohan owes" />
+  <img src="docs/screenshots/ask.png" width="260" alt="Ask Inkless answering how much went on food this month" />
   <img src="docs/screenshots/wrapped.png" width="260" alt="October wrapped: total spent, top category, top place, most visits and biggest payment" />
 </p>
 
@@ -154,9 +151,9 @@ The *Money* tab also leads to *Insights*, *Ask Inkless* and *Wrapped*:
 ## Break down
 
 <p align="center">
-  <img src="docs/screenshots/share-order.png" width="260" alt="A shared order screenshot read into four items, with the matching ₹450 payment picked" />
-  <img src="docs/screenshots/breakdown-editor.png" width="260" alt="Break down editor filled in from the shared order" />
-  <img src="docs/screenshots/breakdown-home.png" width="260" alt="Shopping tab showing an Amazon payment with a +2 more badge" />
+  <img src="docs/screenshots/share-order.png" width="260" alt="A shared order read into items, with the matching payment picked" />
+  <img src="docs/screenshots/breakdown-editor.png" width="260" alt="Break down editor with each item, its amount and category" />
+  <img src="docs/screenshots/breakdown-home.png" width="260" alt="Home showing a Blinkit payment broken into items, with a +3 more items badge" />
 </p>
 
 The bank and the UPI app only ever say "₹5,000 to Amazon", never what was in the order. *Break down* splits one payment into items, each with its own amount, category and note:
@@ -173,9 +170,9 @@ Screenshots are read with [Tesseract](https://github.com/tesseract-ocr/tesseract
 ## Split with friends
 
 <p align="center">
-  <img src="docs/screenshots/split.png" width="260" alt="Splitting a ₹336.39 Swiggy order by percentages, with ₹116.07 left as your part" />
+  <img src="docs/screenshots/split.png" width="260" alt="Splitting a Swiggy order equally with two friends, with your part shown" />
   <img src="docs/screenshots/split-payment.png" width="260" alt="A payment split with two friends, one of whom has paid back" />
-  <img src="docs/screenshots/friend.png" width="260" alt="A friend who owes ₹262.13, with a Remind button" />
+  <img src="docs/screenshots/friend.png" width="260" alt="A friend who owes money, with Remind and Settle all" />
 </p>
 
 A dinner paid on your UPI isn't all your spending. *Split with friends* on a payment's details divides it:
@@ -192,8 +189,8 @@ A payment is either broken down into items or split with friends, not both. A sh
 ## Accounts
 
 <p align="center">
-  <img src="docs/screenshots/welcome.png" width="260" alt="Welcome screen with create account, log in, Google and demo options" />
-  <img src="docs/screenshots/signup.png" width="260" alt="Sign-up form checking the username as you type" />
+  <img src="docs/screenshots/welcome.png" width="260" alt="Welcome screen with create account, Google, log in and demo options" />
+  <img src="docs/screenshots/signup.png" width="260" alt="Sign-up form: username, email, password and the cloud backup switch" />
 </p>
 
 - **Sign up** with a username, email and password. The username is checked as you type, the password says how strong it is, and a *Cloud backup* switch lets a new account start with backup off. The account gets a verification email (the app works while you wait, with a reminder on the home screen).
@@ -207,8 +204,7 @@ Error messages are deliberately vague about whether an account exists: a wrong p
 ## Cloud backup
 
 <p align="center">
-  <img src="docs/screenshots/backup.png" width="260" alt="Settings showing cloud backup switched on and backed up just now" />
-  <img src="docs/screenshots/logout-warning.png" width="260" alt="Log-out dialog warning that one change isn't backed up yet" />
+  <img src="docs/screenshots/backup.png" width="260" alt="Settings with cloud backup on, the ledger links and the verify-email reminder" />
 </p>
 
 The phone's own database is always the real copy; the app reads nothing else, so it works the same offline. The cloud copy in Firestore exists so a new phone can get everything back.
@@ -223,8 +219,7 @@ The phone's own database is always the real copy; the app reads nothing else, so
 ## Privacy & your data
 
 <p align="center">
-  <img src="docs/screenshots/get-started.png" width="260" alt="Welcome checklist: what's read and what isn't, then SMS, notifications, allowance and own UPI IDs" />
-  <img src="docs/screenshots/privacy.png" width="260" alt="Privacy and your data: app lock, export and backup file" />
+  <img src="docs/screenshots/privacy.png" width="260" alt="Privacy and your data: what leaves the phone, app lock, export and backup file" />
 </p>
 
 - **First run** — a new account goes through three short steps: how payments get in (bank SMS and UPI app notifications, each with its state, what's read and what never is, and the *Allow restricted settings* step for apps installed from a file), the monthly allowance with the day it arrives and an optional daily food cap, and importing the last 1, 3 or 6 months of bank SMS. Every step can be skipped. A last *You're set* screen shows what's on, links to your own UPI IDs and battery settings if they still need doing, and says exactly what the cloud backup holds.
@@ -242,6 +237,14 @@ The phone's own database is always the real copy; the app reads nothing else, so
 - Firestore security rules let each account read and write only its own data, and only the fields listed above: a document carrying anything else, such as message text or a full account number, is refused. A username can be looked up one at a time (that's how logging in with a username finds the email), but usernames can't be listed. A shared split can only be read by the people in it.
 - The backup is encrypted in transit and at rest by Google, and other users can't read it, but whoever runs the Firebase project can see it in the Firebase console. If that's not OK for you, switch backup off.
 - Inkless opts out of Android's automatic cloud backup and device-to-device transfer, so your spending data isn't copied anywhere behind your back.
+
+## Design
+
+A quiet ledger: warm off-white paper and deep green in light mode, dark green and mint in dark mode, the same on every phone rather than following the wallpaper. Headlines are set in Lora, everything else in Inter, both bundled in the app; categories get Lucide line icons on soft green tiles instead of emoji. The app icon is the open book from the wordmark on a green tile, with a themed (monochrome) version for launchers that tint icons, and the same mark on the Android 12+ splash screen.
+
+Movement is small and quick: a page slides in a little as it opens and back out as you leave, switching tabs only cross-fades, bars and the spending ring grow in when they first show, and the safe-to-spend number rolls over when a payment lands. Turning animations off in Android's settings turns them off here too.
+
+It's built to be read by everyone: every text colour passes WCAG AA contrast (4.5:1) against what it sits on, in both themes, and a unit test checks it. Charts carry a spoken summary for TalkBack ("₹2,700 spent by day 6 of 30, of ₹12,000…"), progress bars report their value, touch targets are at least 48dp, and the busiest screens are checked at 200% text size.
 
 ## Tech
 
@@ -261,7 +264,7 @@ The phone's own database is always the real copy; the app reads nothing else, so
 | On-device ML | Multinomial Naive Bayes in plain Kotlin (no ML library), retrained on every correction; robust statistics for alerts; a rule-based question parser |
 | Async | Kotlin Coroutines & Flow |
 | Security | `BiometricPrompt` app lock; backup files encrypted with PBKDF2 + AES-GCM (`javax.crypto`); R8 in release builds |
-| Tests | JUnit, Truth, Turbine; Roborazzi screenshot tests on the JVM (Robolectric), with reference images in `app/src/test/screenshots/`; Compose UI tests; Room tests on a device/emulator; Firestore rules tests on the Firebase emulator; a scikit-learn notebook in `ml/` |
+| Tests | JUnit, Truth, Turbine; Roborazzi screenshot tests on the JVM (Robolectric), with reference images in `app/src/test/screenshots/` (including 200% text size); colour-contrast and "every icon loads through Android's own parser" checks; Compose UI tests; Room tests on a device/emulator; Firestore rules tests on the Firebase emulator; a scikit-learn notebook in `ml/` |
 | Build | Gradle 9 (Kotlin DSL + version catalog), AGP 9, KSP |
 
 minSdk 26 · targetSdk 37
