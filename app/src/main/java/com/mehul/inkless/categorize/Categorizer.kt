@@ -46,7 +46,8 @@ object Categorizer {
         return null
     }
 
-    private fun CategoryRule.matches(vpa: String?, payee: String?): Boolean {
+    /** Whether [this] rule picks a payment to or from [vpa] / [payee]. */
+    fun CategoryRule.matches(vpa: String?, payee: String?): Boolean {
         val candidates = when (field) {
             RuleField.UPI_ID -> listOfNotNull(vpa)
             RuleField.PAYEE -> listOfNotNull(payee)
@@ -63,4 +64,8 @@ object Categorizer {
             }
         }
     }
+
+    /** How many of [payees] (UPI ID, name) [rule] would pick: the live preview in the rule editor. */
+    fun countMatches(rule: CategoryRule, payees: List<Pair<String?, String?>>): Int =
+        payees.count { (vpa, payee) -> rule.matches(vpa, payee) }
 }

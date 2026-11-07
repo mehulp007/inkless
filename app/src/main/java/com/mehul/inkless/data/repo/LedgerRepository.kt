@@ -4,6 +4,8 @@ import androidx.room.withTransaction
 import com.mehul.inkless.breakdown.Breakdown
 import com.mehul.inkless.breakdown.DraftItem
 import com.mehul.inkless.capture.AccountReclassifier
+import com.mehul.inkless.categorize.Categorizer
+import com.mehul.inkless.categorize.CategoryRule
 import com.mehul.inkless.categorize.MerchantMemory
 import com.mehul.inkless.categorize.Recategorizer
 import com.mehul.inkless.categorize.RuleField
@@ -11,16 +13,16 @@ import com.mehul.inkless.categorize.RuleMatch
 import com.mehul.inkless.data.db.DatabaseProvider
 import com.mehul.inkless.data.db.InklessDatabase
 import com.mehul.inkless.data.db.SpendPart
+import com.mehul.inkless.data.db.dao.CategoryTotal
 import com.mehul.inkless.data.db.dao.MerchantSpend
+import com.mehul.inkless.data.db.dao.TransactionListItem
+import com.mehul.inkless.data.db.entity.AccountMatch
+import com.mehul.inkless.data.db.entity.AccountRole
 import com.mehul.inkless.data.db.entity.BudgetEntity
 import com.mehul.inkless.data.db.entity.BudgetPeriod
-import com.mehul.inkless.data.db.dao.CategoryTotal
-import com.mehul.inkless.data.db.dao.TransactionListItem
 import com.mehul.inkless.data.db.entity.CaptureSource
 import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.db.entity.Direction
-import com.mehul.inkless.data.db.entity.AccountMatch
-import com.mehul.inkless.data.db.entity.AccountRole
 import com.mehul.inkless.data.db.entity.MerchantEntity
 import com.mehul.inkless.data.db.entity.MyAccountEntity
 import com.mehul.inkless.data.db.entity.RawCaptureEntity
@@ -31,14 +33,16 @@ import com.mehul.inkless.data.db.entity.TransactionItemEntity
 import com.mehul.inkless.data.db.entity.TransactionStatus
 import com.mehul.inkless.data.db.entity.TransactionType
 import com.mehul.inkless.data.seed.CategoryIds
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.flatMapLatest
 import java.time.Clock
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
@@ -245,6 +249,21 @@ class LedgerRepository @Inject constructor(
         reclassify(db, ownerUid)
     }
 
+    suspend fun editMyAccount(account: MyAccountEntity, match: AccountMatch, value: String, role: AccountRole, label: String?) {
+        val db = db()
+        db.myAccountDao().update(
+            account.copy(
+                match = match,
+                value = value.trim(),
+                role = role,
+                label = label?.trim()?.ifEmpty { null },
+                updatedAt = clock.millis(),
+                syncState = SyncState.DIRTY,
+            ),
+        )
+        reclassify(db, account.ownerUid)
+    }
+
     suspend fun removeMyAccount(account: MyAccountEntity) {
         val db = db()
         db.myAccountDao().update(account.copy(deleted = true, updatedAt = clock.millis(), syncState = SyncState.DIRTY))
@@ -276,6 +295,30 @@ class LedgerRepository @Inject constructor(
             ),
         )
         return recategorizer.run(db, ownerUid)
+    }
+
+    /** Changes a rule in place, keeping its spot in the order, and files whatever it now catches. */
+    suspend fun updateRule(rule: RuleEntity, field: RuleField, match: RuleMatch, pattern: String, categoryId: String): Int {
+        val db = db()
+        db.ruleDao().update(
+            listOf(
+                rule.copy(
+                    field = field,
+                    match = match,
+                    pattern = pattern.trim(),
+                    categoryId = categoryId,
+                    updatedAt = clock.millis(),
+                    syncState = SyncState.DIRTY,
+                ),
+            ),
+        )
+        return recategorizer.run(db, rule.ownerUid)
+    }
+
+    /** How many payments so far a rule like this would have picked. Read only: nothing is changed. */
+    suspend fun ruleMatchCount(field: RuleField, match: RuleMatch, pattern: String): Int {
+        val payments = db().transactionDao().observeBetween(0, Long.MAX_VALUE).first()
+        return Categorizer.countMatches(CategoryRule(field, match, pattern, categoryId = "", priority = 0), payments.map { it.vpa to it.payeeRaw })
     }
 
     suspend fun deleteRule(rule: RuleEntity) {
@@ -340,6 +383,13 @@ class LedgerRepository @Inject constructor(
     }
 
     fun unparsed(): Flow<List<RawCaptureEntity>> = fromCurrentDb { it.rawCaptureDao().observeUnparsed() }
+
+    /** When the newest payment read from a bank SMS or a UPI app's notification happened; null before any. */
+    fun lastCapturedAt(): Flow<Long?> = fromCurrentDb { db ->
+        db.transactionDao().observeBetween(0, Long.MAX_VALUE).map { payments ->
+            payments.firstOrNull { CaptureSource.SMS in it.sources || CaptureSource.NOTIFICATION in it.sources }?.timestamp
+        }
+    }
 
     fun unparsedCount(): Flow<Int> = fromCurrentDb { it.rawCaptureDao().observeUnparsedCount() }
 

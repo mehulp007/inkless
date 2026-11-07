@@ -99,4 +99,19 @@ class CategorizerTest {
         assertThat(Categorizer.decide(swiggy, null, emptyList(), null, unsure)!!.source).isEqualTo(DecisionSource.KEYWORD)
         assertThat(Categorizer.decide("q829154@ybl", null, emptyList(), null, unsure)).isNull()
     }
+
+    @Test
+    fun `countMatches counts the payments a rule would pick, ignoring case`() {
+        val payments = listOf(
+            "swiggy@icici" to "Swiggy",
+            "canteen.blockc@okaxis" to "SHARMA CANTEEN",
+            null to "Campus Canteen",
+            "q829154@ybl" to null,
+        )
+        assertThat(Categorizer.countMatches(rule("canteen", CategoryIds.FOOD_CANTEEN), payments)).isEqualTo(2)
+        assertThat(Categorizer.countMatches(rule("canteen", CategoryIds.FOOD_CANTEEN, field = RuleField.UPI_ID), payments)).isEqualTo(1)
+        assertThat(Categorizer.countMatches(rule("swiggy", CategoryIds.FOOD_DELIVERY, match = RuleMatch.EXACT), payments)).isEqualTo(1)
+        assertThat(Categorizer.countMatches(rule("""^(swiggy|q\d+)@""",CategoryIds.FOOD_DELIVERY, field = RuleField.UPI_ID, match = RuleMatch.REGEX), payments)).isEqualTo(2)
+        assertThat(Categorizer.countMatches(rule("[", CategoryIds.FOOD_DELIVERY, match = RuleMatch.REGEX), payments)).isEqualTo(0)
+    }
 }
