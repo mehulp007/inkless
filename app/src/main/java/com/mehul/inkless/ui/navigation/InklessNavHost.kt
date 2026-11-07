@@ -22,6 +22,7 @@ import com.mehul.inkless.ui.accounts.MyAccountsScreen
 import com.mehul.inkless.ui.ask.AskScreen
 import com.mehul.inkless.ui.breakdown.BreakdownScreen
 import com.mehul.inkless.ui.budget.BudgetScreen
+import com.mehul.inkless.ui.budget.CategoryBudgetsScreen
 import com.mehul.inkless.ui.capture.SmsSetupScreen
 import com.mehul.inkless.ui.capture.UnreadScreen
 import com.mehul.inkless.ui.category.CategoryScreen
@@ -42,7 +43,6 @@ import com.mehul.inkless.ui.split.SplitScreen
 import com.mehul.inkless.ui.theme.Inkless
 import com.mehul.inkless.ui.transaction.TransactionScreen
 import com.mehul.inkless.ui.wrapped.WrappedScreen
-import java.time.YearMonth
 import kotlinx.serialization.Serializable
 
 /** The addresses notifications and Share to Inkless open the app with. */
@@ -116,6 +116,9 @@ object CaptureHealthRoute
 
 @Serializable
 object MoneyRoute
+
+@Serializable
+object CategoryBudgetsRoute
 
 @Composable
 fun InklessNavHost(viewModel: ShellViewModel = hiltViewModel()) {
@@ -208,17 +211,18 @@ fun NavGraphBuilder.inklessGraph(navController: NavHostController) {
         composable<MoneyRoute> {
             MoneyScreen(
                 onOpenBudget = { navController.navigate(BudgetRoute) },
+                onOpenCategoryBudgets = { navController.navigate(CategoryBudgetsRoute) },
+                onOpenCategory = { navController.navigate(CategoryRoute(it)) },
                 onOpenInsights = { navController.navigate(InsightsRoute) },
                 onOpenAsk = { navController.navigate(AskRoute) },
-                onOpenWrapped = { navController.navigate(WrappedRoute(YearMonth.now().minusMonths(1).toString())) },
+                onOpenWrapped = { navController.navigate(WrappedRoute(it.toString())) },
             )
         }
         // The spending alert notification opens inkless://insights, with the Money tab under it.
         composable<InsightsRoute>(deepLinks = listOf(navDeepLink<InsightsRoute>(basePath = DeepLinks.INSIGHTS))) {
             InsightsScreen(
                 onBack = { navController.popBackStack() },
-                onAsk = { navController.navigate(AskRoute) },
-                onWrapped = { navController.navigate(WrappedRoute(it.toString())) },
+                onOpenCategory = { navController.navigate(CategoryRoute(it)) },
             )
         }
     }
@@ -250,6 +254,9 @@ fun NavGraphBuilder.inklessGraph(navController: NavHostController) {
     }
     composable<BudgetRoute> {
         BudgetScreen(onBack = { navController.popBackStack() })
+    }
+    composable<CategoryBudgetsRoute> {
+        CategoryBudgetsScreen(onBack = { navController.popBackStack() })
     }
     composable<CategoryRoute> {
         CategoryScreen(

@@ -23,7 +23,7 @@ import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Words for an alert: "🍜 Food Delivery: ₹1,240 this week" / "About 2.3× a usual week (₹540)." */
+/** Words for an alert: "Food Delivery: ₹1,240 this week" / "About 2.3× a usual week (₹540)." */
 object AlertText {
 
     fun title(alert: SpendAlert, category: String): String =

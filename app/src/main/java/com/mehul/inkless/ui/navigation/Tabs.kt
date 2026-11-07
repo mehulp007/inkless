@@ -45,7 +45,10 @@ enum class Tab(
     Home("Home", R.drawable.icon_house, HomeTab, HomeRoute::class, pages = listOf(CategoryRoute::class)),
     Sort("To sort", R.drawable.icon_inbox, SortTab, ReviewRoute::class),
     Friends("Friends", R.drawable.icon_users, FriendsTab, FriendsRoute::class),
-    Money("Money", R.drawable.icon_chart_trend, MoneyTab, MoneyRoute::class),
+    Money(
+        "Money", R.drawable.icon_chart_trend, MoneyTab, MoneyRoute::class,
+        pages = listOf(InsightsRoute::class, WrappedRoute::class, CategoryBudgetsRoute::class),
+    ),
     ;
 
     companion object {

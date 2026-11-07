@@ -3,143 +3,95 @@ package com.mehul.inkless.ui.budget
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.mehul.inkless.R
-import com.mehul.inkless.ui.format.Money
+import com.mehul.inkless.ui.components.ConfirmDialog
+import com.mehul.inkless.ui.components.InklessTopBar
+import com.mehul.inkless.ui.components.PageHeadline
+import com.mehul.inkless.ui.components.PrimaryButton
+import com.mehul.inkless.ui.components.TextLink
+import com.mehul.inkless.ui.components.ToggleRow
+import com.mehul.inkless.ui.theme.Inkless
+import com.mehul.inkless.ui.theme.Spacing
 
 /** The monthly allowance, the day it arrives and a daily food cap: everything the budget works from. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BudgetScreen(
     onBack: () -> Unit,
     viewModel: BudgetViewModel = hiltViewModel(),
 ) {
     val form by viewModel.form.collectAsStateWithLifecycle()
-    val semesterSpent by viewModel.semesterSpentPaise.collectAsStateWithLifecycle()
+    var stopping by rememberSaveable { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Budget") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
+    Surface(Modifier.fillMaxSize(), color = Inkless.colors.background) {
+        Column(Modifier.fillMaxSize()) {
+            InklessTopBar("Allowance", onBack = onBack)
+            if (form.loading) {
+                Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Inkless.colors.primary) }
+                return@Column
+            }
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .padding(horizontal = Spacing.gutter, vertical = Spacing.s),
+                verticalArrangement = Arrangement.spacedBy(Spacing.xl),
+            ) {
+                PageHeadline(
+                    "Your month. Your allowance.",
+                    lead = "What you live on each month. Inkless spreads what's left over the days until the next one, so Home can say what's safe to spend today.",
+                )
+                AllowanceForm(
+                    form = form,
+                    cycleFor = viewModel::cycleFor,
+                    onAmount = viewModel::setAmount,
+                    onDay = { viewModel.setDay(it.toString()) },
+                    onFoodCap = viewModel::setFoodCap,
+                )
+                ToggleRow(
+                    title = "Weekly summary · Sundays",
+                    subtitle = "The week's spending and what's left, as a notification",
+                    checked = form.weeklySummary,
+                    onCheckedChange = viewModel::setWeeklySummary,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                    PrimaryButton("Save", onClick = { viewModel.save(then = onBack) }, enabled = form.canSave)
+                    if (form.hasBudget) {
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            TextLink("Stop budgeting", onClick = { stopping = true }, color = Inkless.colors.danger)
+                        }
                     }
-                },
-            )
-        },
-    ) { padding ->
-        if (form.loading) {
-            Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) { CircularProgressIndicator() }
-            return@Scaffold
+                }
+            }
         }
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .consumeWindowInsets(padding)
-                .fillMaxSize()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(
-                "What you live on each month. Inkless spreads what's left over the days until the next " +
-                    "allowance, so Home can say what you can spend today.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            OutlinedTextField(
-                value = form.amountText,
-                onValueChange = viewModel::setAmount,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Monthly allowance") },
-                prefix = { Text("₹") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            )
-            OutlinedTextField(
-                value = form.dayText,
-                onValueChange = viewModel::setDay,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Usually arrives on day") },
-                supportingText = { Text("1 to 31. A short month uses its last day.") },
-                isError = form.dayText.isNotEmpty() && form.day == null,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            )
-            OutlinedTextField(
-                value = form.foodCapText,
-                onValueChange = viewModel::setFoodCap,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Daily food cap (optional)") },
-                prefix = { Text("₹") },
-                supportingText = { Text("Canteen and food delivery a day. Days over it count as mess skipped.") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Weekly summary", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        "A notification on Sunday evening: the week's spending and what's left",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(checked = form.weeklySummary, onCheckedChange = viewModel::setWeeklySummary)
-            }
-            Button(
-                onClick = { viewModel.save(then = onBack) },
-                enabled = form.canSave,
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-            ) { Text("Save") }
-            if (form.hasBudget) {
-                TextButton(onClick = { viewModel.remove(then = onBack) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Stop budgeting", color = MaterialTheme.colorScheme.error)
-                }
-            }
+    }
 
-            HorizontalDivider()
-            Row(Modifier.fillMaxWidth()) {
-                Column(Modifier.weight(1f)) {
-                    Text("This semester", style = MaterialTheme.typography.titleSmall)
-                    Text(viewModel.semesterName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text(Money.format(semesterSpent.coerceAtLeast(0)), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            }
-        }
+    if (stopping) {
+        ConfirmDialog(
+            title = "Stop budgeting?",
+            body = "Home stops showing what's safe to spend. Your payments and category budgets stay as they are, and you can set an allowance again any time.",
+            confirmText = "Stop",
+            onConfirm = { stopping = false; viewModel.remove(then = onBack) },
+            onDismiss = { stopping = false },
+            destructive = true,
+        )
     }
 }

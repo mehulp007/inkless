@@ -1,28 +1,25 @@
 package com.mehul.inkless.ui.insights
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -31,132 +28,144 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mehul.inkless.R
-import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.data.db.entity.RecurringEntity
 import com.mehul.inkless.insights.AccuracyReport
 import com.mehul.inkless.insights.AlertText
 import com.mehul.inkless.ml.WeekAccuracy
 import com.mehul.inkless.ui.components.CategoryTile
-import com.mehul.inkless.ui.theme.Inkless
+import com.mehul.inkless.ui.components.InklessCard
+import com.mehul.inkless.ui.components.InklessTopBar
+import com.mehul.inkless.ui.components.LedgerRow
+import com.mehul.inkless.ui.components.PageHeadline
+import com.mehul.inkless.ui.components.SectionHeader
+import com.mehul.inkless.ui.components.WarmCard
 import com.mehul.inkless.ui.format.Money
+import com.mehul.inkless.ui.theme.Inkless
+import com.mehul.inkless.ui.theme.Spacing
 import java.time.Instant
-import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
 import kotlin.math.roundToInt
 
-/** Alerts, recurring payments, the month wrapped up, Ask Inkless, and how well the guessing is going. */
-@OptIn(ExperimentalMaterial3Api::class)
+/** Alerts, payments that come round again, and how well the guessing is going. */
 @Composable
 fun InsightsScreen(
     onBack: () -> Unit,
-    onAsk: () -> Unit,
-    onWrapped: (YearMonth) -> Unit,
+    onOpenCategory: (String) -> Unit,
     viewModel: InsightsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    InsightsContent(state, onBack, onOpenCategory, now = System.currentTimeMillis())
+}
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Insights") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back") }
-                },
-            )
-        },
-    ) { padding ->
-        if (state.loading) {
-            Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) { CircularProgressIndicator() }
-            return@Scaffold
-        }
-        Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            ClickCard(onClick = onAsk) {
-                Text("Ask Inkless", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "\"How much on food this month?\" · \"Biggest payment in October\" · \"How much does Rohan owe me?\"",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+@Composable
+fun InsightsContent(state: InsightsState, onBack: () -> Unit, onOpenCategory: (String) -> Unit, now: Long) {
+    val colors = Inkless.colors
+    Surface(Modifier.fillMaxSize(), color = colors.background) {
+        Column(Modifier.fillMaxSize()) {
+            InklessTopBar("Insights", onBack = onBack)
+            if (state.loading) {
+                Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = colors.primary) }
+                return@Column
             }
+            Column(
+                Modifier
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .padding(horizontal = Spacing.gutter, vertical = Spacing.s),
+                verticalArrangement = Arrangement.spacedBy(Spacing.xl),
+            ) {
+                PageHeadline("What your money's been up to.", lead = "Worked out on this phone from your own payments.")
 
-            state.alerts.forEach { alert ->
-                val category = state.categories[alert.categoryId]
-                Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = MaterialTheme.shapes.medium) {
-                    Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                        Text(
-                            AlertText.title(alert, category?.name ?: "Spending"),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer,
-                        )
-                        Text(AlertText.body(alert), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+                    SectionHeader("Spending alerts")
+                    if (state.alerts.isEmpty()) {
+                        Muted("Nothing unusual lately. When a category runs well above its usual week or day, it shows up here.")
+                    }
+                    state.alerts.forEach { alert ->
+                        WarmCard(onClick = { onOpenCategory(alert.categoryId) }) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
+                                Icon(painterResource(R.drawable.icon_trending_up), contentDescription = null, tint = colors.onWarm, modifier = Modifier.size(20.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        AlertText.title(alert, state.categories[alert.categoryId]?.name ?: "Spending"),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = colors.ink,
+                                    )
+                                    Text(AlertText.body(alert), style = MaterialTheme.typography.bodySmall, color = colors.onWarm)
+                                }
+                                Icon(painterResource(R.drawable.icon_chevron_right), contentDescription = null, tint = colors.onWarm, modifier = Modifier.size(18.dp))
+                            }
+                        }
                     }
                 }
-            }
 
-            ClickCard(onClick = { onWrapped(state.wrappedMonth) }) {
-                Text(
-                    "Your ${state.wrappedMonth.month.getDisplayName(TextStyle.FULL, LocalConfiguration.current.locales[0])}, wrapped",
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    "The month in a few numbers, with a picture to share.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            Section("Coming up") {
-                if (state.recurring.isEmpty()) {
-                    Muted("Payments that come round every week, month or year show up here once Inkless has seen a few.")
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+                    SectionHeader("Coming up")
+                    if (state.recurring.isEmpty()) {
+                        Muted("Payments that come round every week, month or year show up here once Inkless has seen a few.")
+                    } else {
+                        InklessCard(padding = PaddingValues(horizontal = Spacing.l, vertical = Spacing.xs)) {
+                            state.recurring.forEachIndexed { i, item ->
+                                if (i > 0) HorizontalDivider(color = colors.hairline)
+                                LedgerRow(
+                                    title = item.name,
+                                    amount = "~${Money.format(item.typicalAmountPaise)}",
+                                    meta = recurringMeta(item, now),
+                                    leading = { CategoryTile(item.categoryId, size = 36.dp) },
+                                )
+                            }
+                        }
+                    }
                 }
-                state.recurring.forEach { RecurringRow(it, state.categories[it.categoryId]) }
-            }
 
-            Section("How well Inkless guesses") {
-                state.accuracy?.let { AccuracySection(it) }
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+                    SectionHeader("How well Inkless guesses")
+                    state.accuracy?.let { Accuracy(it) }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun AccuracySection(report: AccuracyReport) {
+private fun Accuracy(report: AccuracyReport) {
+    val colors = Inkless.colors
     if (report.guesses == 0) {
         Muted(
-            "Every payment that arrives gets a guess from what you've sorted before. " +
-                "Sort a few and this fills in. It has learned from ${report.learnedFrom} ${if (report.learnedFrom == 1) "payment" else "payments"} so far.",
+            "Every payment that arrives gets a guess from what you've sorted before. Sort a few and this fills in. " +
+                "It has learned from ${report.learnedFrom} ${if (report.learnedFrom == 1) "payment" else "payments"} so far.",
         )
         return
     }
-    AccuracyChart(report.weeks, Modifier.fillMaxWidth().height(120.dp))
-    val first = report.weeks.first().weekStart.format(DateTimeFormatter.ofPattern("d MMM"))
-    Row(Modifier.fillMaxWidth()) {
-        Text(first, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("this week", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    InklessCard {
+        report.recentRate?.let {
+            Text("${(it * 100).roundToInt()}% right lately", style = Inkless.type.moneyMedium, color = colors.ink)
+            Text(
+                "${report.recentRight} of the last ${report.recentGuesses} guesses · learned from ${report.learnedFrom} payments",
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.muted,
+            )
+        }
+        AccuracyChart(report.weeks, Modifier.fillMaxWidth().height(110.dp).padding(top = Spacing.l))
+        Row(Modifier.fillMaxWidth().padding(top = Spacing.s)) {
+            Text(report.weeks.first().weekStart.format(DAY), Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = colors.muted)
+            Text("this week", style = MaterialTheme.typography.labelSmall, color = colors.muted)
+        }
+        report.overrideRate?.let {
+            Text(
+                "You changed ${report.overridden} of the ${report.filed} payments Inkless filed by itself (${(it * 100).roundToInt()}%).",
+                Modifier.padding(top = Spacing.m),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.muted,
+            )
+        }
     }
-    report.recentRate?.let {
-        Text(
-            "Right ${report.recentRight} of the last ${report.recentGuesses} guesses (${(it * 100).roundToInt()}%).",
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium,
-        )
-    }
-    val overrides = report.overrideRate?.let {
-        " You changed ${report.overridden} of the ${report.filed} payments Inkless filed by itself (${(it * 100).roundToInt()}%)."
-    }.orEmpty()
-    Muted("Learned from ${report.learnedFrom} payments you've sorted.$overrides")
 }
 
 /** Each week's share of right guesses; weeks without any are a faint stub. */
@@ -186,44 +195,20 @@ private fun AccuracyChart(weeks: List<WeekAccuracy>, modifier: Modifier) {
     }
 }
 
-@Composable
-private fun RecurringRow(item: RecurringEntity, category: CategoryEntity?) {
+/** "every month · next 14 Nov", or "· due now" once the date has passed. */
+internal fun recurringMeta(item: RecurringEntity, now: Long, zone: ZoneId = ZoneId.systemDefault()): String {
     val every = when (item.intervalDays) {
         7 -> "every week"
         365 -> "every year"
         else -> "every month"
     }
-    val next = Instant.ofEpochMilli(item.nextExpectedAt).atZone(ZoneId.systemDefault()).toLocalDate()
-    val due = if (item.nextExpectedAt < System.currentTimeMillis()) "due now" else "next around ${next.format(DateTimeFormatter.ofPattern("d MMM"))}"
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        CategoryTile(item.categoryId, Modifier.padding(end = 12.dp), size = 36.dp)
-        Column(Modifier.weight(1f)) {
-            Text(item.name, style = MaterialTheme.typography.bodyLarge)
-            Text("$every · $due", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Text("~${Money.format(item.typicalAmountPaise)}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-    }
-}
-
-@Composable
-private fun ClickCard(onClick: () -> Unit, content: @Composable () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) { content() }
-    }
-}
-
-@Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        content()
-    }
+    val due = if (item.nextExpectedAt < now) "due now" else "next ${Instant.ofEpochMilli(item.nextExpectedAt).atZone(zone).format(DAY)}"
+    return "$every · $due"
 }
 
 @Composable
 private fun Muted(text: String) {
-    Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(text, style = MaterialTheme.typography.bodySmall, color = Inkless.colors.muted)
 }
+
+private val DAY = DateTimeFormatter.ofPattern("d MMM")
