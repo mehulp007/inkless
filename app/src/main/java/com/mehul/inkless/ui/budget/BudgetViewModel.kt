@@ -3,6 +3,7 @@ package com.mehul.inkless.ui.budget
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mehul.inkless.budget.BudgetMath
+import com.mehul.inkless.budget.Cycle
 import com.mehul.inkless.budget.DigestScheduler
 import com.mehul.inkless.data.repo.LedgerRepository
 import com.mehul.inkless.parsing.Amounts
@@ -48,6 +49,9 @@ class BudgetViewModel @Inject constructor(
 
     private val today = LocalDate.now(clock)
     val semesterName: String = BudgetMath.semesterName(today)
+
+    /** The budget month today falls in, if the allowance arrives on [day]. */
+    fun cycleFor(day: Int?): Cycle = BudgetMath.cycle(today, day)
 
     /** Spending this semester (July–December or January–June), counted like the category totals. */
     val semesterSpentPaise: StateFlow<Long> = BudgetMath.semester(today).let { (start, end) ->

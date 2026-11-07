@@ -222,9 +222,7 @@ fun NavGraphBuilder.inklessGraph(navController: NavHostController) {
     composable<OnboardingRoute> {
         OnboardingScreen(
             onDone = { navController.popBackStack() },
-            onOpenSmsSetup = { navController.navigate(SmsSetupRoute) },
             onOpenHealth = { navController.navigate(CaptureHealthRoute) },
-            onOpenBudget = { navController.navigate(BudgetRoute) },
             onOpenMyAccounts = { navController.navigate(MyAccountsRoute) },
         )
     }

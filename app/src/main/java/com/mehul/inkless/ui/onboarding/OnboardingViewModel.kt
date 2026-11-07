@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Whether an account has been shown the welcome checklist on this phone. */
+/** Whether an account has been through the first-run steps on this phone. */
 @Singleton
 class OnboardingPrefs @Inject constructor(@param:ApplicationContext context: Context) {
     private val prefs = context.getSharedPreferences("onboarding", Context.MODE_PRIVATE)
@@ -26,7 +26,10 @@ class OnboardingPrefs @Inject constructor(@param:ApplicationContext context: Con
     fun markShown(uid: String) = prefs.edit { putBoolean(uid, true) }
 }
 
-data class OnboardingState(val smsOn: Boolean = false, val budgetSet: Boolean = false, val hasAccounts: Boolean = false)
+/** The allowance as the finish step shows it: "₹12,000 on the 1st". */
+data class AllowanceSummary(val amountPaise: Long, val day: Int)
+
+data class OnboardingState(val smsOn: Boolean = false, val budget: AllowanceSummary? = null, val hasAccounts: Boolean = false)
 
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
@@ -42,7 +45,7 @@ class OnboardingViewModel @Inject constructor(
     ) { _, budget, accounts ->
         OnboardingState(
             smsOn = sessions.currentOwnerUid()?.let(smsCapture::isEnabled) ?: false,
-            budgetSet = budget != null,
+            budget = budget?.let { AllowanceSummary(it.amountPaise, it.allowanceDay ?: 1) },
             hasAccounts = accounts.isNotEmpty(),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), OnboardingState())
