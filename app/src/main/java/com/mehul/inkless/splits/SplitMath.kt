@@ -71,6 +71,37 @@ object Balances {
     }
 }
 
+/** Across every friend: what they owe you all together, and what you owe them. */
+data class FriendTotals(val owedToYouPaise: Long, val youOwePaise: Long) {
+    companion object {
+        fun of(balances: List<FriendBalance>) = FriendTotals(
+            owedToYouPaise = balances.sumOf { it.netPaise.coerceAtLeast(0) },
+            youOwePaise = balances.sumOf { (-it.netPaise).coerceAtLeast(0) },
+        )
+    }
+}
+
+/** Something already squared up with a friend, for their page's history. */
+sealed interface Settled {
+    val timestamp: Long
+
+    data class Share(val line: ShareLine) : Settled {
+        override val timestamp get() = line.timestamp
+    }
+
+    data class Iou(val iou: IouEntity) : Settled {
+        override val timestamp get() = iou.timestamp
+    }
+
+    companion object {
+        /** [friendId]'s settled shares and entries, newest first. */
+        fun of(friendId: String, lines: List<ShareLine>, ious: List<IouEntity>): List<Settled> =
+            (lines.filter { it.friendId == friendId && it.settled }.map(::Share) +
+                ious.filter { it.friendId == friendId && it.settled && !it.deleted }.map(::Iou))
+                .sortedByDescending { it.timestamp }
+    }
+}
+
 /** What a repayment from a friend most likely pays back. */
 sealed interface SettleTarget {
     data class Share(val line: ShareLine) : SettleTarget

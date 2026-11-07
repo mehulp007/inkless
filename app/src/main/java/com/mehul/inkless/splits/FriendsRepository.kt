@@ -6,6 +6,7 @@ import com.mehul.inkless.data.db.DatabaseProvider
 import com.mehul.inkless.data.db.InklessDatabase
 import com.mehul.inkless.data.db.entity.FriendEntity
 import com.mehul.inkless.data.db.entity.IncomingSplitEntity
+import com.mehul.inkless.data.db.dao.ShareLine
 import com.mehul.inkless.data.db.entity.IouEntity
 import com.mehul.inkless.data.db.entity.SplitEntity
 import com.mehul.inkless.data.db.entity.SplitMethod
@@ -54,6 +55,12 @@ class FriendsRepository @Inject constructor(
     }
 
     fun incoming(): Flow<List<IncomingSplitEntity>> = fromCurrentDb { it.friendDao().observeIncoming() }
+
+    /** Every friend's part of every split, settled or not, newest first. */
+    fun shareLines(): Flow<List<ShareLine>> = fromCurrentDb { it.friendDao().observeShareLines() }
+
+    /** Every lent-or-borrowed entry that wasn't deleted, settled or not, newest first. */
+    fun ious(): Flow<List<IouEntity>> = fromCurrentDb { it.friendDao().observeIous() }
 
     /** Fetches splits friends shared, e.g. when the friends screen opens. */
     fun refresh() = syncScheduler.syncSoon()
@@ -196,6 +203,32 @@ class FriendsRepository @Inject constructor(
                 }
             }
         }
+        syncScheduler.syncSoon()
+    }
+
+    /** One payment's part, marked as paid back. */
+    suspend fun settleShare(line: ShareLine) = settle(listOf(SettleTarget.Share(line)), byTransactionId = null)
+
+    /** One lent-or-borrowed entry, marked as paid back. */
+    suspend fun settleIou(iou: IouEntity) = settle(listOf(SettleTarget.Iou(iou)), byTransactionId = null)
+
+    /** Changes an entry's amount, direction or note; a settled one stays settled. */
+    suspend fun editIou(iou: IouEntity, amountPaise: Long, theyOwe: Boolean, note: String?) {
+        db().friendDao().saveIou(
+            iou.copy(
+                amountPaise = amountPaise,
+                theyOwe = theyOwe,
+                note = note?.trim()?.ifEmpty { null },
+                updatedAt = clock.millis(),
+                syncState = SyncState.DIRTY,
+            ),
+        )
+        syncScheduler.syncSoon()
+    }
+
+    /** Removes an entry typed in by mistake. Kept as a deleted row so other phones hear of it. */
+    suspend fun deleteIou(iou: IouEntity) {
+        db().friendDao().saveIou(iou.copy(deleted = true, updatedAt = clock.millis(), syncState = SyncState.DIRTY))
         syncScheduler.syncSoon()
     }
 
