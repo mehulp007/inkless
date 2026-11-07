@@ -18,6 +18,8 @@ import com.mehul.inkless.sync.CloudBackup
 import com.mehul.inkless.sync.OfflineException
 import com.mehul.inkless.sync.SyncOutcome
 import com.mehul.inkless.ui.auth.FormRunner
+import com.mehul.inkless.ui.theme.Appearance
+import com.mehul.inkless.ui.theme.AppearancePrefs
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,8 +56,23 @@ class SettingsViewModel @Inject constructor(
     private val smsCapture: SmsCapture,
     private val cloudBackup: CloudBackup,
     private val breakdownPrefs: BreakdownPrefs,
+    private val appearancePrefs: AppearancePrefs,
     repository: LedgerRepository,
 ) : ViewModel() {
+
+    val appearance: StateFlow<Appearance> = appearancePrefs.mode
+
+    fun setAppearance(mode: Appearance) = appearancePrefs.set(mode)
+
+    /** The lines under the "Your ledger" links. */
+    val ledger: StateFlow<LedgerSummary> =
+        combine(repository.budget(), repository.categories(), repository.rules(), repository.myAccounts()) { budget, categories, rules, accounts ->
+            LedgerSummary(
+                allowance = SettingsText.allowance(budget),
+                categories = SettingsText.categories(categories.size, rules.size),
+                accounts = SettingsText.accounts(accounts),
+            )
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LedgerSummary())
 
     /** Above what amount new payments get a "break it down?" question; null when off. */
     val askAbovePaise: StateFlow<Long?> = combine(sessions.session, breakdownPrefs.changes) { session, _ ->

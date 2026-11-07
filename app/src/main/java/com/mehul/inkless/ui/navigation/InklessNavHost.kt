@@ -267,7 +267,6 @@ fun NavGraphBuilder.inklessGraph(navController: NavHostController) {
     composable<SettingsRoute> {
         SettingsScreen(
             onBack = { navController.popBackStack() },
-            onOpenSmsSetup = { navController.navigate(SmsSetupRoute) },
             onOpenUnread = { navController.navigate(UnreadRoute) },
             onOpenRules = { navController.navigate(RulesRoute) },
             onOpenMyAccounts = { navController.navigate(MyAccountsRoute) },
