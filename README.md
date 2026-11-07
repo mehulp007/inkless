@@ -246,7 +246,7 @@ The phone's own database is always the real copy; the app reads nothing else, so
 | | |
 |---|---|
 | Language | Kotlin |
-| UI | Jetpack Compose, Material 3, Navigation Compose (type-safe routes) |
+| UI | Jetpack Compose, Material 3, Navigation Compose (type-safe routes); its own design system in `ui/theme` and `ui/components`: a fixed green palette in light and dark (it doesn't follow the wallpaper), Lora headlines and Inter text and numbers bundled in the app, Lucide line icons for categories |
 | Architecture | MVVM, unidirectional data flow with `StateFlow` |
 | DI | Hilt |
 | Storage | Room (schema exported to `app/schemas/`, migrations tested against every past schema) |
@@ -321,7 +321,7 @@ data/db/      Room entities, DAOs, DatabaseProvider (one database file per accou
 data/repo/    Repositories the UI reads from
 data/seed/    Default categories
 demo/         Demo data generator and seeder
-ui/           Compose screens, ViewModels, theme, formatting
+ui/           Compose screens, ViewModels, the theme and shared components, formatting
 ```
 
 ## Building
