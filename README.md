@@ -121,14 +121,15 @@ Every correction retrains the model a moment later, so the next guess already kn
   <img src="docs/screenshots/widget.png" width="260" alt="Home-screen widget showing ₹139.79 safe to spend today and a Cash button" />
 </p>
 
-Set the monthly allowance and the day it usually arrives (Money → *Allowance and budgets*, or the card on Home). Each budget month runs from that day to the day before the next allowance, and everything below is about the current one:
+Set the monthly allowance and the day it usually arrives (*Edit* on the Money tab, or the card on Home). Each budget month runs from that day to the day before the next allowance, and everything below is about the current one. The *Money* tab shows it all on one page: what's left of the allowance and how much is used, a chart of spending so far with where it's heading at this pace against an even pace, *"₹9,600 ÷ 25 days − ₹300 = ₹84"* for how today's figure comes about, this month's category budgets, the food cap and the semester:
 
 - **Safe to spend today** — what was left this morning, spread evenly over the days until the allowance, minus what today has already taken. It turns into *over today's share* when today goes past it.
 - **Spending ring** — how much of the allowance is gone (*"₹2,700 / ₹12,000"*), the budget month's dates, and what's left over how many days. The *i* next to the amount opens the sum behind it: what was left this morning, divided by the days left, minus today's spending.
 - **Runway** — *"At ₹450/day, your money lasts until 27 Nov. About ₹372/day keeps you on track for 1 Dec."* The pace is a weighted average of daily spending that leans on the last few days, so a spree shows up straight away.
 - **Daily food cap** (optional) — canteen and food delivery against a daily limit, and how many days this month went over it (meals skipped at the mess).
 - **Category pages** — pick a category's pill on Home and tap its total: this month against its budget (set or change it there), the last six months as bars, your usual places this month, and today's payments with where each came from (*Bank SMS + notification*).
-- **Semester total** — spending since July (or January), on the budget page.
+- **Category budgets** — *Manage* on the Money tab lists every category; give one a monthly amount and its bar shows up there (and on its category page). Calendar months; going over never blocks anything.
+- **Semester total** — spending since July (or January), on the Money tab, next to the weekly summary switch.
 - **Home-screen widget** — safe to spend today and a *Cash* button that opens the quick-add sheet. It updates as payments come in.
 - **Weekly summary** — Sunday at 7 pm: the week's spending, the top three categories, and what's left until the allowance. It can be switched off on the budget page.
 
@@ -142,13 +143,13 @@ Every spend number (category totals, budgets, safe to spend, the widget, the sum
   <img src="docs/screenshots/wrapped.png" width="260" alt="October wrapped: total spent, top category, top place, most visits and biggest payment" />
 </p>
 
-The *Money* tab opens *Insights*:
+The *Money* tab also leads to *Insights*, *Ask Inkless* and *Wrapped*:
 
 - **How well Inkless guesses** — every payment that arrives gets the model's guess before anyone sorts it. The chart shows, week by week, how often that guess matched the category the payment ended up in, next to how many payments Inkless filed by itself and you then changed. It's the number that should climb as you correct it. Replaying the demo's 215 payments in order (guess first, then learn the real category), the model is right 62% of the time over the first quarter and 100% over the last; the replay runs as a unit test, so the numbers stay honest. [`ml/`](ml/) compares it with a standard TF-IDF + logistic regression in scikit-learn (99.3% vs 100% on the last quarter of five months of demo data); that comparison is what showed the model was underrating the merchant itself.
 - **Spending alerts** — *"Food Delivery: ₹1,240 this week. About 2.3× a usual week (₹540)."* "Usual" is the median of the last eight weeks (or 28 days), and "unusual" is measured with the median absolute deviation, so one big month can't skew it. It also has to be clearly more in rupees, and only categories you spend on most weeks (or most days) count, so a monthly recharge turning up on schedule isn't news. At most one notification a day, on its own quiet channel.
 - **Coming up** — payments that come round every week, month or year (laundry on Mondays, the phone recharge on the 3rd), with roughly how much and when the next one is due. Something missed twice in a row drops off the list.
-- **Wrapped** — any month in a few numbers: total and change on the month before, where most of it went, the top place, the most visited, the biggest payment, how many ₹30-or-less payments, the no-spend days. *Share as a picture* draws it as an image and opens the share sheet.
-- **Ask Inkless** — questions in plain words, in English or a bit of Hinglish: totals, counts, the biggest payment, a daily average, top categories or places, for today, yesterday, a week, a month by name or the last N days, and what a friend owes. It's a small rule-based parser that turns the question into a query on the phone's own database: instant, offline, and it never makes a number up.
+- **Wrapped** — any month in a few numbers: total and change on the month before, where most of it went, the top place, the most visited, the biggest payment, how many ₹30-or-less payments, the no-spend days. The screen shows the picture before you share it; *Share as a picture* opens the share sheet. The picture is drawn in the app's own green and fonts and holds only those numbers.
+- **Ask Inkless** — questions in plain words, in English or a bit of Hinglish: totals, counts, the biggest payment, a daily average, top categories or places, for today, yesterday, a week, a month by name or the last N days, and what a friend owes. It's a small rule-based parser that turns the question into a query on the phone's own database: instant, offline, and it never makes a number up. Each answer shows its number big, the payments behind it (tap one to open it), and *Understood as* labels (*Total · Food & Canteen · This month*), so a misread question is easy to spot.
 
 ## Break down
 
