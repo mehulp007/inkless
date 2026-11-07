@@ -1,6 +1,8 @@
 package com.mehul.inkless.session
 
 import android.content.Context
+import android.util.Log
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.mehul.inkless.auth.AuthException
 import com.mehul.inkless.auth.AuthRepository
 import com.mehul.inkless.auth.AuthUser
@@ -12,7 +14,9 @@ import com.mehul.inkless.data.seed.AccountSeeder
 import com.mehul.inkless.demo.Demo
 import com.mehul.inkless.demo.DemoSeeder
 import com.mehul.inkless.di.ApplicationScope
+import com.mehul.inkless.sync.OfflineException
 import com.mehul.inkless.sync.SyncPrefs
+import com.mehul.inkless.sync.Syncer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -45,6 +49,7 @@ class SessionManager @Inject constructor(
     private val recategorizer: Recategorizer,
     private val prefs: SessionPrefs,
     private val syncPrefs: SyncPrefs,
+    private val syncer: Syncer,
     @param:ApplicationScope private val scope: CoroutineScope,
 ) {
     private val demoMode = MutableStateFlow(prefs.demoMode)
@@ -88,11 +93,24 @@ class SessionManager @Inject constructor(
 
     fun exitDemo() = setDemo(false)
 
-    suspend fun signUp(username: String, email: String, password: String) {
+    /** With [backup] off, the new account starts with cloud backup switched off. */
+    suspend fun signUp(username: String, email: String, password: String, backup: Boolean = true) {
         signingUp.value = true
         try {
             val uid = auth.signUp(username, email, password)
             prefs.setUsername(uid, username)
+            // A new account has nothing in the cloud yet, so this only records the choice, and it
+            // happens before the session flips so the first sync already sees it. If it can't be
+            // reached, the account still works with backup on, as Settings then shows.
+            if (!backup) {
+                try {
+                    syncer.switchOff(uid)
+                } catch (e: OfflineException) {
+                    Log.w(TAG, "Couldn't switch backup off at sign-up")
+                } catch (e: FirebaseFirestoreException) {
+                    Log.w(TAG, "Couldn't switch backup off at sign-up: ${e.code}")
+                }
+            }
         } finally {
             signingUp.value = false
         }
@@ -183,6 +201,10 @@ class SessionManager @Inject constructor(
                 demoSeeder.prepare(db)
             }
         }
+    }
+
+    private companion object {
+        const val TAG = "SessionManager"
     }
 
     private data class Inputs(val user: AuthUser?, val demo: Boolean, val signingUp: Boolean)
