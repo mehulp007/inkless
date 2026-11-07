@@ -39,17 +39,23 @@ enum class Tab(
     @DrawableRes val icon: Int,
     val graph: Any,
     val root: KClass<*>,
+    /** Pages opened from this tab that keep the bar, like a category's page under Home. */
+    val pages: List<KClass<*>> = emptyList(),
 ) {
-    Home("Home", R.drawable.icon_house, HomeTab, HomeRoute::class),
+    Home("Home", R.drawable.icon_house, HomeTab, HomeRoute::class, pages = listOf(CategoryRoute::class)),
     Sort("To sort", R.drawable.icon_inbox, SortTab, ReviewRoute::class),
     Friends("Friends", R.drawable.icon_users, FriendsTab, FriendsRoute::class),
     Money("Money", R.drawable.icon_chart_trend, MoneyTab, MoneyRoute::class),
     ;
 
     companion object {
-        /** The tab whose first screen [destination] is; null on every other screen, where the bar hides. */
+        /** The tab whose first screen [destination] is. */
         fun atRoot(destination: NavDestination?): Tab? =
             destination?.let { d -> entries.firstOrNull { d.hasRoute(it.root) } }
+
+        /** The tab the bar shows as selected on [destination]; null where the bar hides. */
+        fun withBar(destination: NavDestination?): Tab? =
+            atRoot(destination) ?: destination?.let { d -> entries.firstOrNull { tab -> tab.pages.any { d.hasRoute(it) } } }
     }
 }
 

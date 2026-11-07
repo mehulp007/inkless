@@ -107,6 +107,23 @@ class ShellNavigationTest {
     }
 
     @Test
+    fun aCategoryPageKeepsTheBarUnderHome() {
+        launch()
+        compose.onNodeWithText("Open food").performClick()
+        compose.onNodeWithText("Category food").assertExists()
+        tab("Home").assertIsSelected()
+
+        // Another tab and back: the category page is still there.
+        tab("Friends").performClick()
+        tab("Home").performClick()
+        compose.onNodeWithText("Category food").assertExists()
+
+        // Home again, from the category page: back to Home's first screen.
+        tab("Home").performClick()
+        compose.onNodeWithText("Home screen, tapped 0").assertExists()
+    }
+
+    @Test
     fun backFromAnotherTabGoesHome() {
         launch()
         tab("Money").performClick()
@@ -184,6 +201,7 @@ private fun NavGraphBuilder.standIns(nav: NavHostController) {
                 Text("Home screen, tapped $taps")
                 Button(onClick = { taps++ }) { Text("Tap") }
                 Button(onClick = { nav.selectTab(Tab.Sort) }) { Text("Payments to sort") }
+                Button(onClick = { nav.navigate(CategoryRoute("food")) }) { Text("Open food") }
             }
         }
     }
@@ -205,6 +223,7 @@ private fun NavGraphBuilder.standIns(nav: NavHostController) {
         }
     }
     composable<FriendRoute> { Text("Friend ${it.toRoute<FriendRoute>().friendId}") }
+    composable<CategoryRoute> { Text("Category ${it.toRoute<CategoryRoute>().categoryId}") }
     composable<TransactionRoute>(deepLinks = listOf(navDeepLink<TransactionRoute>(basePath = DeepLinks.TRANSACTION))) {
         Text("Payment ${it.toRoute<TransactionRoute>().id}")
     }

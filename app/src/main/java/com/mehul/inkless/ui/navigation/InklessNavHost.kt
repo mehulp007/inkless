@@ -126,8 +126,8 @@ fun InklessNavHost(viewModel: ShellViewModel = hiltViewModel()) {
 }
 
 /**
- * The frame around every signed-in screen: the bottom bar on each tab's first screen (hidden
- * everywhere else) and the screens themselves, from [graph].
+ * The frame around every signed-in screen: the bottom bar on each tab's first screen and the pages
+ * you browse from it (hidden on forms and flows), and the screens themselves, from [graph].
  */
 @Composable
 fun InklessShell(
@@ -137,7 +137,7 @@ fun InklessShell(
     graph: NavGraphBuilder.() -> Unit,
 ) {
     val entry by navController.currentBackStackEntryAsState()
-    val rootTab = Tab.atRoot(entry?.destination)
+    val rootTab = Tab.withBar(entry?.destination)
 
     // The widget's Cash button: back to Home's first screen, which opens the quick-add sheet.
     LaunchedEffect(quickAddRequested) {
@@ -155,7 +155,11 @@ fun InklessShell(
                     selectedIndex = rootTab.ordinal,
                     onSelect = { index ->
                         val tab = Tab.entries[index]
-                        if (tab != rootTab) navController.selectTab(tab)
+                        when {
+                            tab != rootTab -> navController.selectTab(tab)
+                            // The tab you're already in, from one of its pages: back to its first screen.
+                            Tab.atRoot(entry?.destination) == null -> navController.popBackStack()
+                        }
                     },
                 )
             }
@@ -248,7 +252,10 @@ fun NavGraphBuilder.inklessGraph(navController: NavHostController) {
         BudgetScreen(onBack = { navController.popBackStack() })
     }
     composable<CategoryRoute> {
-        CategoryScreen(onBack = { navController.popBackStack() })
+        CategoryScreen(
+            onBack = { navController.popBackStack() },
+            onOpenTransaction = { navController.navigate(TransactionRoute(it)) },
+        )
     }
     composable<SettingsRoute> {
         SettingsScreen(
