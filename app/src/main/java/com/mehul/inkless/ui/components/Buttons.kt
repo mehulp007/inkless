@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -97,11 +98,12 @@ fun TextLink(
     enabled: Boolean = true,
     color: Color = Inkless.colors.primary,
 ) {
-    // No side padding, so a link lines up with the text above it.
+    // No side padding, so a link lines up with the text above it. The tiny minimum width stops
+    // TextButton's own 58dp minimum, which would centre a short word like "Allow" and indent it.
     TextButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.heightIn(min = 48.dp),
+        modifier = modifier.heightIn(min = 48.dp).widthIn(min = 1.dp),
         contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp),
     ) {
         Text(text, style = MaterialTheme.typography.labelLarge, color = if (enabled) color else Inkless.colors.muted)
