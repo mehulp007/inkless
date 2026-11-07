@@ -195,9 +195,9 @@ A payment is either broken down into items or split with friends, not both. A sh
   <img src="docs/screenshots/signup.png" width="260" alt="Sign-up form checking the username as you type" />
 </p>
 
-- **Sign up** with a username, email and password. The username is checked as you type, and the account gets a verification email (the app works while you wait, with a reminder on the home screen).
+- **Sign up** with a username, email and password. The username is checked as you type, the password says how strong it is, and a *Cloud backup* switch lets a new account start with backup off. The account gets a verification email (the app works while you wait, with a reminder on the home screen).
 - **Log in** with your username *or* your email, or with **Continue with Google** (Android's Credential Manager account picker).
-- **Forgot password** takes a username or email and sends a reset link.
+- **Forgot password** takes a username or email and sends a reset link; another can go after a minute, with the countdown on the button.
 - **Settings** — link Google to a password account, change password, log out, or delete the account (deletes its cloud backup and the splits it shared, frees the username and wipes its data from the phone).
 - **Several people, one phone** — each account gets its own database file, so logging out and letting a friend log in never mixes your data.
 
@@ -226,8 +226,8 @@ The phone's own database is always the real copy; the app reads nothing else, so
   <img src="docs/screenshots/privacy.png" width="260" alt="Privacy and your data: app lock, export and backup file" />
 </p>
 
-- **Get started** — a new account opens on a short checklist: what Inkless reads and what it never does, then each piece of setup (bank SMS, UPI app notifications and the *Allow restricted settings* step for apps installed from a file, battery, allowance, your own UPI IDs) with its status and a button to the screen that does it.
-- **App lock** — Settings → *Privacy & your data*. Inkless then asks for a fingerprint, face or the phone's screen lock when it opens or comes back after 30 seconds, and stays out of the recent-apps preview. It uses Android's `BiometricPrompt`, so the app never sees the fingerprint or the PIN.
+- **First run** — a new account goes through three short steps: how payments get in (bank SMS and UPI app notifications, each with its state, what's read and what never is, and the *Allow restricted settings* step for apps installed from a file), the monthly allowance with the day it arrives and an optional daily food cap, and importing the last 1, 3 or 6 months of bank SMS. Every step can be skipped. A last *You're set* screen shows what's on, links to your own UPI IDs and battery settings if they still need doing, and says exactly what the cloud backup holds.
+- **App lock** — Settings → *Privacy & your data*. Inkless then asks for a fingerprint, face or the phone's screen lock when it opens or comes back after 30 seconds, and stays out of the recent-apps preview. It uses Android's `BiometricPrompt`, so the app never sees the fingerprint or the PIN. If the prompt is cancelled, the locked screen says why and offers *Unlock* again.
 - **Export** — payments as a CSV for Excel or Google Sheets (with each split payment's own part and each broken-down payment's items), or everything as JSON. Files go wherever you pick in Android's own file picker; the app has no storage permission.
 - **Backup file** — everything (payments and items, categories, merchants, rules, budget, friends, splits) in one file locked with a password: PBKDF2 stretches the password into a 256-bit key and AES-GCM encrypts the file and detects any change to it, all with what Android ships with. Restoring it, on any phone and into any account, adds what's missing and keeps whichever copy of each payment was edited last. Without the password the file is unreadable, and the password is never stored.
 
