@@ -7,9 +7,9 @@ from an APK file. It takes about five minutes.
 
 | File | For |
 |---|---|
-| `inkless-1.0.0-arm64.apk` | Almost every phone from the last six or so years. Start with this. |
-| `inkless-1.0.0-armeabi-v7a.apk` | Older or very cheap phones, if the first one says *App not installed*. |
-| `inkless-1.0.0-universal.apk` | Works everywhere, but three times the size. |
+| `inkless-1.1.0-arm64.apk` | Almost every phone from the last six or so years. Start with this. |
+| `inkless-1.1.0-armeabi-v7a.apk` | Older or very cheap phones, if the first one says *App not installed*. |
+| `inkless-1.1.0-universal.apk` | Works everywhere, but three times the size. |
 
 ## 2. Install it
 
@@ -17,7 +17,7 @@ from an APK file. It takes about five minutes.
 in, then:
 
 ```bash
-adb install inkless-1.0.0-arm64.apk
+adb install inkless-1.1.0-arm64.apk
 ```
 
 **From the phone.** Open the APK from Files, Drive or wherever it was sent, and allow *Install unknown
