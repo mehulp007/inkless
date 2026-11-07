@@ -25,6 +25,8 @@ data class WrappedState(
     val stats: WrappedStats? = null,
     val categories: Map<String, CategoryEntity> = emptyMap(),
     val canGoForward: Boolean = false,
+    /** Nobody signed in and no demo open: there's nothing to look back on. */
+    val unavailable: Boolean = false,
 )
 
 @HiltViewModel
@@ -52,7 +54,11 @@ class WrappedViewModel @Inject constructor(
 
     private fun load(month: YearMonth) {
         _state.value = WrappedState(month, canGoForward = month < YearMonth.from(today))
-        val db = databases.current.value ?: return
+        val db = databases.current.value
+        if (db == null) {
+            _state.value = _state.value.copy(unavailable = true)
+            return
+        }
         viewModelScope.launch {
             fun millis(day: LocalDate) = day.atStartOfDay(zone).toInstant().toEpochMilli()
             val start = millis(month.atDay(1))

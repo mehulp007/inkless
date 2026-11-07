@@ -5,27 +5,37 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.Shader
+import android.graphics.RectF
 import android.graphics.Typeface
+import android.os.Build
 import androidx.core.content.FileProvider
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.createBitmap
+import com.mehul.inkless.R
 import com.mehul.inkless.insights.WrappedStats
 import com.mehul.inkless.share.ShareActivity
 import java.io.File
 
 /**
- * The Wrapped card as a picture to post or send: drawn with plain Android Canvas, saved in the
- * app's cache and shared through the share sheet. It holds only the numbers on the card.
+ * The Wrapped card as a picture to post or send: drawn with plain Android Canvas in the app's own
+ * green and fonts, saved in the app's cache and shared through the share sheet. It holds only the
+ * numbers on the card.
  */
 object WrappedImage {
 
     private const val WIDTH = 1080
     private const val HEIGHT = 1350
 
+    private const val BACKGROUND = 0xFFF7F6F0.toInt()
+    private const val CARD = 0xFFE3EDE4.toInt()
+    private const val SURFACE = 0xFFFFFEFA.toInt()
+    private const val PRIMARY = 0xFF236B53.toInt()
+    private const val INK = 0xFF202B27.toInt()
+    private const val MUTED = 0xFF63706A.toInt()
+
     fun share(context: Context, stats: WrappedStats, lines: List<Pair<String, String>>, title: String, headline: String, sub: String) {
-        val bitmap = render(lines, title, headline, sub)
+        val bitmap = render(context, lines, title, headline, sub)
         val dir = File(context.cacheDir, "shared").apply { mkdirs() }
         val file = File(dir, "inkless-${stats.month}.png")
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
@@ -41,33 +51,55 @@ object WrappedImage {
         context.startActivity(chooser)
     }
 
-    fun render(lines: List<Pair<String, String>>, title: String, headline: String, sub: String): Bitmap {
+    fun render(context: Context, lines: List<Pair<String, String>>, title: String, headline: String, sub: String): Bitmap {
         val bitmap = createBitmap(WIDTH, HEIGHT)
         val canvas = Canvas(bitmap)
-        canvas.drawRect(
-            0f, 0f, WIDTH.toFloat(), HEIGHT.toFloat(),
-            Paint().apply { shader = LinearGradient(0f, 0f, WIDTH.toFloat(), HEIGHT.toFloat(), 0xFF2B2D6E.toInt(), 0xFF6A3D9A.toInt(), Shader.TileMode.CLAMP) },
-        )
-        fun paint(size: Float, bold: Boolean = false, alpha: Int = 255) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = 0xFFFFFFFF.toInt()
-            this.alpha = alpha
+        canvas.drawColor(BACKGROUND)
+
+        val lora = font(context, R.font.lora, 400)
+        val inter = font(context, R.font.inter, 400)
+        val interMedium = font(context, R.font.inter, 500)
+        val interBold = font(context, R.font.inter, 600)
+        fun paint(face: Typeface, size: Float, color: Int) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = face
             textSize = size
-            typeface = Typeface.create(Typeface.SANS_SERIF, if (bold) Typeface.BOLD else Typeface.NORMAL)
+            this.color = color
         }
         val left = 90f
-        canvas.drawText("Inkless", left, 140f, paint(40f, bold = true, alpha = 200))
-        canvas.drawText(title, left, 250f, paint(72f, bold = true))
-        canvas.drawText(headline, left, 400f, paint(130f, bold = true))
-        canvas.drawText(sub, left, 470f, paint(40f, alpha = 210))
 
-        var y = 610f
+        // The mark: a green rounded square and the name.
+        canvas.drawRoundRect(RectF(left, 90f, left + 64f, 154f), 18f, 18f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = PRIMARY })
+        canvas.drawText("inkless", left + 88f, 138f, paint(interBold, 44f, INK))
+
+        canvas.drawText(title, left, 290f, paint(lora, 76f, INK))
+
+        // The total on a green card.
+        canvas.drawRoundRect(RectF(left, 340f, WIDTH - left, 600f), 40f, 40f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = CARD })
+        canvas.drawText("Spent", left + 50f, 410f, paint(interMedium, 34f, PRIMARY))
+        canvas.drawText(headline, left + 50f, 520f, paint(interMedium, 112f, INK))
+        canvas.drawText(ellipsize(sub, paint(inter, 34f, MUTED), WIDTH - 2 * left - 100f), left + 50f, 572f, paint(inter, 34f, MUTED))
+
+        // The numbers, each on its own raised strip.
+        var y = 650f
         for ((label, value) in lines) {
-            canvas.drawText(label, left, y, paint(34f, alpha = 190))
-            canvas.drawText(ellipsize(value, paint(50f, bold = true), WIDTH - 2 * left), left, y + 62f, paint(50f, bold = true))
-            y += 130f
+            canvas.drawRoundRect(RectF(left, y, WIDTH - left, y + 100f), 28f, 28f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = SURFACE })
+            canvas.drawText(label, left + 40f, y + 42f, paint(inter, 28f, MUTED))
+            val valuePaint = paint(interMedium, 38f, INK)
+            canvas.drawText(ellipsize(value, valuePaint, WIDTH - 2 * left - 80f), left + 40f, y + 84f, valuePaint)
+            y += 118f
         }
-        canvas.drawText("Tracked by itself from bank SMS", left, HEIGHT - 80f, paint(32f, alpha = 170))
+        canvas.drawText("Tracked by itself from bank SMS", left, HEIGHT - 70f, paint(inter, 30f, MUTED))
         return bitmap
+    }
+
+    /** One of the bundled variable fonts at [weight]; the system sans if it can't be loaded. */
+    private fun font(context: Context, id: Int, weight: Int): Typeface {
+        val base = try {
+            ResourcesCompat.getFont(context, id)
+        } catch (e: android.content.res.Resources.NotFoundException) {
+            null
+        } ?: Typeface.SANS_SERIF
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) Typeface.create(base, weight, false) else base
     }
 
     private fun ellipsize(text: String, paint: Paint, width: Float): String {
