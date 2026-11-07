@@ -44,6 +44,8 @@ data class BreakdownState(
     val fromShare: Boolean = false,
     /** A payment split with friends can't also be broken down. */
     val split: Boolean = false,
+    /** The merchant's name, when Inkless knows it ("Night Canteen" rather than its UPI ID). */
+    val title: String? = null,
 ) {
     private val total get() = transaction?.amountPaise ?: 0
     private val drafts get() = lines.map { DraftItem(it.amountPaise, it.categoryId, it.note) }
@@ -78,8 +80,9 @@ class BreakdownViewModel @Inject constructor(
             // A shared order first, then the breakdown already saved, else a fresh start.
             val start = shared?.takeIf { it.isNotEmpty() } ?: saved.takeIf { it.size >= 2 }
             val split = friends.split(route.transactionId).first() != null
+            val title = txn?.merchantId?.let { repository.merchant(it).first()?.displayName }
             _state.value = if (start == null) {
-                BreakdownState(loading = false, transaction = txn, categories = categories, lines = listOf(ItemLine(nextKey++)), split = split)
+                BreakdownState(loading = false, transaction = txn, categories = categories, lines = listOf(ItemLine(nextKey++)), split = split, title = title)
             } else {
                 val last = start.last()
                 BreakdownState(
@@ -91,6 +94,7 @@ class BreakdownViewModel @Inject constructor(
                     lastNote = last.note.orEmpty(),
                     fromShare = shared != null,
                     split = split,
+                    title = title,
                 )
             }
         }
