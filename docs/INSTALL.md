@@ -3,13 +3,11 @@
 Inkless isn't on the Play Store (apps that read SMS need Google's special approval), so it's installed
 from an APK file. It takes about five minutes.
 
-## 1. Pick the right file
+## 1. Get the file
 
-| File | For |
-|---|---|
-| `inkless-1.1.0-arm64.apk` | Almost every phone from the last six or so years. Start with this. |
-| `inkless-1.1.0-armeabi-v7a.apk` | Older or very cheap phones, if the first one says *App not installed*. |
-| `inkless-1.1.0-universal.apk` | Works everywhere, but three times the size. |
+Download **`inkless-1.1.0.apk`** (about 35 MB) from the
+[latest release](https://github.com/mehulp007/inkless/releases/latest). It's one file for every
+phone on Android 8.0 or newer, old or new, cheap or not.
 
 ## 2. Install it
 
@@ -17,7 +15,7 @@ from an APK file. It takes about five minutes.
 in, then:
 
 ```bash
-adb install inkless-1.1.0-arm64.apk
+adb install inkless-1.1.0.apk
 ```
 
 **From the phone.** Open the APK from Files, Drive or wherever it was sent, and allow *Install unknown

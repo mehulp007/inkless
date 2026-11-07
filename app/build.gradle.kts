@@ -51,17 +51,6 @@ android {
         }
     }
 
-    // Tesseract's native code is most of the APK, so release builds also come as one APK per CPU
-    // type (arm64-v8a fits nearly every phone from the last few years) next to a universal one.
-    splits {
-        abi {
-            isEnable = gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
-            reset()
-            include("arm64-v8a", "armeabi-v7a", "x86_64")
-            isUniversalApk = true
-        }
-    }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

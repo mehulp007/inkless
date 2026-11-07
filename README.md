@@ -18,7 +18,7 @@ It's local-first: your ledger lives in a database on your phone, and the SMS tex
 
 <sub>Screenshots use the built-in demo data — none of it is real.</sub>
 
-**Want to try it?** [docs/INSTALL.md](docs/INSTALL.md) explains which APK to pick and how to install it (it's not on the Play Store, since apps that read SMS need Google's approval).
+**Want to try it?** Download `inkless-1.1.0.apk` from the [latest release](https://github.com/mehulp007/inkless/releases/latest); [docs/INSTALL.md](docs/INSTALL.md) explains how to install it (it's not on the Play Store, since apps that read SMS need Google's approval).
 
 ## What it does
 
@@ -363,14 +363,14 @@ keyAlias=inkless
 keyPassword=…
 ```
 
-then `./gradlew assembleRelease` writes one APK per CPU type plus a universal one to
-`app/build/outputs/apk/release/` (about 14 MB for arm64 against 36 MB universal: Tesseract's native
-code is most of it). Without the file, release builds come out unsigned. For Google sign-in in a release
+then `./gradlew assembleRelease` writes one signed APK that runs on every phone to
+`app/build/outputs/apk/release/app-release.apk` (about 35 MB: Tesseract's native code for each CPU
+type is most of it). Without the file, release builds come out unsigned. For Google sign-in in a release
 build, add the key's SHA-1 and SHA-256 to the Firebase app (see [`firebase/README.md`](firebase/README.md)).
 
 On Windows use `gradlew.bat`. You can also just open the folder in Android Studio and hit Run.
 
-**Installing from an APK file:** see [docs/INSTALL.md](docs/INSTALL.md). In short: Play Protect may refuse an SMS-reading APK opened from a browser or chat app (installing over USB with `adb install` works), and on Android 13+ the SMS permission starts out locked until *Allow restricted settings* is tapped on the app's info page. The in-app checklist walks through this too.
+**Installing from an APK file:** see [docs/INSTALL.md](docs/INSTALL.md). In short: Play Protect may refuse an SMS-reading APK opened from a browser or chat app (installing over USB with `adb install` works), and on Android 13+ the SMS permission starts out locked until *Allow restricted settings* is tapped on the app's info page. The first-run setup walks through this too.
 
 ## Credits
 
