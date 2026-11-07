@@ -1,5 +1,15 @@
 package com.mehul.inkless.ui.home
 
+import com.mehul.inkless.ui.theme.cappedTextSize
+import com.mehul.inkless.ui.theme.Motion
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -413,7 +423,18 @@ private fun SafeToSpendCard(snapshot: BudgetSnapshot, onExplain: () -> Unit, onC
             }
         }
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            Text(BudgetText.safeToSpendAmount(snapshot), style = Inkless.type.moneyHero, color = if (over) colors.danger else colors.ink)
+            // A new payment rolls the number over instead of swapping it in place.
+            AnimatedContent(
+                targetState = BudgetText.safeToSpendAmount(snapshot),
+                transitionSpec = {
+                    (fadeIn(tween(Motion.MEDIUM)) + slideInVertically(tween(Motion.MEDIUM)) { it / 3 }) togetherWith
+                        (fadeOut(tween(Motion.SHORT)) + slideOutVertically(tween(Motion.MEDIUM)) { -it / 3 }) using
+                        SizeTransform(clip = false)
+                },
+                label = "safe to spend",
+            ) { amount ->
+                Text(amount, style = Inkless.type.moneyHero, color = if (over) colors.danger else colors.ink)
+            }
             Text(
                 BudgetText.spentToday(snapshot),
                 modifier = Modifier.padding(bottom = 12.dp),
@@ -424,7 +445,14 @@ private fun SafeToSpendCard(snapshot: BudgetSnapshot, onExplain: () -> Unit, onC
         HorizontalDivider(Modifier.padding(vertical = Spacing.l), color = colors.tintStrong)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.l)) {
             SpendRing(fraction = snapshot.usedFraction, size = 64.dp) {
-                Text(BudgetText.usedPercent(snapshot), style = MaterialTheme.typography.labelSmall, color = colors.ink)
+                val label = MaterialTheme.typography.labelSmall
+                Text(
+                    BudgetText.usedPercent(snapshot),
+                    style = label.copy(fontSize = cappedTextSize(label.fontSize)),
+                    color = colors.ink,
+                    maxLines = 1,
+                    softWrap = false,
+                )
             }
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(BudgetText.spentSlashBudget(snapshot), style = MaterialTheme.typography.titleMedium, color = colors.ink)

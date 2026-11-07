@@ -1,5 +1,6 @@
 package com.mehul.inkless.ui.settings
 
+import com.mehul.inkless.ui.theme.cappedTextSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -510,10 +511,13 @@ private fun AppearanceChoice(selected: Appearance, onSelect: (Appearance) -> Uni
                         if (isSelected) {
                             Icon(painterResource(R.drawable.icon_check), contentDescription = null, modifier = Modifier.padding(end = 6.dp).size(16.dp))
                         }
+                        val body = MaterialTheme.typography.bodyMedium
                         Text(
                             mode.label,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = body.copy(fontSize = cappedTextSize(body.fontSize)),
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            maxLines = 1,
+                            softWrap = false,
                         )
                     }
                 }

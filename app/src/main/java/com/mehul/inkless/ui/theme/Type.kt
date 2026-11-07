@@ -1,5 +1,8 @@
 package com.mehul.inkless.ui.theme
 
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.Composable
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.text.TextStyle
@@ -76,3 +79,14 @@ internal val InklessTypeScale = InklessType(
     moneyRow = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 16.sp, lineHeight = 22.sp, fontFeatureSettings = TABULAR),
     overline = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.06.em),
 )
+
+/**
+ * [size], but with the phone's text-size setting capped at [maxScale]. Only for the few words that
+ * live inside a fixed shape (the percentage in the spending ring, the Light/Dark/System switch),
+ * where growing further would break the shape instead of helping anyone read it.
+ */
+@Composable
+fun cappedTextSize(size: TextUnit, maxScale: Float = 1.3f): TextUnit {
+    val scale = LocalDensity.current.fontScale
+    return if (scale <= maxScale) size else size * (maxScale / scale)
+}

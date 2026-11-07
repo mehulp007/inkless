@@ -1,5 +1,7 @@
 package com.mehul.inkless.ui.insights
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -174,7 +176,8 @@ private fun AccuracyChart(weeks: List<WeekAccuracy>, modifier: Modifier) {
     val color = Inkless.colors.primary
     val empty = Inkless.colors.tintStrong
     val guide = Inkless.colors.hairline
-    Canvas(modifier) {
+    val summary = accuracySummary(weeks)
+    Canvas(modifier.semantics { contentDescription = summary }) {
         val slot = size.width / weeks.size
         val barWidth = slot * 0.6f
         weeks.forEachIndexed { index, week ->
@@ -194,6 +197,10 @@ private fun AccuracyChart(weeks: List<WeekAccuracy>, modifier: Modifier) {
         }
     }
 }
+
+/** "Right guesses each week, oldest first: none, 70%, 90%." */
+internal fun accuracySummary(weeks: List<WeekAccuracy>): String =
+    "Right guesses each week, oldest first: " + weeks.joinToString { w -> w.rate?.let { "${(it * 100).roundToInt()}%" } ?: "none" } + "."
 
 /** "every month · next 14 Nov", or "· due now" once the date has passed. */
 internal fun recurringMeta(item: RecurringEntity, now: Long, zone: ZoneId = ZoneId.systemDefault()): String {

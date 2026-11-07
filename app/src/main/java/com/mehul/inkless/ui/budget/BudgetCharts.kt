@@ -1,5 +1,11 @@
 package com.mehul.inkless.ui.budget
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import com.mehul.inkless.ui.format.Money
+import com.mehul.inkless.ui.components.rememberGrowth
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -25,13 +31,14 @@ import com.mehul.inkless.ui.theme.Inkless
 fun SpendRing(fraction: Float, size: Dp, modifier: Modifier = Modifier, content: @Composable () -> Unit = {}) {
     val track = Inkless.colors.tintStrong
     val fill = if (fraction > 1f) Inkless.colors.danger else Inkless.colors.primary
+    val shown = rememberGrowth(fraction.coerceIn(0f, 1f))
     Box(modifier.size(size), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(size)) {
+        Canvas(Modifier.size(size).semantics { progressBarRangeInfo = ProgressBarRangeInfo(fraction.coerceIn(0f, 1f), 0f..1f) }) {
             val stroke = Stroke(width = this.size.minDimension * 0.1f, cap = StrokeCap.Round)
             val inset = stroke.width / 2
             val arcSize = Size(this.size.width - stroke.width, this.size.height - stroke.width)
             drawArc(track, 0f, 360f, false, Offset(inset, inset), arcSize, style = stroke)
-            drawArc(fill, -90f, 360f * fraction.coerceIn(0f, 1f), false, Offset(inset, inset), arcSize, style = stroke)
+            drawArc(fill, -90f, 360f * shown.value, false, Offset(inset, inset), arcSize, style = stroke)
         }
         content()
     }
@@ -56,7 +63,8 @@ fun PaceChart(
     val guide = Inkless.colors.hairline
     val measurer = rememberTextMeasurer()
     val tagStyle = MaterialTheme.typography.labelSmall.copy(color = Inkless.colors.primary)
-    Canvas(modifier) {
+    val summary = ChartText.pace(cumulativePaise, budgetPaise, cycleDays, pacePaisePerDay)
+    Canvas(modifier.semantics { contentDescription = summary }) {
         if (cycleDays <= 0 || budgetPaise <= 0) return@Canvas
         val days = cumulativePaise.size
         val now = cumulativePaise.lastOrNull() ?: 0L
@@ -109,7 +117,8 @@ fun MonthBars(totalsPaise: List<Long>, budgetPaise: Long?, modifier: Modifier = 
     val color = Inkless.colors.primary
     val muted = Inkless.colors.tintStrong
     val budgetColor = Inkless.colors.danger
-    Canvas(modifier) {
+    val summary = ChartText.months(totalsPaise, budgetPaise)
+    Canvas(modifier.semantics { contentDescription = summary }) {
         if (totalsPaise.isEmpty()) return@Canvas
         val top = maxOf(totalsPaise.max(), budgetPaise ?: 0L, 1L).toFloat()
         val slot = size.width / totalsPaise.size
@@ -133,5 +142,32 @@ fun MonthBars(totalsPaise: List<Long>, budgetPaise: Long?, modifier: Modifier = 
                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx())),
             )
         }
+    }
+}
+
+/** What the charts say, read out by TalkBack in place of the drawing. */
+object ChartText {
+
+    /** "₹2,700 spent by day 6 of 30, of ₹12,000. At the recent pace, about ₹13,500 by the end." */
+    fun pace(cumulativePaise: List<Long>, budgetPaise: Long, cycleDays: Int, pacePaisePerDay: Long): String {
+        if (cycleDays <= 0 || budgetPaise <= 0) return "No allowance set"
+        val days = cumulativePaise.size
+        val now = cumulativePaise.lastOrNull() ?: 0L
+        val start = "${Money.format(now.coerceAtLeast(0))} spent by day $days of $cycleDays, of ${Money.format(budgetPaise)}."
+        if (days !in 1 until cycleDays || pacePaisePerDay <= 0) return start
+        val end = now + pacePaisePerDay * (cycleDays - days)
+        return "$start At the recent pace, about ${Money.format(end / 100 * 100)} by the end."
+    }
+
+    /** "Monthly totals, oldest first: ₹900, ₹1,200. This month ₹780. Budget ₹3,000." */
+    fun months(totalsPaise: List<Long>, budgetPaise: Long?): String {
+        if (totalsPaise.isEmpty()) return "No months yet"
+        val earlier = totalsPaise.dropLast(1)
+        val parts = buildList {
+            if (earlier.isNotEmpty()) add("Monthly totals, oldest first: ${earlier.joinToString { Money.format(it.coerceAtLeast(0)) }}.")
+            add("This month ${Money.format(totalsPaise.last().coerceAtLeast(0))}.")
+            budgetPaise?.let { add("Budget ${Money.format(it)}.") }
+        }
+        return parts.joinToString(" ")
     }
 }

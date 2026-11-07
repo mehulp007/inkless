@@ -269,7 +269,7 @@ private fun RuleRow(
             Text("→ $categoryName", style = MaterialTheme.typography.bodySmall, color = colors.primary)
         }
         Column {
-            IconButton(onClick = { onMove(true) }, enabled = canMoveUp, modifier = Modifier.size(36.dp)) {
+            IconButton(onClick = { onMove(true) }, enabled = canMoveUp) {
                 Icon(
                     painterResource(R.drawable.icon_chevron_down),
                     contentDescription = "Run earlier",
@@ -277,7 +277,7 @@ private fun RuleRow(
                     modifier = Modifier.size(18.dp).rotate(180f),
                 )
             }
-            IconButton(onClick = { onMove(false) }, enabled = canMoveDown, modifier = Modifier.size(36.dp)) {
+            IconButton(onClick = { onMove(false) }, enabled = canMoveDown) {
                 Icon(
                     painterResource(R.drawable.icon_chevron_down),
                     contentDescription = "Run later",

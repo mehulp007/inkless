@@ -32,7 +32,7 @@ object WrappedImage {
     private const val SURFACE = 0xFFFFFEFA.toInt()
     private const val PRIMARY = 0xFF236B53.toInt()
     private const val INK = 0xFF202B27.toInt()
-    private const val MUTED = 0xFF63706A.toInt()
+    private const val MUTED = 0xFF5F6C66.toInt()
 
     fun share(context: Context, stats: WrappedStats, lines: List<Pair<String, String>>, title: String, headline: String, sub: String) {
         val bitmap = render(context, lines, title, headline, sub)
