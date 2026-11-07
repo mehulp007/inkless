@@ -16,12 +16,51 @@ class BudgetTextTest {
     private val today = LocalDate.of(2026, 11, 20)
     private val cycle = Cycle(LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 1))
 
-    private fun snapshot(spent: Long = 600_000, safe: Long = 30_000, runway: Runway = Runway.Lasts, foodCap: Long? = null, over: Int = 0) =
+    private fun snapshot(
+        spent: Long = 600_000,
+        safe: Long = 30_000,
+        runway: Runway = Runway.Lasts,
+        foodCap: Long? = null,
+        over: Int = 0,
+        pace: Long = 0,
+        spentToday: Long = 0,
+    ) =
         BudgetSnapshot(
-            cycle = cycle, today = today, budgetPaise = 1_200_000, spentPaise = spent, spentTodayPaise = 0,
+            cycle = cycle, today = today, budgetPaise = 1_200_000, spentPaise = spent, spentTodayPaise = spentToday,
             todaysSharePaise = safe, safeToSpendPaise = safe, runway = runway, cumulativePaise = emptyList(),
-            foodTodayPaise = 15_000, dailyFoodCapPaise = foodCap, daysOverFoodCap = over,
+            foodTodayPaise = 15_000, dailyFoodCapPaise = foodCap, daysOverFoodCap = over, pacePaisePerDay = pace,
         )
+
+    @Test
+    fun `the safe-to-spend card's lines`() {
+        val s = snapshot(spent = 270_000, spentToday = 30_000)
+        assertThat(BudgetText.spentToday(s)).isEqualTo("₹300 spent today")
+        assertThat(BudgetText.spentSlashBudget(s)).isEqualTo("₹2,700 / ₹12,000")
+        assertThat(BudgetText.cycleLine(s)).isEqualTo("spent · allowance, 1–30 Nov")
+        assertThat(BudgetText.leftLine(s)).isEqualTo("₹9,300 left · 11 days including today")
+        assertThat(BudgetText.usedPercent(s)).isEqualTo("22.5%")
+        assertThat(BudgetText.usedPercent(snapshot(spent = 480_000))).isEqualTo("40%")
+        assertThat(BudgetText.leftLine(snapshot(spent = 1_250_000))).isEqualTo("₹500 over · 11 days including today")
+    }
+
+    @Test
+    fun `a budget month across two months names both`() {
+        val s = snapshot().copy(cycle = Cycle(LocalDate.of(2026, 10, 25), LocalDate.of(2026, 11, 25)))
+        assertThat(BudgetText.cycleLine(s)).isEqualTo("spent · allowance, 25 Oct–24 Nov")
+    }
+
+    @Test
+    fun `pace in rupees a day, and what keeps it on track`() {
+        val runsOut = snapshot(spent = 900_000, pace = 45_040, runway = Runway.RunsOut(LocalDate.of(2026, 11, 27)))
+        assertThat(BudgetText.paceLine(runsOut)).isEqualTo("At ₹450/day, your money lasts until 27 Nov.")
+        // ₹3,000 left over 11 days.
+        assertThat(BudgetText.onTrackLine(runsOut)).isEqualTo("About ₹273/day keeps you on track for 1 Dec.")
+
+        val lasts = snapshot(pace = 20_000)
+        assertThat(BudgetText.paceLine(lasts)).isEqualTo("At ₹200/day, your money lasts until your allowance on 1 Dec.")
+        assertThat(BudgetText.onTrackLine(lasts)).isNull()
+        assertThat(BudgetText.paceLine(snapshot(spent = 0))).isEqualTo("Nothing spent yet this month.")
+    }
 
     @Test
     fun `safe to spend, or by how much today's share is gone`() {

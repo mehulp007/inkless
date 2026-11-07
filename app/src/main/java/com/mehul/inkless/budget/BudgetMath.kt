@@ -48,6 +48,8 @@ data class BudgetSnapshot(
     val dailyFoodCapPaise: Long?,
     /** Days this cycle with more food spending than the cap: meals skipped at the mess. */
     val daysOverFoodCap: Int,
+    /** Typical spending a day lately (see [BudgetMath.pace]). */
+    val pacePaisePerDay: Long = 0,
 ) {
     val remainingPaise: Long get() = budgetPaise - spentPaise
     val usedFraction: Float get() = if (budgetPaise <= 0) 0f else (spentPaise.toFloat() / budgetPaise).coerceAtLeast(0f)
@@ -118,6 +120,7 @@ object BudgetMath {
         val spent = daily.sum()
         val (share, safe) = safeToSpend(budgetPaise, spent - spentToday, spentToday, cycle.daysLeft(today))
         val food = dailySpend(inCycle.filter { it.categoryId in foodCategoryIds }, zone, cycle.start, today)
+        val pace = pace(daily)
         return BudgetSnapshot(
             cycle = cycle,
             today = today,
@@ -126,11 +129,12 @@ object BudgetMath {
             spentTodayPaise = spentToday,
             todaysSharePaise = share,
             safeToSpendPaise = safe,
-            runway = runway(budgetPaise - spent, pace(daily), today, cycle),
+            runway = runway(budgetPaise - spent, pace, today, cycle),
             cumulativePaise = daily.runningReduce(Long::plus),
             foodTodayPaise = food.last(),
             dailyFoodCapPaise = dailyFoodCapPaise,
             daysOverFoodCap = dailyFoodCapPaise?.let { cap -> food.count { it > cap } } ?: 0,
+            pacePaisePerDay = kotlin.math.round(pace).toLong(),
         )
     }
 
