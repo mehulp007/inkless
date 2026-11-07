@@ -14,6 +14,9 @@ import com.mehul.inkless.session.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
@@ -44,6 +47,11 @@ class ShareViewModel @Inject constructor(
 
     private val _ui = MutableStateFlow<ShareUi>(ShareUi.Reading)
     val ui: StateFlow<ShareUi> = _ui.asStateFlow()
+
+    /** Category names by id, for the items' guessed categories. */
+    val categoryNames: StateFlow<Map<String, String>> = repository.categories()
+        .map { list -> list.associate { it.id to it.name } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     private var started = false
 
