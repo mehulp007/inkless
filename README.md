@@ -41,7 +41,7 @@ It's local-first: your ledger lives in a database on your phone, and the SMS tex
 - **Payment details** — tap any payment for its page: the bank's facts (date, where it came from, the account, only the last four digits of the UPI reference, and *"Two alerts, one payment"* when an SMS and a notification were merged), its category, a note, renaming the merchant ("q8291…@ybl" → "Tapri near Block C"), and the way to break it down or split it. Deleting asks first.
 - **Cash quick-add** — *Add cash* on Home or *Cash* on the home-screen widget, for spends no SMS will ever mention: amount, category, and optionally the place and a note, with what's safe to spend today after saving it.
 - **Demo mode** — *Try the demo* on the welcome screen opens a few months of made-up hostel spending, no account needed. The data is seeded, so it comes out the same every time.
-- **Material 3** with light/dark theme and dynamic colour on Android 12+.
+- **Light or dark** — Settings → *Appearance*: Light, Dark or System (follow the phone), switched on the spot. The same fixed green palette either way.
 
 All amounts are stored as whole paise (`Long`), never floating point, and shown with Indian digit grouping (₹1,23,456.50).
 
@@ -84,15 +84,15 @@ With notification access switched on, Inkless also reads payment notifications f
 
 The same payment now usually arrives twice, so a deduplicator decides when two captures are one payment: the same UPI reference settles it; otherwise the same amount and direction within three minutes, from different sources, with payees that don't contradict each other (it allows for banks cutting names short and masking UPI IDs). Two SMS for the same amount are never merged — that's two chais. When they merge, the bank SMS wins on the money (amount, reference, account, balance), the notification wins on the name, and a category you already chose is kept.
 
-**My accounts** (Settings) lists your own UPI IDs and your name as banks print it, plus home's UPI ID:
+**My accounts** (Settings → *Your ledger*) lists your own UPI IDs and your name as banks print it under *Mine*, and home's UPI ID under *Home*. Tap one to change or remove it:
 
-- Money to or from your own accounts is a **transfer**: shown with 🔁, never counted as spending or income.
+- Money to or from your own accounts is a **transfer**: marked *Excluded*, never counted as spending or income.
 - Money from home is **income tagged as allowance**.
 - Money back from a merchant you paid at least as much in the last 30 days is a **refund** in that payment's category.
 
-Adding or removing an account re-checks the last six months, so old transfers stop counting as spending straight away.
+Adding, changing or removing an account re-checks the last six months, so old transfers stop counting as spending straight away.
 
-**Capture health** (Settings) shows whether SMS access, notification access, Inkless's own notifications and battery optimisation are set up, with a button straight to the system setting that fixes each one — including the *Allow restricted settings* step Android 13+ needs for apps installed from a file.
+**Capture health** (Settings) says whether SMS is working and when the last payment was captured, then shows SMS access, Inkless's own notifications, notification access and battery optimisation as *Allowed*, *Blocked* or *Check*, with a button straight to the system setting that fixes each one — including the *Allow restricted settings* steps Android 13+ needs for apps installed from a file. *Check again* re-reads them; the Settings row shows the same count ("SMS active · 2 things to check").
 
 ## Smart categories
 
@@ -105,7 +105,7 @@ Adding or removing an account re-checks the last six months, so old transfers st
 
 Every captured payment goes through a small categoriser, most specific knowledge first:
 
-1. **Your rules** — Settings → Categorising rules, e.g. *UPI ID contains `canteen` → Food & Canteen*. They match the UPI ID, the payee name or either, by *contains*, *is exactly* or a regex, and run in the order you put them.
+1. **Your rules** — Settings → *Categories & rules*, written as sentences: *UPI ID contains “canteen” → Food & Canteen*. They match the UPI ID, the name or either, by *contains*, *is exactly* or a pattern (regex), and run in the order you put them (move one up or down). Tap a rule to change it. While you type one, the editor says how many of your payments so far it would catch ("Matches 4 payments so far"); saving files any waiting payments it catches.
 2. **Merchant memory** — once you've said what a merchant is, every later payment to it is filed the same way. This is what handles opaque QR handles like `q829154@ybl` and SMS that only carry a name ("trf to RAMU BHAIYA"), which no keyword can guess.
 3. **The learned model** — a Naive Bayes classifier trained on the phone from every payment you've sorted. It looks at the payee's words (and pieces of words, so "Night Canteen" helps with "Block D Canteen"), the merchant itself (which counts most, once seen), the amount, the time of day and the day of the week, so ₹20 at 5 pm at an unknown QR code reads as chai. It files a payment on its own only when it's at least 80% sure and has learned from enough payments, and never learns from its own guesses until you confirm them.
 4. **Built-in keywords** — Swiggy/Zomato → Food Delivery, Blinkit/Zepto/Instamart → Groceries, Uber/Rapido/IRCTC → Travel, Jio/Airtel/Netflix → Recharge & Subscriptions, and so on. Short keywords must be a whole word, so "ola" files *Ola* but not *Kolapur Stores*.
@@ -199,7 +199,7 @@ A payment is either broken down into items or split with friends, not both. A sh
 - **Sign up** with a username, email and password. The username is checked as you type, the password says how strong it is, and a *Cloud backup* switch lets a new account start with backup off. The account gets a verification email (the app works while you wait, with a reminder on the home screen).
 - **Log in** with your username *or* your email, or with **Continue with Google** (Android's Credential Manager account picker).
 - **Forgot password** takes a username or email and sends a reset link; another can go after a minute, with the countdown on the button.
-- **Settings** — link Google to a password account, change password, log out, or delete the account (deletes its cloud backup and the splits it shared, frees the username and wipes its data from the phone).
+- **Settings** — your profile and a reminder to verify your email, the cloud backup switch, *Your ledger* (allowance, categories & rules, My accounts, Capture health, *Couldn't read these*, and above what amount to ask about breaking a payment down), Appearance, and *Account & data*: privacy and exports, link Google to a password account, change password, log out, or delete the account (deletes its cloud backup and the splits it shared, frees the username and wipes its data from the phone).
 - **Several people, one phone** — each account gets its own database file, so logging out and letting a friend log in never mixes your data.
 
 Error messages are deliberately vague about whether an account exists: a wrong password and an unknown username get the same message, and the reset screen always says *"If an account exists, we've sent a reset link."*
