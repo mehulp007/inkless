@@ -82,8 +82,12 @@ fun QuickAddForm(
     onClose: () -> Unit,
     today: LocalDate,
     focusAmount: Boolean = true,
+    title: String = "A little cash spent.",
+    initialAmountPaise: Long? = null,
+    dateLabel: String = "Today · ${today.format(DAY_MONTH)}",
+    saveText: String = "Save cash expense",
 ) {
-    var amountText by rememberSaveable { mutableStateOf("") }
+    var amountText by rememberSaveable { mutableStateOf(initialAmountPaise?.let(::plainAmount).orEmpty()) }
     var categoryId by rememberSaveable { mutableStateOf(CategoryIds.FOOD_CANTEEN) }
     var merchant by rememberSaveable { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf("") }
@@ -97,7 +101,7 @@ fun QuickAddForm(
         verticalArrangement = Arrangement.spacedBy(Spacing.l),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("A little cash spent.", Modifier.weight(1f), style = MaterialTheme.typography.displaySmall, color = colors.ink)
+            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.displaySmall, color = colors.ink)
             IconButton(onClick = onClose) {
                 Icon(painterResource(R.drawable.icon_x), contentDescription = "Close", tint = colors.ink)
             }
@@ -105,7 +109,7 @@ fun QuickAddForm(
         Row(verticalAlignment = Alignment.CenterVertically) {
             StatusChip("Not saved yet", tone = ChipTone.Good)
             Text(
-                "Today · ${today.format(DAY_MONTH)}",
+                dateLabel,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.muted,
@@ -176,7 +180,7 @@ fun QuickAddForm(
             }
         }
         PrimaryButton(
-            "Save cash expense",
+            saveText,
             onClick = { amount?.let { onAdd(it, categoryId, merchant.ifBlank { null }, note.ifBlank { null }) } },
             enabled = amount != null,
         )
@@ -190,5 +194,8 @@ internal fun safeAfter(snapshot: BudgetSnapshot, amountPaise: Long): String {
     val left = snapshot.safeToSpendPaise - amountPaise
     return if (left >= 0) "Safe today after saving: ${Money.format(left)}" else "Over today's share after saving: ${Money.format(-left)}"
 }
+
+/** 4000 -> "40", 4050 -> "40.50": an amount as it's typed. */
+private fun plainAmount(paise: Long) = if (paise % 100 == 0L) "${paise / 100}" else "%d.%02d".format(paise / 100, paise % 100)
 
 private val DAY_MONTH = DateTimeFormatter.ofPattern("d MMM")
