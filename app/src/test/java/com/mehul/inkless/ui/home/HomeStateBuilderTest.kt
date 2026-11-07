@@ -151,4 +151,66 @@ class HomeStateBuilderTest {
         assertThat(built.tabs.first().days.single().spentPaise).isEqualTo(500_000)
         assertThat(built.spentPaise).isEqualTo(500_000)
     }
+
+    @Test
+    fun `this month, days before yesterday fold into earlier`() {
+        val list = listOf(
+            txn("t", 3000, at(6, 17), CategoryIds.FOOD_CANTEEN, merchantName = "Tapri"),
+            txn("y", 25000, at(5, 21), CategoryIds.FOOD_DELIVERY, merchantName = "Swiggy"),
+            txn("c", 4000, at(4, 9), CategoryIds.FOOD_CANTEEN, merchantName = "Sharma Canteen"),
+            txn("r", 39900, at(3, 9), CategoryIds.RECHARGE, merchantName = "Jio"),
+            txn("s", 12000, at(2, 9), CategoryIds.COLLEGE, merchantName = "Xerox"),
+            txn("a", 1_200_000, at(1, 10), null, Direction.CREDIT, merchantName = "Home"),
+        )
+        val all = HomeStateBuilder.build(YearMonth.of(2026, 11), today, zone, categories, list, emptyList()).tabs.first()
+
+        assertThat(all.recent.map { it.date.dayOfMonth }).containsExactly(6, 5).inOrder()
+        val earlier = all.earlier!!
+        assertThat(earlier.from).isEqualTo(LocalDate.of(2026, 11, 2))
+        assertThat(earlier.to).isEqualTo(LocalDate.of(2026, 11, 4))
+        assertThat(earlier.paymentCount).isEqualTo(3)
+        assertThat(earlier.spentPaise).isEqualTo(4000 + 39900 + 12000)
+        assertThat(earlier.topCategories.first()).isEqualTo(categories.single { it.id == CategoryIds.RECHARGE }.name)
+        assertThat(earlier.moreCategories).isFalse()
+        // The allowance is money in, listed on its own and never folded into spending.
+        assertThat(earlier.income.map { it.title }).containsExactly("Home")
+        assertThat(earlier.days.map { it.date.dayOfMonth }).containsExactly(4, 3, 2).inOrder()
+        // Every day is still there for anything that wants the whole month.
+        assertThat(all.days.map { it.date.dayOfMonth }).containsExactly(6, 5, 4, 3, 2, 1).inOrder()
+    }
+
+    @Test
+    fun `a past month isn't folded`() {
+        val october = HomeStateBuilder.build(
+            YearMonth.of(2026, 10), today, zone, categories,
+            listOf(txn("o", 5000, LocalDate.of(2026, 10, 3).atTime(9, 0).atZone(zone).toInstant().toEpochMilli(), CategoryIds.TRAVEL)),
+            emptyList(),
+        ).tabs.first()
+        assertThat(october.earlier).isNull()
+        assertThat(october.recent).isEqualTo(october.days)
+    }
+
+    @Test
+    fun `a refund makes the day's total net of it`() {
+        val refund = txn("rf", 12000, at(5, 22), CategoryIds.FOOD_DELIVERY, Direction.CREDIT, merchantName = "Swiggy refund")
+            .copy(type = TransactionType.REFUND)
+        val built = HomeStateBuilder.build(YearMonth.of(2026, 11), today, zone, categories, transactions + refund, totals)
+        val yesterday = built.tabs.first().days.single { it.date.dayOfMonth == 5 }
+        assertThat(yesterday.net).isTrue()
+        assertThat(yesterday.spentPaise).isEqualTo(29000 - 12000)
+        assertThat(yesterday.rows.single { it.id == "rf" }.isRefund).isTrue()
+        val delivery = built.tabs.single { it.key == CategoryIds.FOOD_DELIVERY }.days.single()
+        assertThat(delivery.spentPaise).isEqualTo(25000 - 12000)
+        // Today has no refund, so its total is plain spending.
+        assertThat(built.tabs.first().days.first().net).isFalse()
+    }
+
+    @Test
+    fun `rows know their category's name and whether they wait to be sorted`() {
+        val waiting = txn("w", 5000, at(6, 18), CategoryIds.OTHER).copy(status = TransactionStatus.NEEDS_REVIEW)
+        val row = HomeStateBuilder.build(YearMonth.of(2026, 11), today, zone, categories, listOf(waiting), emptyList())
+            .tabs.first().days.single().rows.single()
+        assertThat(row.toSort).isTrue()
+        assertThat(row.categoryName).isEqualTo(categories.single { it.id == CategoryIds.OTHER }.name)
+    }
 }
