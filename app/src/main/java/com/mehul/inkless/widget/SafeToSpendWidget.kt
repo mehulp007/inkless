@@ -36,6 +36,7 @@ import androidx.glance.semantics.semantics
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.glance.color.ColorProvider
 import androidx.glance.unit.ColorProvider
 import com.mehul.inkless.MainActivity
 import com.mehul.inkless.R
@@ -43,6 +44,8 @@ import com.mehul.inkless.budget.BudgetSnapshot
 import com.mehul.inkless.budget.BudgetText
 import com.mehul.inkless.budget.BudgetTracker
 import com.mehul.inkless.capture.CaptureRunner
+import com.mehul.inkless.ui.theme.DarkInklessColors
+import com.mehul.inkless.ui.theme.LightInklessColors
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -51,8 +54,9 @@ import dagger.hilt.components.SingletonComponent
 /**
  * Home-screen widget: what's safe to spend today, and a Cash button that opens the quick-add sheet.
  * Glance draws it with its own Compose-like building blocks (Android widgets can't run Compose itself).
- * Colours and shapes come from resources (the widget_ colours and drawables), so the
- * launcher's light or dark setting picks the palette and the corners stay round on older Androids.
+ * Text colours come from the app's palette in light and dark, and the card and button are drawable
+ * shapes (the widget_ drawables and colours), so the launcher's light or dark setting picks the look
+ * and the corners stay round on older Androids.
  */
 class SafeToSpendWidget : GlanceAppWidget() {
 
@@ -122,11 +126,11 @@ class SafeToSpendWidget : GlanceAppWidget() {
         when (shown) {
             Shown.SignedOut -> {
                 Label("Inkless")
-                Text("Log in to see what's safe to spend", style = text(13.sp, R.color.widget_muted), maxLines = 2)
+                Text("Log in to see what's safe to spend", style = text(13.sp, Palette.MUTED), maxLines = 2)
             }
             Shown.NoBudget -> {
                 Label("Safe today")
-                Text("Set your allowance to see it here", style = text(13.sp, R.color.widget_muted), maxLines = 2)
+                Text("Set your allowance to see it here", style = text(13.sp, Palette.MUTED), maxLines = 2)
             }
             is Shown.Budget -> {
                 val snapshot = shown.snapshot
@@ -138,12 +142,12 @@ class SafeToSpendWidget : GlanceAppWidget() {
                     modifier = GlanceModifier.semantics {
                         contentDescription = if (over) "$amount over today's share" else "$amount safe to spend today"
                     },
-                    style = text(if (compact) 22.sp else 30.sp, if (over) R.color.widget_danger else R.color.widget_ink, FontWeight.Medium),
+                    style = text(if (compact) 22.sp else 30.sp, if (over) Palette.DANGER else Palette.INK, FontWeight.Medium),
                     maxLines = 1,
                 )
                 if (!compact) {
                     Spacer(GlanceModifier.height(2.dp))
-                    Text(BudgetText.widgetLine(snapshot), style = text(12.sp, R.color.widget_muted), maxLines = 1)
+                    Text(BudgetText.widgetLine(snapshot), style = text(12.sp, Palette.MUTED), maxLines = 1)
                 }
             }
         }
@@ -151,7 +155,7 @@ class SafeToSpendWidget : GlanceAppWidget() {
 
     @Composable
     private fun Label(text: String) {
-        Text(text, style = text(13.sp, R.color.widget_primary, FontWeight.Medium), maxLines = 1)
+        Text(text, style = text(13.sp, Palette.PRIMARY, FontWeight.Medium), maxLines = 1)
     }
 
     @Composable
@@ -164,12 +168,21 @@ class SafeToSpendWidget : GlanceAppWidget() {
                 .semantics { contentDescription = "Add cash" },
             contentAlignment = Alignment.Center,
         ) {
-            Text("+ Cash", style = text(14.sp, R.color.widget_on_primary, FontWeight.Bold))
+            Text("+ Cash", style = text(14.sp, Palette.ON_PRIMARY, FontWeight.Bold))
         }
     }
 
-    private fun text(size: TextUnit, color: Int, weight: FontWeight = FontWeight.Normal) =
-        TextStyle(fontSize = size, color = ColorProvider(color), fontWeight = weight)
+    private fun text(size: TextUnit, color: ColorProvider, weight: FontWeight = FontWeight.Normal) =
+        TextStyle(fontSize = size, color = color, fontWeight = weight)
+
+    /** The app's light and dark colours; the launcher's own light or dark setting picks one. */
+    private object Palette {
+        val INK = ColorProvider(day = LightInklessColors.ink, night = DarkInklessColors.ink)
+        val MUTED = ColorProvider(day = LightInklessColors.muted, night = DarkInklessColors.muted)
+        val PRIMARY = ColorProvider(day = LightInklessColors.primary, night = DarkInklessColors.primary)
+        val ON_PRIMARY = ColorProvider(day = LightInklessColors.onPrimary, night = DarkInklessColors.onPrimary)
+        val DANGER = ColorProvider(day = LightInklessColors.danger, night = DarkInklessColors.danger)
+    }
 
     private companion object {
         val COMPACT = DpSize(140.dp, 48.dp)

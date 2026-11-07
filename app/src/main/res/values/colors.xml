@@ -7,6 +7,5 @@
     <color name="widget_on_primary">#FFFFFEFA</color>
     <color name="widget_ink">#FF202B27</color>
     <color name="widget_muted">#FF5F6C66</color>
-    <color name="widget_danger">#FFA23D3D</color>
     <color name="widget_hairline">#FFDEDFD6</color>
 </resources>
