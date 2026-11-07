@@ -46,7 +46,9 @@ import com.mehul.inkless.ui.format.Money
 import com.mehul.inkless.ui.auth.ErrorMessage
 import com.mehul.inkless.ui.auth.FormStatus
 import com.mehul.inkless.ui.auth.GoogleButton
-import com.mehul.inkless.ui.auth.PasswordField
+import com.mehul.inkless.ui.components.NavRow
+import com.mehul.inkless.ui.components.PasswordField
+import com.mehul.inkless.ui.components.SectionHeader
 import java.time.ZoneId
 
 private enum class SettingsDialog { CHANGE_PASSWORD, DELETE_ACCOUNT, LOG_OUT, TURN_OFF_BACKUP, ASK_ABOVE }
@@ -122,12 +124,12 @@ fun SettingsScreen(
                         headlineContent = { Text("Demo mode") },
                         supportingContent = { Text("Everything you see is made-up sample data.") },
                     )
-                    ActionItem("Exit demo", onClick = viewModel::exitDemo)
-                    SectionTitle("Privacy")
-                    ActionItem("Privacy & your data", supporting = PRIVACY_SUMMARY, onClick = onOpenData)
+                    NavRow("Exit demo", onClick = viewModel::exitDemo)
+                    SectionHeader("Privacy", Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 4.dp))
+                    NavRow("Privacy & your data", subtitle = PRIVACY_SUMMARY, onClick = onOpenData)
                 }
                 is SettingsMode.Account -> {
-                    SectionTitle("Account")
+                    SectionHeader("Account", Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 4.dp))
                     ListItem(
                         headlineContent = {
                             Text(current.username?.let { "@$it" } ?: "Your account", fontWeight = FontWeight.Medium)
@@ -146,26 +148,26 @@ fun SettingsScreen(
                         )
                     }
                     if (!current.hasGoogle) {
-                        ActionItem(
+                        NavRow(
                             "Link Google account",
-                            supporting = "Then you can log in with either",
+                            subtitle = "Then you can log in with either",
                             enabled = !busy,
                             onClick = { viewModel.linkGoogle(context) },
                         )
                     }
                     if (current.hasPassword) {
-                        ActionItem("Change password", enabled = !busy) { dialog = SettingsDialog.CHANGE_PASSWORD }
+                        NavRow("Change password", enabled = !busy) { dialog = SettingsDialog.CHANGE_PASSWORD }
                     }
-                    ActionItem("Log out", enabled = !busy) { dialog = SettingsDialog.LOG_OUT }
+                    NavRow("Log out", enabled = !busy) { dialog = SettingsDialog.LOG_OUT }
 
-                    SectionTitle("Budget")
-                    ActionItem(
+                    SectionHeader("Budget", Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 4.dp))
+                    NavRow(
                         "Allowance and budget",
-                        supporting = "Monthly allowance, the day it arrives, food cap, weekly summary",
+                        subtitle = "Monthly allowance, the day it arrives, food cap, weekly summary",
                         onClick = onOpenBudget,
                     )
 
-                    SectionTitle("Cloud backup")
+                    SectionHeader("Cloud backup", Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 4.dp))
                     val now = remember(backup) { System.currentTimeMillis() }
                     ListItem(
                         modifier = Modifier.clickable(enabled = !busy) {
@@ -176,52 +178,52 @@ fun SettingsScreen(
                         trailingContent = { Switch(checked = backup.on, onCheckedChange = null, enabled = !busy) },
                     )
                     if (backup.on) {
-                        ActionItem(
+                        NavRow(
                             "Back up now",
-                            supporting = "Payments, categories, merchants, rules, your accounts, budget, friends and splits. " +
+                            subtitle = "Payments, categories, merchants, rules, your accounts, budget, friends and splits. " +
                                 "Never the text of your SMS, and only the last 4 digits of account numbers.",
                             enabled = !busy && !backup.running,
                             onClick = viewModel::backUpNow,
                         )
                     }
 
-                    SectionTitle("Auto-capture")
-                    ActionItem(
+                    SectionHeader("Auto-capture", Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 4.dp))
+                    NavRow(
                         "Bank SMS",
-                        supporting = if (capture.smsOn) "On — payments are added from your bank's SMS" else "Off — tap to set up",
+                        subtitle = if (capture.smsOn) "On — payments are added from your bank's SMS" else "Off — tap to set up",
                         onClick = onOpenSmsSetup,
                     )
-                    ActionItem(
+                    NavRow(
                         "Capture health",
-                        supporting = "SMS, app notifications, battery: what's on and what needs fixing",
+                        subtitle = "SMS, app notifications, battery: what's on and what needs fixing",
                         onClick = onOpenHealth,
                     )
-                    ActionItem(
+                    NavRow(
                         "My accounts",
-                        supporting = "Your own and home's UPI IDs, for transfers and allowance",
+                        subtitle = "Your own and home's UPI IDs, for transfers and allowance",
                         onClick = onOpenMyAccounts,
                     )
-                    ActionItem(
+                    NavRow(
                         "Break down bigger payments",
-                        supporting = askAbove?.let { "Ask after payments over ${Money.format(it)}, in case one was several things" }
+                        subtitle = askAbove?.let { "Ask after payments over ${Money.format(it)}, in case one was several things" }
                             ?: "Off. Break a payment down from its details any time",
                         onClick = { dialog = SettingsDialog.ASK_ABOVE },
                     )
-                    ActionItem(
+                    NavRow(
                         "Categorising rules",
-                        supporting = "Always file a UPI ID or name under a category",
+                        subtitle = "Always file a UPI ID or name under a category",
                         onClick = onOpenRules,
                     )
-                    ActionItem(
+                    NavRow(
                         "Couldn't read these" + if (capture.unreadCount > 0) " (${capture.unreadCount})" else "",
-                        supporting = "Bank messages Inkless didn't understand",
+                        subtitle = "Bank messages Inkless didn't understand",
                         onClick = onOpenUnread,
                     )
-                    SectionTitle("Privacy")
-                    ActionItem("Privacy & your data", supporting = PRIVACY_SUMMARY, onClick = onOpenData)
-                    ActionItem(
+                    SectionHeader("Privacy", Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 4.dp))
+                    NavRow("Privacy & your data", subtitle = PRIVACY_SUMMARY, onClick = onOpenData)
+                    NavRow(
                         "Delete account",
-                        supporting = "Removes your account, its cloud backup and everything on this phone",
+                        subtitle = "Removes your account, its cloud backup and everything on this phone",
                         destructive = true,
                         enabled = !busy,
                     ) { dialog = SettingsDialog.DELETE_ACCOUNT }
@@ -329,31 +331,7 @@ fun SettingsScreen(
     }
 }
 
-@Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text,
-        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-    )
-}
 
-@Composable
-private fun ActionItem(
-    title: String,
-    supporting: String? = null,
-    destructive: Boolean = false,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    val color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-    ListItem(
-        modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
-        headlineContent = { Text(title, color = color) },
-        supportingContent = supporting?.let { { Text(it) } },
-    )
-}
 
 @Composable
 private fun ChangePasswordDialog(

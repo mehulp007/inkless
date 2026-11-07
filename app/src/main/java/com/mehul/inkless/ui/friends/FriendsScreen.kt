@@ -3,7 +3,6 @@ package com.mehul.inkless.ui.friends
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -35,6 +34,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mehul.inkless.R
 import com.mehul.inkless.splits.FriendBalance
+import com.mehul.inkless.ui.components.SectionHeader
 import com.mehul.inkless.ui.format.Money
 import com.mehul.inkless.ui.theme.LocalInklessColors
 
@@ -84,7 +84,7 @@ fun FriendsScreen(
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(bottom = 96.dp)) {
             val open = incoming.filter { !it.settled }
             if (open.isNotEmpty()) {
-                item { SectionTitle("Shared with you") }
+                item { SectionHeader("Shared with you", Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 4.dp)) }
                 items(open, key = { "in-${it.id}" }) { split ->
                     ListItem(
                         headlineContent = { Text("${split.payerName} paid ${Money.format(split.totalPaise)}") },
@@ -93,7 +93,7 @@ fun FriendsScreen(
                     )
                 }
             }
-            item { SectionTitle("Balances") }
+            item { SectionHeader("Balances", Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 4.dp)) }
             if (balances.isEmpty()) {
                 item {
                     Text(
@@ -138,12 +138,3 @@ fun balanceText(netPaise: Long): Pair<String, Color> = when {
     else -> "all square" to MaterialTheme.colorScheme.onSurfaceVariant
 }
 
-@Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text,
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-    )
-}

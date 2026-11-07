@@ -36,6 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.mehul.inkless.R
 import com.mehul.inkless.session.SessionManager
+import com.mehul.inkless.ui.components.PrimaryButton
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -76,7 +77,7 @@ fun WelcomeScreen(
                 Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = null)
             }
             Spacer(Modifier.height(20.dp))
-            Text("Inkless", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold)
+            Text("Inkless", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             Text(
                 "The ledger that writes itself.",

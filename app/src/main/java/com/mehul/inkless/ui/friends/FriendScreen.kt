@@ -52,12 +52,13 @@ import com.mehul.inkless.R
 import com.mehul.inkless.parsing.Amounts
 import com.mehul.inkless.share.ShareActivity
 import com.mehul.inkless.splits.FriendBalance
+import com.mehul.inkless.ui.components.SectionHeader
 import com.mehul.inkless.ui.format.Money
 import com.mehul.inkless.ui.theme.LocalInklessColors
-import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
 
 /** One friend: what's still open between you, a reminder to send, and money lent or borrowed outside a split. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -135,7 +136,7 @@ fun FriendScreen(
                 )
             }
             if (current.openShares.isNotEmpty()) {
-                item { SectionTitle("Their part of your payments") }
+                item { SectionHeader("Their part of your payments", Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 4.dp)) }
                 items(current.openShares, key = { "s-${it.shareId}" }) { line ->
                     ListItem(
                         modifier = Modifier.clickable { onOpenTransaction(line.transactionId) },
@@ -146,7 +147,7 @@ fun FriendScreen(
                 }
             }
             if (current.theirSplits.isNotEmpty()) {
-                item { SectionTitle("Your part of their payments") }
+                item { SectionHeader("Your part of their payments", Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 4.dp)) }
                 items(current.theirSplits, key = { "in-${it.id}" }) { split ->
                     ListItem(
                         headlineContent = { Text(split.note ?: "Split of ${Money.format(split.totalPaise)}") },
@@ -156,7 +157,7 @@ fun FriendScreen(
                 }
             }
             if (current.openIous.isNotEmpty()) {
-                item { SectionTitle("Lent and borrowed") }
+                item { SectionHeader("Lent and borrowed", Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 4.dp)) }
                 items(current.openIous, key = { "i-${it.id}" }) { iou ->
                     ListItem(
                         headlineContent = { Text(iou.note ?: if (iou.theyOwe) "You lent" else "You borrowed") },
@@ -287,15 +288,6 @@ private fun IouDialog(friendName: String, onSave: (amountPaise: Long, theyOwe: B
     )
 }
 
-@Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text,
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-    )
-}
 
 private val DAY = DateTimeFormatter.ofPattern("d MMM")
 

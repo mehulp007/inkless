@@ -1,8 +1,8 @@
 package com.mehul.inkless.ui.data
 
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -19,7 +18,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -36,13 +34,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mehul.inkless.R
+import com.mehul.inkless.ui.components.NavRow
+import com.mehul.inkless.ui.components.PasswordField
+import com.mehul.inkless.ui.components.SectionHeader
 import java.time.LocalDate
 
 /** The app lock, and getting your data out (and back in) as files. */
@@ -90,7 +89,7 @@ fun DataScreen(onBack: () -> Unit, viewModel: DataViewModel = hiltViewModel()) {
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
 
-            Title("App lock")
+            SectionHeader("App lock", Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 4.dp))
             val available = viewModel.lockAvailable()
             ListItem(
                 modifier = Modifier.clickable(enabled = available || lockOn) {
@@ -114,15 +113,15 @@ fun DataScreen(onBack: () -> Unit, viewModel: DataViewModel = hiltViewModel()) {
                 trailingContent = { Switch(checked = lockOn, onCheckedChange = null, enabled = available || lockOn) },
             )
 
-            Title("Export")
-            Action("Payments as a spreadsheet", "A CSV file for Excel or Google Sheets: date, amount, category, place, note, items.", !busy) {
+            SectionHeader("Export", Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 4.dp))
+            NavRow("Payments as a spreadsheet", subtitle = "A CSV file for Excel or Google Sheets: date, amount, category, place, note, items.", enabled = !busy) {
                 saveCsv.launch("inkless-payments-$today.csv")
             }
-            Action("Everything as JSON", "Payments, categories, merchants, rules, budget, friends and splits, readable by other apps. Not locked: keep it private.", !busy) {
+            NavRow("Everything as JSON", subtitle = "Payments, categories, merchants, rules, budget, friends and splits, readable by other apps. Not locked: keep it private.", enabled = !busy) {
                 saveJson.launch("inkless-$today.json")
             }
 
-            Title("Backup file")
+            SectionHeader("Backup file", Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 4.dp))
             Text(
                 "A copy of everything, locked with a password, for keeping offline or moving to a new phone without the cloud. " +
                     "Restoring adds what's missing and keeps whichever copy of a payment was edited last.",
@@ -130,14 +129,14 @@ fun DataScreen(onBack: () -> Unit, viewModel: DataViewModel = hiltViewModel()) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Action("Save a backup file", "Asks for a password first.", !busy) { choosingPassword = true }
-            Action(
+            NavRow("Save a backup file", subtitle = "Asks for a password first.", enabled = !busy) { choosingPassword = true }
+            NavRow(
                 "Restore from a backup file",
-                if (viewModel.isDemo) "Log in to restore; the demo's data is made up." else "Pick a .inkless (or exported JSON) file.",
-                !busy && !viewModel.isDemo,
+                subtitle = if (viewModel.isDemo) "Log in to restore; the demo's data is made up." else "Pick a .inkless (or exported JSON) file.",
+                enabled = !busy && !viewModel.isDemo,
             ) { openBackup.launch(arrayOf("*/*")) }
 
-            Title("What leaves this phone")
+            SectionHeader("What leaves this phone", Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 4.dp))
             Text(
                 "Only Firebase: signing in, the cloud backup if it's on, and splits you share with friends. " +
                     "Never the text of an SMS or notification, and never more than the last 4 digits of an account number. " +
@@ -188,8 +187,8 @@ private fun PasswordDialog(title: String, confirm: Boolean, onDone: (String) -> 
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
-                PasswordField(password, { password = it }, "Password")
-                if (confirm) PasswordField(again, { again = it }, "Same password again")
+                PasswordField(password, { password = it }, label = "Password")
+                if (confirm) PasswordField(again, { again = it }, label = "Same password again")
             }
         },
         confirmButton = { TextButton(onClick = { onDone(password) }, enabled = ok) { Text(if (confirm) "Choose where to save" else "Restore") } },
@@ -197,36 +196,7 @@ private fun PasswordDialog(title: String, confirm: Boolean, onDone: (String) -> 
     )
 }
 
-@Composable
-private fun PasswordField(value: String, onChange: (String) -> Unit, label: String) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = { onChange(it.take(128)) },
-        label = { Text(label) },
-        singleLine = true,
-        visualTransformation = PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        modifier = Modifier.fillMaxWidth(),
-    )
-}
 
-@Composable
-private fun Title(text: String) {
-    Text(
-        text,
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 20.dp, bottom = 4.dp),
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-    )
-}
 
-@Composable
-private fun Action(title: String, supporting: String, enabled: Boolean, onClick: () -> Unit) {
-    ListItem(
-        modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
-        headlineContent = { Text(title, color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant) },
-        supportingContent = { Text(supporting) },
-    )
-}
 
 private const val MIN_PASSWORD = 8
