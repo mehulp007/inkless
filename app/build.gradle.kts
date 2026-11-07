@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.roborazzi)
 }
 
 // Release signing lives outside the repo: keystore.properties (git-ignored) points at the keystore.
@@ -74,6 +75,19 @@ android {
     sourceSets {
         getByName("androidTest").assets.directories.add("$projectDir/schemas")
     }
+
+    // Screenshot tests run on the JVM with Robolectric and need the app's resources (fonts, icons).
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        // Robolectric's Android 16 sandbox reaches into a JDK internal that Java 21 keeps closed.
+        unitTests.all { it.jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED") }
+    }
+}
+
+// Reference screenshots are committed so every change to a screen shows up in review.
+// Record with recordRoborazziDebug, check with verifyRoborazziDebug.
+roborazzi {
+    outputDir.set(file("src/test/screenshots"))
 }
 
 ksp {
@@ -123,7 +137,16 @@ dependencies {
     testImplementation(libs.truth)
     testImplementation(libs.turbine)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.junit.rule)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.room.testing)
