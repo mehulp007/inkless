@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import com.mehul.inkless.data.db.entity.CaptureSource
 import com.mehul.inkless.data.db.entity.Direction
 import com.mehul.inkless.data.db.entity.TransactionEntity
 import com.mehul.inkless.data.db.entity.TransactionStatus
@@ -26,6 +27,8 @@ data class TransactionListItem(
     val itemCount: Int = 0,
     /** Friends' parts of it when it's split; the user's own spending is the rest. */
     val friendsSharePaise: Long = 0,
+    /** Where it came from: bank SMS, a UPI app's notification, typed in. */
+    val sources: Set<CaptureSource> = emptySet(),
 )
 
 /** A payment still waiting for a category, with what's needed to try again. */
@@ -98,7 +101,7 @@ interface TransactionDao {
     @Query(
         """
         SELECT t.id, t.amountPaise, t.direction, t.type, t.timestamp, t.categoryId,
-               t.vpa, t.payeeRaw, m.displayName AS merchantName, t.status,
+               t.vpa, t.payeeRaw, m.displayName AS merchantName, t.status, t.sources,
                (SELECT COUNT(*) FROM transaction_items i WHERE i.transactionId = t.id) AS itemCount,
                COALESCE((SELECT SUM(s.sharePaise) FROM split_shares s JOIN splits sp ON sp.id = s.splitId
                          WHERE sp.transactionId = t.id AND sp.deleted = 0), 0) AS friendsSharePaise
@@ -176,7 +179,7 @@ interface TransactionDao {
     @Query(
         """
         SELECT t.id, t.amountPaise, t.direction, t.type, t.timestamp, t.categoryId,
-               t.vpa, t.payeeRaw, m.displayName AS merchantName, t.status,
+               t.vpa, t.payeeRaw, m.displayName AS merchantName, t.status, t.sources,
                (SELECT COUNT(*) FROM transaction_items i WHERE i.transactionId = t.id) AS itemCount,
                COALESCE((SELECT SUM(s.sharePaise) FROM split_shares s JOIN splits sp ON sp.id = s.splitId
                          WHERE sp.transactionId = t.id AND sp.deleted = 0), 0) AS friendsSharePaise
