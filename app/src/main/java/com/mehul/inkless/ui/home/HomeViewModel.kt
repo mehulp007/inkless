@@ -90,9 +90,9 @@ class HomeViewModel @Inject constructor(
     val categories: StateFlow<List<CategoryEntity>> = repository.categories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun addCash(amountPaise: Long, categoryId: String, note: String?) {
+    fun addCash(amountPaise: Long, categoryId: String, merchant: String?, note: String?) {
         val owner = sessions.currentOwnerUid() ?: return
-        viewModelScope.launch { repository.addCash(amountPaise, categoryId, note, owner) }
+        viewModelScope.launch { repository.addCash(amountPaise, categoryId, note, owner, merchant) }
     }
 
     private val selectedMonth = MutableStateFlow(YearMonth.now(clock))

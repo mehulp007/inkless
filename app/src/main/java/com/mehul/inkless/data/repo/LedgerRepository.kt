@@ -312,7 +312,8 @@ class LedgerRepository @Inject constructor(
         }
     }
 
-    suspend fun addCash(amountPaise: Long, categoryId: String, note: String?, ownerUid: String) {
+    /** A cash payment typed in by hand. [merchant] ("Block C Chai") becomes its name; without one, the note or "Cash". */
+    suspend fun addCash(amountPaise: Long, categoryId: String, note: String?, ownerUid: String, merchant: String? = null) {
         val now = clock.millis()
         db().transactionDao().insert(
             TransactionEntity(
@@ -321,7 +322,7 @@ class LedgerRepository @Inject constructor(
                 direction = Direction.DEBIT,
                 type = TransactionType.EXPENSE,
                 timestamp = now,
-                payeeRaw = note?.trim()?.ifEmpty { null } ?: "Cash",
+                payeeRaw = merchant?.trim()?.ifEmpty { null } ?: note?.trim()?.ifEmpty { null } ?: "Cash",
                 categoryId = categoryId,
                 status = TransactionStatus.CONFIRMED,
                 sources = setOf(CaptureSource.MANUAL),

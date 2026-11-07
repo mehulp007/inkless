@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.mehul.inkless.ui.theme.Inkless
 import com.mehul.inkless.ui.theme.Spacing
@@ -34,12 +35,15 @@ fun FilterPills(
     selected: Int,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    /** Space before the first pill and after the last, inside the scrolling row. */
+    edgePadding: Dp = 0.dp,
 ) {
     val colors = Inkless.colors
     Row(
         modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
+            .padding(horizontal = edgePadding)
             .selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
