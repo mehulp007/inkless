@@ -44,6 +44,21 @@ class BudgetTextTest {
     }
 
     @Test
+    fun `the money tab's lines`() {
+        val s = snapshot(spent = 270_000, spentToday = 30_000, pace = 45_000, safe = 8_400, runway = Runway.RunsOut(LocalDate.of(2026, 11, 27)))
+            .copy(today = LocalDate.of(2026, 11, 6))
+        assertThat(BudgetText.cycleRange(s)).isEqualTo("1–30 Nov 2026")
+        assertThat(BudgetText.leftOfAllowance(s)).isEqualTo("left of your ₹12,000 allowance · 22.5% used")
+        assertThat(BudgetText.netSpending(s)).isEqualTo("₹2,700 net spending")
+        assertThat(BudgetText.nextArrival(s)).isEqualTo("Next arrival · 1 Dec")
+        assertThat(BudgetText.todayTag(s)).isEqualTo("6 Nov · ₹2,700")
+        assertThat(BudgetText.paceVsPlan(s)).isEqualTo("₹450/day so far vs ₹400/day planned.")
+        assertThat(BudgetText.runsOutLine(s)).isEqualTo("At this pace, the allowance runs out on 27 Nov.")
+        // ₹12,000 less ₹2,400 spent before today, over the 25 days left, less today's ₹300.
+        assertThat(BudgetText.formula(s)).isEqualTo("₹9,600 ÷ 25 days − ₹300 = ₹84")
+    }
+
+    @Test
     fun `a budget month across two months names both`() {
         val s = snapshot().copy(cycle = Cycle(LocalDate.of(2026, 10, 25), LocalDate.of(2026, 11, 25)))
         assertThat(BudgetText.cycleLine(s)).isEqualTo("spent · allowance, 25 Oct–24 Nov")

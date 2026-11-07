@@ -54,6 +54,49 @@ object BudgetText {
         }
     }
 
+    private val dayMonthYear = DateTimeFormatter.ofPattern("d MMM yyyy")
+
+    /** "1–30 Nov 2026" */
+    fun cycleRange(snapshot: BudgetSnapshot): String {
+        val start = snapshot.cycle.start
+        val last = snapshot.cycle.endExclusive.minusDays(1)
+        return if (start.month == last.month) "${start.dayOfMonth}–${last.format(dayMonthYear)}" else "${start.format(dayMonth)} – ${last.format(dayMonthYear)}"
+    }
+
+    /** "left of your ₹12,000 allowance · 22.5% used" */
+    fun leftOfAllowance(snapshot: BudgetSnapshot): String =
+        "${if (snapshot.remainingPaise >= 0) "left of" else "over"} your ${Money.format(snapshot.budgetPaise)} allowance · ${usedPercent(snapshot)} used"
+
+    /** "₹2,700 net spending" */
+    fun netSpending(snapshot: BudgetSnapshot): String = "${Money.format(snapshot.spentPaise)} net spending"
+
+    /** "Next arrival · 1 Dec" */
+    fun nextArrival(snapshot: BudgetSnapshot): String = "Next arrival · ${snapshot.cycle.endExclusive.format(dayMonth)}"
+
+    /** "6 Nov · ₹2,700": the label on today's point of the chart. */
+    fun todayTag(snapshot: BudgetSnapshot): String = "${snapshot.today.format(dayMonth)} · ${Money.format(snapshot.spentPaise)}"
+
+    /** "₹450/day so far vs ₹400/day planned." */
+    fun paceVsPlan(snapshot: BudgetSnapshot): String {
+        val planned = snapshot.budgetPaise / snapshot.cycle.days.coerceAtLeast(1)
+        return "${rupees(snapshot.pacePaisePerDay)}/day so far vs ${rupees(planned)}/day planned."
+    }
+
+    /** "At this pace, the allowance runs out on 27 Nov." */
+    fun runsOutLine(snapshot: BudgetSnapshot): String = when (val runway = snapshot.runway) {
+        Runway.Lasts -> "At this pace, it lasts until the next allowance."
+        is Runway.RunsOut -> "At this pace, the allowance runs out on ${runway.date.format(dayMonth)}."
+        Runway.Spent -> "This month's allowance is used up."
+    }
+
+    /** "₹9,600 ÷ 25 days − ₹300 = ₹84": how today's safe-to-spend comes about. */
+    fun formula(snapshot: BudgetSnapshot): String {
+        val leftThisMorning = snapshot.budgetPaise - (snapshot.spentPaise - snapshot.spentTodayPaise)
+        val days = snapshot.cycle.daysLeft(snapshot.today)
+        return "${Money.format(leftThisMorning)} ÷ $days ${if (days == 1) "day" else "days"} − " +
+            "${Money.format(snapshot.spentTodayPaise.coerceAtLeast(0))} = ${safeToSpendAmount(snapshot)}"
+    }
+
     /** "About ₹380/day keeps you on track for 1 Dec." Only when the money would run out first. */
     fun onTrackLine(snapshot: BudgetSnapshot): String? {
         if (snapshot.runway !is Runway.RunsOut) return null
