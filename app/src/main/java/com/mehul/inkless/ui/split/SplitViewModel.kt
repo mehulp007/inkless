@@ -38,6 +38,8 @@ data class SplitState(
     /** What's typed per friend: rupees for EXACT, a percentage for PERCENT. */
     val typed: Map<String, String> = emptyMap(),
     val alreadySplit: Boolean = false,
+    /** The merchant's name, when Inkless knows it. */
+    val title: String? = null,
 ) {
     private val total get() = transaction?.amountPaise ?: 0
 
@@ -94,6 +96,7 @@ class SplitViewModel @Inject constructor(
                     }
                 },
                 alreadySplit = saved != null,
+                title = txn?.merchantId?.let { ledger.merchant(it).first()?.displayName },
             )
         }
         // Friends added from this screen show up straight away.
