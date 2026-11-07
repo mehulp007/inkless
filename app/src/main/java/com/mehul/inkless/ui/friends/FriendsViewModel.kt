@@ -8,6 +8,7 @@ import com.mehul.inkless.data.db.entity.IncomingSplitEntity
 import com.mehul.inkless.session.SessionManager
 import com.mehul.inkless.splits.FriendBalance
 import com.mehul.inkless.splits.FriendNotFound
+import com.mehul.inkless.splits.FriendTotals
 import com.mehul.inkless.splits.FriendsRepository
 import com.mehul.inkless.sync.OfflineException
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -33,6 +35,10 @@ class FriendsViewModel @Inject constructor(
 
     val incoming: StateFlow<List<IncomingSplitEntity>> = friends.incoming()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** What everyone owes you together, and what you owe them, for the card at the top. */
+    val totals: StateFlow<FriendTotals> = friends.balances().map(FriendTotals::of)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FriendTotals(0, 0))
 
     private val _form = MutableStateFlow(FriendForm())
     val form: StateFlow<FriendForm> = _form.asStateFlow()
