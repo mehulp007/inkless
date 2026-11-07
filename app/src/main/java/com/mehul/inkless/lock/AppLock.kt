@@ -61,8 +61,16 @@ class AppLock @Inject constructor(
         if (_enabled.value && away > GRACE_MS) _locked.value = true
     }
 
-    /** Shows the unlock sheet; [onResult] gets whether the person got in. */
-    fun prompt(activity: FragmentActivity, title: String, onResult: (Boolean) -> Unit) {
+    /**
+     * Shows the unlock sheet; [onResult] gets whether the person got in, and [onError] Android's
+     * own words for why not ("Too many attempts", "Authentication cancelled").
+     */
+    fun prompt(
+        activity: FragmentActivity,
+        title: String,
+        onError: (CharSequence) -> Unit = {},
+        onResult: (Boolean) -> Unit,
+    ) {
         val prompt = BiometricPrompt(
             activity,
             ContextCompat.getMainExecutor(activity),
@@ -71,7 +79,10 @@ class AppLock @Inject constructor(
 
                 // A failed fingerprint keeps the sheet open for another try; only errors (cancelled,
                 // too many attempts) end it.
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) = onResult(false)
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    onError(errString)
+                    onResult(false)
+                }
             },
         )
         prompt.authenticate(
@@ -82,8 +93,8 @@ class AppLock @Inject constructor(
         )
     }
 
-    fun unlock(activity: FragmentActivity) {
-        prompt(activity, "Unlock Inkless") { ok -> if (ok) _locked.value = false }
+    fun unlock(activity: FragmentActivity, onError: (CharSequence) -> Unit = {}) {
+        prompt(activity, "Unlock Inkless", onError) { ok -> if (ok) _locked.value = false }
     }
 
     private companion object {
