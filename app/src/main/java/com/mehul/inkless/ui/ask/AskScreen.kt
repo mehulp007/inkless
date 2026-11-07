@@ -1,6 +1,6 @@
 package com.mehul.inkless.ui.ask
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,29 +8,28 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,17 +38,28 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mehul.inkless.R
-import com.mehul.inkless.ask.AnswerLine
+import com.mehul.inkless.ui.components.ChipTone
+import com.mehul.inkless.ui.components.InklessCard
+import com.mehul.inkless.ui.components.InklessTopBar
+import com.mehul.inkless.ui.components.LedgerRow
+import com.mehul.inkless.ui.components.Overline
+import com.mehul.inkless.ui.components.PageHeadline
+import com.mehul.inkless.ui.components.PrivacyNote
+import com.mehul.inkless.ui.components.StatusChip
 import com.mehul.inkless.ui.format.Money
+import com.mehul.inkless.ui.theme.Inkless
+import com.mehul.inkless.ui.theme.Spacing
 
-private val SUGGESTIONS = listOf(
+internal val SUGGESTIONS = listOf(
     "How much on food this month?",
     "Biggest payment last month",
     "How many times did I order from Swiggy?",
@@ -59,105 +69,130 @@ private val SUGGESTIONS = listOf(
 )
 
 /** Questions about spending, answered from the phone's own data. */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AskScreen(onBack: () -> Unit, onOpenTransaction: (String) -> Unit, viewModel: AskViewModel = hiltViewModel()) {
     val exchanges by viewModel.exchanges.collectAsStateWithLifecycle()
+    AskContent(exchanges, onBack, onAsk = viewModel::ask, onOpenTransaction = onOpenTransaction)
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun AskContent(exchanges: List<Exchange>, onBack: () -> Unit, onAsk: (String) -> Unit, onOpenTransaction: (String) -> Unit) {
+    val colors = Inkless.colors
     var text by rememberSaveable { mutableStateOf("") }
     val list = rememberLazyListState()
-    fun send(question: String) {
-        viewModel.ask(question)
-        text = ""
+    val send = { question: String ->
+        if (question.isNotBlank()) {
+            onAsk(question)
+            text = ""
+        }
     }
-    LaunchedEffect(exchanges.size) { if (exchanges.isNotEmpty()) list.animateScrollToItem(exchanges.lastIndex) }
+    LaunchedEffect(exchanges.size) { if (exchanges.isNotEmpty()) list.animateScrollToItem(exchanges.size) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Ask Inkless") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back") }
-                },
-            )
-        },
-    ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
+    Surface(Modifier.fillMaxSize(), color = colors.background) {
+        Column(Modifier.fillMaxSize().imePadding()) {
+            InklessTopBar("Ask Inkless", onBack = onBack)
             LazyColumn(
                 Modifier.weight(1f).fillMaxWidth(),
                 state = list,
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.s, bottom = Spacing.l),
+                verticalArrangement = Arrangement.spacedBy(Spacing.l),
             ) {
-                if (exchanges.isEmpty()) {
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(
-                                "Ask about your spending in plain words. Answers come from this phone; nothing is sent anywhere.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                SUGGESTIONS.forEach { AssistChip(onClick = { send(it) }, label = { Text(it) }) }
+                item(key = "intro") {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.l)) {
+                        if (exchanges.isEmpty()) {
+                            PageHeadline("Ask about your money.", lead = "In plain words, in English or a bit of Hinglish.")
+                        }
+                        PrivacyNote("Answers come from this phone.", body = "Nothing you ask is sent anywhere.")
+                        if (exchanges.isEmpty()) {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                                SUGGESTIONS.forEach { Suggestion(it, onClick = { send(it) }) }
                             }
                         }
                     }
                 }
                 itemsIndexed(exchanges) { _, exchange ->
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                            Bubble(exchange.question, mine = true)
+                            Surface(color = colors.tint, contentColor = colors.ink, shape = MaterialTheme.shapes.large, modifier = Modifier.widthIn(max = 300.dp)) {
+                                Text(exchange.question, Modifier.padding(horizontal = Spacing.l, vertical = Spacing.m), style = MaterialTheme.typography.bodyMedium)
+                            }
                         }
                         val answer = exchange.answer
                         if (answer == null) {
-                            LinearProgressIndicator(Modifier.widthIn(max = 120.dp))
+                            LinearProgressIndicator(Modifier.widthIn(max = 120.dp), color = colors.primary, trackColor = colors.tintStrong)
                         } else {
-                            Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = MaterialTheme.shapes.large) {
-                                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text(answer.text, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                                    answer.lines.forEach { AnswerRow(it, onOpenTransaction) }
+                            InklessCard {
+                                answer.headlinePaise?.let {
+                                    Text(Money.format(it), style = Inkless.type.moneyMedium, color = colors.ink)
+                                }
+                                Text(answer.text, style = MaterialTheme.typography.bodyMedium, color = colors.ink)
+                                if (answer.understood.isNotEmpty()) {
+                                    Overline("Understood as", Modifier.padding(top = Spacing.m, bottom = Spacing.xs))
+                                    FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                                        answer.understood.forEach { StatusChip(it, tone = ChipTone.Neutral) }
+                                    }
+                                }
+                                if (answer.lines.isNotEmpty()) {
+                                    HorizontalDivider(Modifier.padding(top = Spacing.m), color = colors.hairline)
+                                    answer.lines.forEach { line ->
+                                        LedgerRow(
+                                            title = line.title,
+                                            amount = Money.format(line.amountPaise),
+                                            meta = line.detail,
+                                            onClick = line.transactionId?.let { id -> { onOpenTransaction(id) } },
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it.take(200) },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("How much on Swiggy last week?") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(onSend = { send(text) }),
-                )
-                TextButton(onClick = { send(text) }, enabled = text.isNotBlank()) { Text("Ask") }
+            Surface(
+                shape = CircleShape,
+                color = colors.surface,
+                border = BorderStroke(1.dp, colors.hairline),
+                modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = Spacing.gutter, vertical = Spacing.m),
+            ) {
+                Row(Modifier.heightIn(min = 52.dp).padding(start = Spacing.l, end = Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f)) {
+                        if (text.isEmpty()) Text("How much on Swiggy last week?", style = MaterialTheme.typography.bodyLarge, color = colors.muted)
+                        BasicTextField(
+                            value = text,
+                            onValueChange = { text = it.take(200) },
+                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Your question" },
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.ink),
+                            singleLine = true,
+                            cursorBrush = SolidColor(colors.primary),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                            keyboardActions = KeyboardActions(onSend = { send(text) }),
+                        )
+                    }
+                    IconButton(onClick = { send(text) }, enabled = text.isNotBlank()) {
+                        Icon(
+                            painterResource(R.drawable.icon_send),
+                            contentDescription = "Ask",
+                            tint = if (text.isNotBlank()) colors.primary else colors.muted,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun Bubble(text: String, mine: Boolean) {
+private fun Suggestion(text: String, onClick: () -> Unit) {
+    val colors = Inkless.colors
     Surface(
-        color = if (mine) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = MaterialTheme.shapes.large,
+        onClick = onClick,
+        shape = CircleShape,
+        color = colors.surface,
+        contentColor = colors.primary,
+        border = BorderStroke(1.dp, colors.hairline),
     ) {
-        Text(text, Modifier.padding(horizontal = 14.dp, vertical = 10.dp), color = MaterialTheme.colorScheme.onPrimaryContainer)
-    }
-}
-
-@Composable
-private fun AnswerRow(line: AnswerLine, onOpenTransaction: (String) -> Unit) {
-    val open = line.transactionId
-    Row(
-        Modifier.fillMaxWidth().then(if (open != null) Modifier.clickable { onOpenTransaction(open) } else Modifier).padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(line.title, style = MaterialTheme.typography.bodyMedium)
-            line.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        }
-        Text(Money.format(line.amountPaise), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+        Text(text, Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s), style = MaterialTheme.typography.labelLarge)
     }
 }

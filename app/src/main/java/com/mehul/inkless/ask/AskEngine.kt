@@ -18,7 +18,16 @@ import javax.inject.Inject
 /** One line under an answer: a payment, a category or a place, with its amount. */
 data class AnswerLine(val title: String, val detail: String?, val amountPaise: Long, val transactionId: String? = null)
 
-data class Answer(val text: String, val lines: List<AnswerLine> = emptyList())
+/**
+ * [headlinePaise] is the number the answer is about, shown big; [understood] says how the
+ * question was read ("Food & Canteen", "This month") so a misreading is easy to spot.
+ */
+data class Answer(
+    val text: String,
+    val lines: List<AnswerLine> = emptyList(),
+    val headlinePaise: Long? = null,
+    val understood: List<String> = emptyList(),
+)
 
 /** Answers a [QuerySpec] from the phone's own database. Nothing is sent anywhere. */
 class AskEngine @Inject constructor(
@@ -30,9 +39,9 @@ class AskEngine @Inject constructor(
         val db = databases.current.value ?: return Answer("Log in or open the demo first.")
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(clock.withZone(zone))
-        val categories = db.categoryDao().getAll().associate { it.id to "${it.emoji} ${it.name}" }
+        val categories = db.categoryDao().getAll().associate { it.id to it.name }
         val balances = friends.balances().first()
-        val spec = AskParser.parse(question, today, categories.mapValues { it.value.substringAfter(' ') }, balances.map { it.friend.name })
+        val spec = AskParser.parse(question, today, categories, balances.map { it.friend.name })
 
         val start = spec.span.start.atStartOfDay(zone).toInstant().toEpochMilli()
         val end = spec.span.end.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
@@ -45,6 +54,36 @@ class AskEngine @Inject constructor(
         private val DAY = DateTimeFormatter.ofPattern("d MMM")
 
         fun answer(
+            spec: QuerySpec,
+            parts: List<SpendPart>,
+            payments: List<PaymentRow>,
+            categoryNames: Map<String, String>,
+            balances: List<FriendBalance>,
+            zone: ZoneId,
+        ): Answer {
+            val plain = plainAnswer(spec, parts, payments, categoryNames, balances, zone)
+            return plain.copy(understood = understood(spec, categoryNames))
+        }
+
+        /** How [spec] was read, as short labels: what's measured, any category, place or friend, and when. */
+        fun understood(spec: QuerySpec, categoryNames: Map<String, String>): List<String> = listOfNotNull(
+            when (spec.measure) {
+                Measure.TOTAL -> "Total"
+                Measure.COUNT -> "How many"
+                Measure.BIGGEST -> "Biggest"
+                Measure.DAILY_AVERAGE -> "Per day"
+                Measure.TOP_CATEGORIES -> "Top categories"
+                Measure.TOP_PLACES -> "Top places"
+                Measure.FRIEND_BALANCE -> "What's owed"
+            },
+        ) + spec.categoryIds.mapNotNull { categoryNames[it] } +
+            listOfNotNull(
+                spec.place?.split(' ')?.joinToString(" ") { w -> w.replaceFirstChar { it.uppercase() } },
+                spec.friend,
+                spec.span.label.replaceFirstChar { it.uppercase() }.takeIf { spec.measure != Measure.FRIEND_BALANCE },
+            )
+
+        private fun plainAnswer(
             spec: QuerySpec,
             parts: List<SpendPart>,
             payments: List<PaymentRow>,
@@ -86,7 +125,7 @@ class AskEngine @Inject constructor(
                     Answer("Nothing spent$on $period.")
                 } else {
                     val count = matchingPayments.size
-                    Answer("${Money.format(total)}$on $period, over $count ${plural(count, "payment")}.", biggestFirst.take(5).map(::line))
+                    Answer("${Money.format(total)}$on $period, over $count ${plural(count, "payment")}.", biggestFirst.take(5).map(::line), headlinePaise = total)
                 }
                 Measure.COUNT -> {
                     val count = matchingPayments.size
@@ -96,11 +135,11 @@ class AskEngine @Inject constructor(
                     )
                 }
                 Measure.BIGGEST -> biggestFirst.firstOrNull()?.let { top ->
-                    Answer("The biggest$on $period was ${Money.format(top.amountPaise)} to ${top.title ?: "someone"}.", biggestFirst.take(5).map(::line))
+                    Answer("The biggest$on $period was ${Money.format(top.amountPaise)} to ${top.title ?: "someone"}.", biggestFirst.take(5).map(::line), headlinePaise = top.amountPaise)
                 } ?: Answer("Nothing spent$on $period.")
                 Measure.DAILY_AVERAGE -> {
                     val days = ChronoUnit.DAYS.between(spec.span.start, spec.span.end) + 1
-                    Answer("About ${Money.format(total / days)} a day$on $period (${Money.format(total)} over $days ${plural(days.toInt(), "day")}).")
+                    Answer("About ${Money.format(total / days)} a day$on $period (${Money.format(total)} over $days ${plural(days.toInt(), "day")}).", headlinePaise = total / days)
                 }
                 Measure.TOP_CATEGORIES -> {
                     val top = parts.filter { it.categoryId != null }.groupBy { it.categoryId!! }
@@ -114,6 +153,7 @@ class AskEngine @Inject constructor(
                         Answer(
                             "Most went on ${categoryNames[first.key] ?: "Other"} $period: ${Money.format(first.value)} of ${Money.format(parts.sumOf { it.amountPaise })}.",
                             top.take(5).map { AnswerLine(categoryNames[it.key] ?: "Other", null, it.value) },
+                            headlinePaise = first.value,
                         )
                     }
                 }
@@ -143,7 +183,7 @@ class AskEngine @Inject constructor(
             }
             val lines = balance.openShares.map { AnswerLine(it.title ?: "Payment", "their part", it.sharePaise, it.transactionId) } +
                 balance.openIous.map { AnswerLine(it.note ?: if (it.theyOwe) "You lent" else "You borrowed", if (it.theyOwe) "they owe you" else "you owe them", it.amountPaise) }
-            return Answer(text, lines)
+            return Answer(text, lines, headlinePaise = kotlin.math.abs(balance.netPaise).takeIf { it > 0 })
         }
 
         private fun plural(n: Int, word: String) = if (n == 1) word else word + "s"

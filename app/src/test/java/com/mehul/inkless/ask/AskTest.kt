@@ -123,4 +123,20 @@ class AskTest {
         val text = answer("how much does rohan owe me", listOf(FriendBalance(rohan, 150_00, emptyList(), listOf(iou)))).text
         assertThat(text).isEqualTo("Rohan owes you ₹150.")
     }
+
+    @Test
+    fun `an answer says how it read the question, with its number up front`() {
+        answer("how much on food this month").let {
+            assertThat(it.headlinePaise).isEqualTo(645_00)
+            assertThat(it.understood).containsExactly("Total", "Food & Canteen", "Food Delivery", "This month").inOrder()
+        }
+        answer("biggest payment this month").let {
+            assertThat(it.headlinePaise).isEqualTo(450_00)
+            assertThat(it.understood).containsExactly("Biggest", "This month").inOrder()
+        }
+        answer("how many times did I order from swiggy").let {
+            assertThat(it.headlinePaise).isNull()
+            assertThat(it.understood).containsExactly("How many", "Swiggy", "This month").inOrder()
+        }
+    }
 }
