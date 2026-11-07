@@ -56,7 +56,7 @@ import com.mehul.inkless.ui.components.TextLink
 import com.mehul.inkless.ui.components.TintCard
 import com.mehul.inkless.ui.components.WarmCard
 import com.mehul.inkless.ui.format.Money
-import com.mehul.inkless.ui.friends.FriendDialog
+import com.mehul.inkless.ui.friends.FriendSheet
 import com.mehul.inkless.ui.friends.FriendForm
 import com.mehul.inkless.ui.theme.Inkless
 import com.mehul.inkless.ui.theme.Spacing
@@ -231,7 +231,7 @@ fun SplitContent(
     }
 
     if (adding) {
-        FriendDialog(
+        FriendSheet(
             friend = null,
             busy = form.busy,
             error = form.error,
