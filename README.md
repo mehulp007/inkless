@@ -34,12 +34,12 @@ It's local-first: your ledger lives in a database on your phone, and the SMS tex
 - **Locked and yours** — an optional app lock (fingerprint, face or screen lock), payments exported as a spreadsheet, and a password-locked backup file you can restore anywhere. See [Privacy & your data](#privacy--your-data).
 - **Cloud backup** — everything is backed up to your account as you go; log in on a new phone and it all comes back. See [Cloud backup](#cloud-backup).
 - **Four tabs** — *Home* for the month's spending, *To sort* for payments waiting on a category (with how many are waiting), *Friends* for who owes whom, and *Money* for the allowance, Insights, Ask Inkless and Wrapped. Each tab keeps its place while you look at another. The search icon on Home opens Ask Inkless and the sliders icon opens Settings.
-- **Category tabs** — swipe between *All* and 13 categories (Food & Canteen, Food Delivery, Travel, Recharge & Subscriptions, Laundry & Hostel, Lent to Friends, …), each with its own monthly total and payment list.
-- **Month at a glance** — the total spent this month up top; step back through previous months.
-- **Day-by-day list** — payments grouped by day with a daily total, merchant name, time and UPI ID.
+- **Category pills** — *All* and 13 categories (Food & Canteen, Food Delivery, Travel, Recharge & Subscriptions, Laundry & Hostel, Lent to Friends, …) as pills above the list; tap one, or swipe sideways on the list, to see only that category with its monthly total.
+- **Month at a glance** — the month's total under its name; step back through previous months.
+- **Day-by-day list** — today and yesterday in full, each with its total (*"₹820 net"* when a refund came in), and every row saying what it is: *Food & Canteen · 13:10*, *To sort*, *Category offset* for a refund, *Own-account transfer · Excluded*, *Income · Not spending*. The rest of the month folds into one *Earlier this month* line (*"2–4 Nov · 8 payments"*) that opens with a tap; money that came in stays listed on its own.
 - **Refunds handled properly** — a refund is subtracted from the category it came back to, and money coming in (like the monthly allowance) never counts as spending.
 - **Transaction details** — tap any payment to set its category, add a note, rename the merchant ("q8291…@ybl" → "Tapri near Block C"), or delete it.
-- **Cash quick-add** — the *Cash* button in the app or on the home-screen widget, for spends no SMS will ever mention.
+- **Cash quick-add** — *Add cash* on Home or *Cash* on the home-screen widget, for spends no SMS will ever mention: amount, category, and optionally the place and a note, with what's safe to spend today after saving it.
 - **Demo mode** — *Try the demo* on the welcome screen opens a few months of made-up hostel spending, no account needed. The data is seeded, so it comes out the same every time.
 - **Material 3** with light/dark theme and dynamic colour on Android 12+.
 
@@ -124,10 +124,10 @@ Every correction retrains the model a moment later, so the next guess already kn
 Set the monthly allowance and the day it usually arrives (Money → *Allowance and budgets*, or the card on Home). Each budget month runs from that day to the day before the next allowance, and everything below is about the current one:
 
 - **Safe to spend today** — what was left this morning, spread evenly over the days until the allowance, minus what today has already taken. It turns into *over today's share* when today goes past it.
-- **Spending ring and pace chart** — how much of the allowance is gone, and spending so far against an even pace that ends exactly at the budget.
-- **Runway** — *"At this pace you'll run out on the 24th."* The pace is a weighted average of daily spending that leans on the last few days, so a spree shows up straight away.
+- **Spending ring** — how much of the allowance is gone (*"₹2,700 / ₹12,000"*), the budget month's dates, and what's left over how many days. The *i* next to the amount opens the sum behind it: what was left this morning, divided by the days left, minus today's spending.
+- **Runway** — *"At ₹450/day, your money lasts until 27 Nov. About ₹372/day keeps you on track for 1 Dec."* The pace is a weighted average of daily spending that leans on the last few days, so a spree shows up straight away.
 - **Daily food cap** (optional) — canteen and food delivery against a daily limit, and how many days this month went over it (meals skipped at the mess).
-- **Category budgets** — tap a category's total on Home for its page: this month against its budget, the last six months as bars, and the places the money went.
+- **Category pages** — pick a category's pill on Home and tap its total: this month against its budget (set or change it there), the last six months as bars, your usual places this month, and today's payments with where each came from (*Bank SMS + notification*).
 - **Semester total** — spending since July (or January), on the budget page.
 - **Home-screen widget** — safe to spend today and a *Cash* button that opens the quick-add sheet. It updates as payments come in.
 - **Weekly summary** — Sunday at 7 pm: the week's spending, the top three categories, and what's left until the allowance. It can be switched off on the budget page.
@@ -162,7 +162,7 @@ The bank and the UPI app only ever say "₹5,000 to Amazon", never what was in t
 
 - **Editor** — type an amount, pick a category, next. The last item always takes whatever is left, so the items add up to the payment exactly, to the paisa.
 - **Totals use the items** — each category counts only its own part, so the ₹5,000 order adds ₹3,000 to Shopping, ₹1,500 to College and ₹500 to Health. Merchant totals still see one ₹5,000 payment.
-- **Listed once** — on Home the payment shows under its biggest item, with a *+2 more* badge; the other categories count their part without listing it again. *Back to one category* undoes it.
+- **Listed once** — on Home the payment shows under its biggest item, with a *+2 more items* chip; the other categories count their part without listing it again. *Back to one category* undoes it.
 - **Asked at the right time** — after a payment over ₹100 (or ₹250, ₹500, ₹1,000, or never: it's a setting), the one notification that payment gets offers *Break down*. A payment Inkless filed on its own gets a quiet *"₹450 → 🍜 Food Delivery"* with *Looks right · Break down · Change*. Smaller payments stay quiet, and history imports never ask.
 - **Share to Inkless** — share an order's screenshot (or its text) from Amazon, Flipkart, Blinkit or anywhere else. Inkless reads the items and prices on the phone, picks the recent payment with the same total, and opens the editor filled in, with a guessed category per item. Delivery, fees and discounts end up in the last item. Nothing is saved until you check it and tap *Save*.
 - **Refunds** — money back for one item (same amount) goes back into that item's category; if it isn't clear which item it was, the refund waits in the review list.
@@ -180,7 +180,7 @@ Screenshots are read with [Tesseract](https://github.com/tesseract-ocr/tesseract
 A dinner paid on your UPI isn't all your spending. *Split with friends* on a payment's details divides it:
 
 - **Equally, by amounts or by percentages**, to the paisa. Whatever doesn't divide evenly stays with you, the payer, so nobody owes a fraction of a paisa more than their part.
-- **Only your part counts** — categories, budgets, safe to spend and the widget see the ₹300 that was yours, not the ₹900 bill. On Home the payment shows *split · yours ₹300*.
+- **Only your part counts** — categories, budgets, safe to spend and the widget see the ₹300 that was yours, not the ₹900 bill. On Home the payment shows *Your part ₹300*.
 - **Who owes whom** — the *Friends* tab shows each friend's balance: their unpaid parts of your payments, minus anything you owe them. Money lent or borrowed outside any payment (*"₹150, auto to the station"*) goes on the friend's page too.
 - **Paid back, automatically** — when money arrives from a friend who owes you (matched by their UPI ID or their name) and it's the amount of something they owe, or all of it, a notification asks *"₹250 from Rohan: the ₹250 Rohan owed you?"*. *Mark paid back* ticks it off, and the repayment is filed as money back rather than income.
 - **Remind** — sends a friend what they owe, item by item, through WhatsApp or anything else. If you've added your UPI ID under *My accounts*, the message ends in a `upi://pay` link with the amount filled in, so paying you is one tap.
