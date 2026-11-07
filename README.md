@@ -33,6 +33,7 @@ It's local-first: your ledger lives in a database on your phone, and the SMS tex
 - **Ask Inkless** — *"How much on food this month?"*, *"Biggest payment in October"*, *"kitna kharcha kal?"*, answered from the phone's own data. See [Insights](#insights).
 - **Locked and yours** — an optional app lock (fingerprint, face or screen lock), payments exported as a spreadsheet, and a password-locked backup file you can restore anywhere. See [Privacy & your data](#privacy--your-data).
 - **Cloud backup** — everything is backed up to your account as you go; log in on a new phone and it all comes back. See [Cloud backup](#cloud-backup).
+- **Four tabs** — *Home* for the month's spending, *To sort* for payments waiting on a category (with how many are waiting), *Friends* for who owes whom, and *Money* for the allowance, Insights, Ask Inkless and Wrapped. Each tab keeps its place while you look at another. The search icon on Home opens Ask Inkless and the sliders icon opens Settings.
 - **Category tabs** — swipe between *All* and 13 categories (Food & Canteen, Food Delivery, Travel, Recharge & Subscriptions, Laundry & Hostel, Lent to Friends, …), each with its own monthly total and payment list.
 - **Month at a glance** — the total spent this month up top; step back through previous months.
 - **Day-by-day list** — payments grouped by day with a daily total, merchant name, time and UPI ID.
@@ -108,7 +109,7 @@ Every captured payment goes through a small categoriser, most specific knowledge
 2. **Merchant memory** — once you've said what a merchant is, every later payment to it is filed the same way. This is what handles opaque QR handles like `q829154@ybl` and SMS that only carry a name ("trf to RAMU BHAIYA"), which no keyword can guess.
 3. **The learned model** — a Naive Bayes classifier trained on the phone from every payment you've sorted. It looks at the payee's words (and pieces of words, so "Night Canteen" helps with "Block D Canteen"), the merchant itself (which counts most, once seen), the amount, the time of day and the day of the week, so ₹20 at 5 pm at an unknown QR code reads as chai. It files a payment on its own only when it's at least 80% sure and has learned from enough payments, and never learns from its own guesses until you confirm them.
 4. **Built-in keywords** — Swiggy/Zomato → Food Delivery, Blinkit/Zepto/Instamart → Groceries, Uber/Rapido/IRCTC → Travel, Jio/Airtel/Netflix → Recharge & Subscriptions, and so on. Short keywords must be a whole word, so "ola" files *Ola* but not *Kolapur Stores*.
-5. **Otherwise it asks.** A notification — *"₹30 to RAMU BHAIYA — what was this?"* — carries the model's best guesses (then your most-used categories) as buttons, and the payment's page opens with its best guess already picked; tapping one files the payment and teaches the merchant without opening the app. Anything still unsorted waits on the home screen under *N payments to sort*, where one tap per merchant clears it.
+5. **Otherwise it asks.** A notification — *"₹30 to RAMU BHAIYA — what was this?"* — carries the model's best guesses (then your most-used categories) as buttons, and the payment's page opens with its best guess already picked; tapping one files the payment and teaches the merchant without opening the app. Anything still unsorted waits in the *To sort* tab (Home shows *N payments to sort* too), where one tap per merchant clears it.
 
 Every correction retrains the model a moment later, so the next guess already knows. Teaching a merchant also files its other waiting payments, and payments captured before a rule or a merchant was known get re-sorted the next time the app opens. Anything you've categorised yourself is never changed.
 
@@ -120,7 +121,7 @@ Every correction retrains the model a moment later, so the next guess already kn
   <img src="docs/screenshots/widget.png" width="260" alt="Home-screen widget showing ₹139.79 safe to spend today and a Cash button" />
 </p>
 
-Set the monthly allowance and the day it usually arrives (Settings → *Allowance and budget*, or the card on Home). Each budget month runs from that day to the day before the next allowance, and everything below is about the current one:
+Set the monthly allowance and the day it usually arrives (Money → *Allowance and budgets*, or the card on Home). Each budget month runs from that day to the day before the next allowance, and everything below is about the current one:
 
 - **Safe to spend today** — what was left this morning, spread evenly over the days until the allowance, minus what today has already taken. It turns into *over today's share* when today goes past it.
 - **Spending ring and pace chart** — how much of the allowance is gone, and spending so far against an even pace that ends exactly at the budget.
@@ -141,7 +142,7 @@ Every spend number (category totals, budgets, safe to spend, the widget, the sum
   <img src="docs/screenshots/wrapped.png" width="260" alt="October wrapped: total spent, top category, top place, most visits and biggest payment" />
 </p>
 
-The chart icon on Home opens *Insights*:
+The *Money* tab opens *Insights*:
 
 - **How well Inkless guesses** — every payment that arrives gets the model's guess before anyone sorts it. The chart shows, week by week, how often that guess matched the category the payment ended up in, next to how many payments Inkless filed by itself and you then changed. It's the number that should climb as you correct it. Replaying the demo's 215 payments in order (guess first, then learn the real category), the model is right 62% of the time over the first quarter and 100% over the last; the replay runs as a unit test, so the numbers stay honest. [`ml/`](ml/) compares it with a standard TF-IDF + logistic regression in scikit-learn (99.3% vs 100% on the last quarter of five months of demo data); that comparison is what showed the model was underrating the merchant itself.
 - **Spending alerts** — *"🍜 Food Delivery: ₹1,240 this week. About 2.3× a usual week (₹540)."* "Usual" is the median of the last eight weeks (or 28 days), and "unusual" is measured with the median absolute deviation, so one big month can't skew it. It also has to be clearly more in rupees, and only categories you spend on most weeks (or most days) count, so a monthly recharge turning up on schedule isn't news. At most one notification a day, on its own quiet channel.
@@ -180,7 +181,7 @@ A dinner paid on your UPI isn't all your spending. *Split with friends* on a pay
 
 - **Equally, by amounts or by percentages**, to the paisa. Whatever doesn't divide evenly stays with you, the payer, so nobody owes a fraction of a paisa more than their part.
 - **Only your part counts** — categories, budgets, safe to spend and the widget see the ₹300 that was yours, not the ₹900 bill. On Home the payment shows *split · yours ₹300*.
-- **Who owes whom** — the Friends screen (the people icon on Home) shows each friend's balance: their unpaid parts of your payments, minus anything you owe them. Money lent or borrowed outside any payment (*"₹150, auto to the station"*) goes on the friend's page too.
+- **Who owes whom** — the *Friends* tab shows each friend's balance: their unpaid parts of your payments, minus anything you owe them. Money lent or borrowed outside any payment (*"₹150, auto to the station"*) goes on the friend's page too.
 - **Paid back, automatically** — when money arrives from a friend who owes you (matched by their UPI ID or their name) and it's the amount of something they owe, or all of it, a notification asks *"₹250 from Rohan: the ₹250 Rohan owed you?"*. *Mark paid back* ticks it off, and the repayment is filed as money back rather than income.
 - **Remind** — sends a friend what they owe, item by item, through WhatsApp or anything else. If you've added your UPI ID under *My accounts*, the message ends in a `upi://pay` link with the amount filled in, so paying you is one tap.
 - **Friends on Inkless** — add a friend's Inkless username and splits with them show up in their app under *Shared with you*. When they tap *I've paid*, it's ticked off on your phone too.
@@ -246,7 +247,7 @@ The phone's own database is always the real copy; the app reads nothing else, so
 | | |
 |---|---|
 | Language | Kotlin |
-| UI | Jetpack Compose, Material 3, Navigation Compose (type-safe routes); its own design system in `ui/theme` and `ui/components`: a fixed green palette in light and dark (it doesn't follow the wallpaper), Lora headlines and Inter text and numbers bundled in the app, Lucide line icons for categories |
+| UI | Jetpack Compose, Material 3, Navigation Compose (type-safe routes, a nested graph per bottom tab so each keeps its own back stack); its own design system in `ui/theme` and `ui/components`: a fixed green palette in light and dark (it doesn't follow the wallpaper), Lora headlines and Inter text and numbers bundled in the app, Lucide line icons for categories |
 | Architecture | MVVM, unidirectional data flow with `StateFlow` |
 | DI | Hilt |
 | Storage | Room (schema exported to `app/schemas/`, migrations tested against every past schema) |
