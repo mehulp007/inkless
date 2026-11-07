@@ -39,10 +39,14 @@ fun AuthNavHost() {
             LoginScreen(
                 onBack = { navController.popBackStack() },
                 onForgotPassword = { navController.navigate(ForgotPasswordRoute(it)) },
+                onSignUp = { navController.navigate(SignUpRoute) { popUpTo(WelcomeRoute) } },
             )
         }
         composable<SignUpRoute> {
-            SignUpScreen(onBack = { navController.popBackStack() })
+            SignUpScreen(
+                onBack = { navController.popBackStack() },
+                onLogIn = { navController.navigate(LoginRoute) { popUpTo(WelcomeRoute) } },
+            )
         }
         composable<ForgotPasswordRoute> { entry ->
             ForgotPasswordScreen(

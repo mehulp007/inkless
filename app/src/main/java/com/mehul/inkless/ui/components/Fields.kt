@@ -77,7 +77,8 @@ fun InklessTextField(
             textStyle = if (money) Inkless.type.moneyMedium else MaterialTheme.typography.bodyLarge,
             placeholder = placeholder?.let { { Text(it, color = colors.muted) } },
             isError = noteKind == FieldNote.Problem,
-            prefix = prefix?.let { { Text(it, color = colors.muted) } },
+            // A money prefix is as big as the amount, so "₹12000" reads as one number.
+            prefix = prefix?.let { { Text(it, style = if (money) Inkless.type.moneyMedium else MaterialTheme.typography.bodyLarge, color = if (money) colors.ink else colors.muted) } },
             trailingIcon = trailingContent ?: trailingIcon?.let { icon ->
                 {
                     val glyph = @Composable {

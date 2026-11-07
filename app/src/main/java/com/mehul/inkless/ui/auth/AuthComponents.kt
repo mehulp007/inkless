@@ -25,14 +25,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.mehul.inkless.R
-import com.mehul.inkless.auth.PasswordStrength
 import com.mehul.inkless.ui.components.FieldNote
 import com.mehul.inkless.ui.components.InklessTextField
 import com.mehul.inkless.ui.components.InklessTopBar
+import com.mehul.inkless.ui.components.PageHeadline
 import com.mehul.inkless.ui.components.SecondaryButton
 import com.mehul.inkless.ui.theme.Inkless
 import com.mehul.inkless.ui.theme.Spacing
@@ -41,6 +42,8 @@ import com.mehul.inkless.ui.theme.Spacing
 fun AuthScaffold(
     title: String,
     onBack: (() -> Unit)?,
+    headline: String? = null,
+    lead: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Scaffold(
@@ -56,8 +59,10 @@ fun AuthScaffold(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = Spacing.gutter, vertical = Spacing.s),
             verticalArrangement = Arrangement.spacedBy(Spacing.l),
-            content = content,
-        )
+        ) {
+            if (headline != null) PageHeadline(headline, Modifier.padding(top = Spacing.s, bottom = Spacing.xs), lead = lead)
+            content()
+        }
     }
 }
 
@@ -126,19 +131,13 @@ fun EmailField(
 }
 
 @Composable
-fun StrengthHint(strength: PasswordStrength) {
-    val colors = Inkless.colors
-    val (label, color) = when (strength) {
-        PasswordStrength.WEAK -> "Weak" to colors.danger
-        PasswordStrength.OKAY -> "Okay" to colors.onWarm
-        PasswordStrength.STRONG -> "Strong" to colors.primary
-    }
-    Text("Strength: $label", style = MaterialTheme.typography.labelMedium, color = color)
-}
-
-@Composable
 fun GoogleButton(onClick: () -> Unit, enabled: Boolean, text: String = "Continue with Google") {
-    SecondaryButton(text, onClick = onClick, enabled = enabled)
+    SecondaryButton(
+        text,
+        onClick = onClick,
+        enabled = enabled,
+        leading = { Text("G", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
+    )
 }
 
 @Composable
@@ -152,7 +151,7 @@ fun OrDivider() {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
         HorizontalDivider(Modifier.weight(1f), color = Inkless.colors.hairline)
         Spacer(Modifier.width(12.dp))
-        Text("or", style = MaterialTheme.typography.labelMedium, color = Inkless.colors.muted)
+        Text("or", style = MaterialTheme.typography.bodySmall, color = Inkless.colors.muted)
         Spacer(Modifier.width(12.dp))
         HorizontalDivider(Modifier.weight(1f), color = Inkless.colors.hairline)
     }

@@ -2,6 +2,7 @@ package com.mehul.inkless.ui.components
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -64,6 +65,7 @@ fun SecondaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     @DrawableRes icon: Int? = null,
+    leading: (@Composable () -> Unit)? = null,
 ) {
     val colors = Inkless.colors
     OutlinedButton(
@@ -78,6 +80,10 @@ fun SecondaryButton(
             disabledContentColor = colors.muted,
         ),
     ) {
+        if (leading != null) {
+            leading()
+            Spacer(Modifier.width(10.dp))
+        }
         ButtonContent(text, icon)
     }
 }
@@ -91,7 +97,13 @@ fun TextLink(
     enabled: Boolean = true,
     color: Color = Inkless.colors.primary,
 ) {
-    TextButton(onClick = onClick, enabled = enabled, modifier = modifier.heightIn(min = 48.dp)) {
+    // No side padding, so a link lines up with the text above it.
+    TextButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.heightIn(min = 48.dp),
+        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp),
+    ) {
         Text(text, style = MaterialTheme.typography.labelLarge, color = if (enabled) color else Inkless.colors.muted)
     }
 }
