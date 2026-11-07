@@ -259,7 +259,7 @@ The phone's own database is always the real copy; the app reads nothing else, so
 | On-device ML | Multinomial Naive Bayes in plain Kotlin (no ML library), retrained on every correction; robust statistics for alerts; a rule-based question parser |
 | Async | Kotlin Coroutines & Flow |
 | Security | `BiometricPrompt` app lock; backup files encrypted with PBKDF2 + AES-GCM (`javax.crypto`); R8 in release builds |
-| Tests | JUnit, Truth, Turbine; Room tests on a device/emulator; Firestore rules tests on the Firebase emulator; a scikit-learn notebook in `ml/` |
+| Tests | JUnit, Truth, Turbine; Roborazzi screenshot tests on the JVM (Robolectric), with reference images in `app/src/test/screenshots/`; Compose UI tests; Room tests on a device/emulator; Firestore rules tests on the Firebase emulator; a scikit-learn notebook in `ml/` |
 | Build | Gradle 9 (Kotlin DSL + version catalog), AGP 9, KSP |
 
 minSdk 26 · targetSdk 37
@@ -296,7 +296,7 @@ app/        Android app — UI, Room database, accounts, SMS capture, Hilt wirin
 parsing/    Pure Kotlin module (no Android dependencies): SMS filter, bank and UPI-app parsers, shared-order parser, test fixtures
 firebase/   Firestore security rules, their tests, and Firebase setup steps
 ml/         Notebook comparing the category model with a scikit-learn baseline, and its data
-docs/       Screenshots, the tour GIF, the install guide
+docs/       Screenshots, the tour GIF, the install guide, licences of the bundled fonts and icons
 ```
 
 Inside `app/src/main/java/com/mehul/inkless/`:
@@ -337,6 +337,10 @@ The app needs an `app/google-services.json` from a Firebase project. It isn't co
 # Unit tests (JVM)
 ./gradlew test
 
+# Screenshot tests: compare every screen with its reference image, or re-record the references
+./gradlew verifyRoborazziDebug
+./gradlew recordRoborazziDebug
+
 # Room, migration, capture, dedupe, categorising, spending, splits and sync tests (needs a running emulator or connected phone)
 ./gradlew connectedDebugAndroidTest
 
@@ -362,3 +366,8 @@ build, add the key's SHA-1 and SHA-256 to the Firebase app (see [`firebase/READM
 On Windows use `gradlew.bat`. You can also just open the folder in Android Studio and hit Run.
 
 **Installing from an APK file:** see [docs/INSTALL.md](docs/INSTALL.md). In short: Play Protect may refuse an SMS-reading APK opened from a browser or chat app (installing over USB with `adb install` works), and on Android 13+ the SMS permission starts out locked until *Allow restricted settings* is tapped on the app's info page. The in-app checklist walks through this too.
+
+## Credits
+
+- Fonts: [Lora](https://github.com/cyrealtype/Lora-Cyrillic) and [Inter](https://github.com/rsms/inter), both under the SIL Open Font License ([`docs/licenses/`](docs/licenses/)). They ship inside the app; nothing is downloaded.
+- Icons: [Lucide](https://lucide.dev), ISC licence ([`docs/licenses/lucide-LICENSE.txt`](docs/licenses/lucide-LICENSE.txt)), converted to Android vector drawables.
