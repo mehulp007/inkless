@@ -4,29 +4,22 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,7 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,15 +40,28 @@ import com.mehul.inkless.data.db.entity.TransactionStatus
 import com.mehul.inkless.data.db.entity.TransactionType
 import com.mehul.inkless.splits.SplitView
 import com.mehul.inkless.ui.components.CategoryPicker
+import com.mehul.inkless.ui.components.CategoryTile
+import com.mehul.inkless.ui.components.ChipTone
+import com.mehul.inkless.ui.components.ChoiceField
+import com.mehul.inkless.ui.components.ConfirmDialog
+import com.mehul.inkless.ui.components.InfoRow
+import com.mehul.inkless.ui.components.InklessBottomSheet
+import com.mehul.inkless.ui.components.InklessCard
+import com.mehul.inkless.ui.components.InklessTextField
+import com.mehul.inkless.ui.components.InklessTopBar
+import com.mehul.inkless.ui.components.PrimaryButton
+import com.mehul.inkless.ui.components.StatusChip
+import com.mehul.inkless.ui.components.TextLink
+import com.mehul.inkless.ui.components.TintCard
+import com.mehul.inkless.ui.components.WarmCard
 import com.mehul.inkless.ui.format.Money
 import com.mehul.inkless.ui.format.Titles
 import com.mehul.inkless.ui.theme.Inkless
-import com.mehul.inkless.ui.theme.LocalInklessColors
+import com.mehul.inkless.ui.theme.Spacing
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionScreen(
     onBack: () -> Unit,
@@ -64,73 +70,61 @@ fun TransactionScreen(
     viewModel: TransactionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var confirmDelete by rememberSaveable { mutableStateOf(false) }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(state.transaction?.let(::screenTitle) ?: "") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    if (state.transaction != null) {
-                        IconButton(onClick = { confirmDelete = true }) {
-                            Icon(painterResource(R.drawable.ic_delete), contentDescription = "Delete")
-                        }
-                    }
-                },
-            )
-        },
-    ) { padding ->
-        val txn = state.transaction
-        when {
-            state.loading -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) { CircularProgressIndicator() }
-            txn == null -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) {
-                Text("This entry was deleted.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            else -> Details(
-                txn = txn,
-                state = state,
-                modifier = Modifier.padding(padding).consumeWindowInsets(padding),
-                onSave = { category, note -> viewModel.save(category, note, then = onBack) },
-                onRename = viewModel::renameMerchant,
-                onBreakDown = { onBreakDown(txn.id) },
-                onRemoveBreakdown = viewModel::removeBreakdown,
-                onSplit = { onSplit(txn.id) },
-            )
-        }
-    }
-
-    if (confirmDelete) {
-        AlertDialog(
-            onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete this entry?") },
-            text = { Text("It disappears from your totals. Use this for anything that wasn't really a payment.") },
-            confirmButton = {
-                TextButton(onClick = { confirmDelete = false; viewModel.delete(then = onBack) }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
-        )
-    }
+    TransactionContent(
+        state = state,
+        onBack = onBack,
+        onSave = { category, note -> viewModel.save(category, note, then = onBack) },
+        onRename = viewModel::renameMerchant,
+        onBreakDown = { state.transaction?.let { onBreakDown(it.id) } },
+        onRemoveBreakdown = viewModel::removeBreakdown,
+        onSplit = { state.transaction?.let { onSplit(it.id) } },
+        onDelete = { viewModel.delete(then = onBack) },
+    )
 }
 
+/** The payment page without its view model. */
 @Composable
-private fun Details(
-    txn: TransactionEntity,
+fun TransactionContent(
     state: TransactionScreenState,
-    modifier: Modifier,
+    onBack: () -> Unit,
     onSave: (categoryId: String?, note: String) -> Unit,
     onRename: (String) -> Unit,
     onBreakDown: () -> Unit,
     onRemoveBreakdown: () -> Unit,
     onSplit: () -> Unit,
+    onDelete: () -> Unit,
 ) {
+    val txn = state.transaction
+    Surface(Modifier.fillMaxSize(), color = Inkless.colors.background) {
+        Column(Modifier.fillMaxSize()) {
+            InklessTopBar(txn?.let(::screenTitle) ?: "Payment details", onBack = onBack)
+            when {
+                state.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Inkless.colors.primary) }
+                txn == null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    Text("This entry was deleted.", color = Inkless.colors.muted)
+                }
+                else -> Details(txn, state, onSave, onRename, onBreakDown, onRemoveBreakdown, onSplit, onDelete)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun Details(
+    txn: TransactionEntity,
+    state: TransactionScreenState,
+    onSave: (categoryId: String?, note: String) -> Unit,
+    onRename: (String) -> Unit,
+    onBreakDown: () -> Unit,
+    onRemoveBreakdown: () -> Unit,
+    onSplit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val colors = Inkless.colors
     var renaming by rememberSaveable { mutableStateOf(false) }
+    var picking by rememberSaveable { mutableStateOf(false) }
+    var confirmDelete by rememberSaveable { mutableStateOf(false) }
     // Keyed by id so the fields reset if the screen is reused for another entry.
     // A payment waiting for a category starts on the model's guess, so a right guess is one tap.
     var categoryId by rememberSaveable(txn.id) {
@@ -147,211 +141,255 @@ private fun Details(
     val split = state.split
     val canBreakDown = txn.type == TransactionType.EXPENSE && !isCredit && split == null
     val canSplit = txn.type == TransactionType.EXPENSE && !isCredit && !brokenDown
+    val byId = state.categories.associateBy { it.id }
+    val name = state.merchant?.displayName ?: txn.payeeRaw ?: txn.vpa ?: Titles.fallback(txn.type)
 
     Column(
-        modifier = modifier
+        Modifier
             .fillMaxSize()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .navigationBarsPadding()
+            .padding(horizontal = Spacing.gutter, vertical = Spacing.s),
+        verticalArrangement = Arrangement.spacedBy(Spacing.xl),
     ) {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = (if (isCredit) "+" else "−") + Money.format(txn.amountPaise, alwaysShowPaise = true),
-                style = Inkless.type.moneyMedium,
-                color = if (isCredit) LocalInklessColors.current.credit else MaterialTheme.colorScheme.onSurface,
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            CategoryTile(
+                if (brokenDown) state.items.maxByOrNull { it.amountPaise }?.categoryId else categoryId,
+                isCredit = isCredit,
+                isTransfer = txn.type == TransactionType.SELF_TRANSFER,
+                size = 56.dp,
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    state.merchant?.displayName ?: txn.payeeRaw ?: txn.vpa ?: Titles.fallback(txn.type),
-                    style = MaterialTheme.typography.titleMedium,
-                )
+                Text(name, style = MaterialTheme.typography.titleLarge, color = colors.ink, textAlign = TextAlign.Center)
                 // Renaming changes the name on every payment to this merchant.
                 if (state.merchant != null) {
-                    IconButton(onClick = { renaming = true }) {
-                        Icon(painterResource(R.drawable.ic_edit), contentDescription = "Rename merchant")
+                    IconButton(onClick = { renaming = true }, modifier = Modifier.size(36.dp)) {
+                        Icon(painterResource(R.drawable.icon_pencil), contentDescription = "Rename merchant", tint = colors.primary, modifier = Modifier.size(18.dp))
                     }
                 }
             }
             Text(
-                Instant.ofEpochMilli(txn.timestamp).atZone(ZoneId.systemDefault()).format(WHEN_FORMAT),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                (if (isCredit) "+" else "") + Money.format(txn.amountPaise),
+                style = Inkless.type.moneyLarge,
+                color = if (isCredit && txn.type != TransactionType.SELF_TRANSFER) colors.credit else colors.ink,
             )
+            StatusChip(typeLine(txn, state), tone = if (txn.status == TransactionStatus.NEEDS_REVIEW) ChipTone.Check else ChipTone.Good)
+        }
+
+        InklessCard {
+            facts(txn).forEach { (label, value) -> InfoRow(label, value) }
+            if (CaptureSource.SMS in txn.sources && CaptureSource.NOTIFICATION in txn.sources) {
+                Text(
+                    "Two alerts, one payment. The bank's details are kept together.",
+                    Modifier.padding(top = Spacing.s),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.primary,
+                )
+            }
+        }
+
+        if (txn.status == TransactionStatus.NEEDS_REVIEW && takesCategory && !brokenDown) {
+            WarmCard {
+                val guessed = state.guess?.let { byId[it.categoryId] }
+                Text(
+                    guessed?.let { "Looks like ${it.name}. Save if that's right, or pick another." }
+                        ?: "Captured automatically. Pick what this was.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
         }
 
         if (brokenDown) {
-            BreakdownList(state, onEdit = onBreakDown, onRemove = onRemoveBreakdown)
+            val biggest = state.items.maxByOrNull { it.amountPaise }
+            val others = state.items.filter { it.categoryId != biggest?.categoryId }.groupBy { it.categoryId }
+            ChoiceField(
+                value = byId[biggest?.categoryId]?.name ?: "Other",
+                onClick = onBreakDown,
+                label = "Main category · biggest item",
+                note = listOfNotNull(
+                    "${Money.format(state.items.filter { it.categoryId == biggest?.categoryId }.sumOf { it.amountPaise })} here",
+                ).plus(others.map { (id, items) -> "${Money.format(items.sumOf { it.amountPaise })} in ${byId[id]?.name ?: "Other"}" })
+                    .joinToString(" · "),
+                icon = R.drawable.icon_list_tree,
+            )
         } else if (takesCategory) {
-            if (txn.status == TransactionStatus.NEEDS_REVIEW) {
-                Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = MaterialTheme.shapes.small) {
-                    val guessed = state.guess?.let { g -> state.categories.firstOrNull { it.id == g.categoryId } }
+            ChoiceField(
+                value = categoryId?.let { byId[it]?.name } ?: "Choose a category",
+                onClick = { picking = true },
+                label = "Category",
+            )
+        }
+
+        InklessTextField(
+            value = note,
+            onValueChange = { note = it.take(200) },
+            label = "Note",
+            placeholder = "Add a note",
+            trailingIcon = R.drawable.icon_pencil,
+            singleLine = false,
+        )
+
+        when {
+            brokenDown -> TintCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        guessed?.let { "Captured automatically. Looks like ${it.name} — tap Save if that's right, or pick another." }
-                            ?: "Captured automatically — pick what this was.",
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        "${state.items.size} items · exact total ${Money.format(txn.amountPaise)}",
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = colors.ink,
                     )
+                    Icon(painterResource(R.drawable.icon_list_tree), contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp))
                 }
+                Text(
+                    itemsSentence(state.items.mapNotNull { it.note?.takeIf(String::isNotBlank) }),
+                    Modifier.padding(top = Spacing.xs),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.muted,
+                )
+                TextLink("Break down · view or edit items →", onClick = onBreakDown)
+                TextLink("Back to one category", onClick = onRemoveBreakdown, color = colors.muted)
             }
-            Text("Category", style = MaterialTheme.typography.titleSmall)
-            CategoryPicker(categories = state.categories, selectedId = categoryId, onSelect = { categoryId = it })
-            if (canBreakDown) {
-                OutlinedButton(onClick = onBreakDown, modifier = Modifier.fillMaxWidth()) {
-                    Text("Several things? Break it down")
-                }
+            canBreakDown -> TintCard {
+                Text("Several things in one payment?", style = MaterialTheme.typography.titleSmall, color = colors.ink)
+                Text(
+                    "Break it into items, each in its own category.",
+                    Modifier.padding(top = Spacing.xs),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.muted,
+                )
+                TextLink("Break it down →", onClick = onBreakDown)
             }
         }
 
         if (split != null) {
-            SplitSummary(txn, split, state.friendNames, onEdit = onSplit)
+            SplitCard(txn, split, state.friendNames, onEdit = onSplit)
         } else if (canSplit) {
-            OutlinedButton(onClick = onSplit, modifier = Modifier.fillMaxWidth()) {
-                Text("Split with friends")
+            TintCard {
+                Text("Shared this with friends?", style = MaterialTheme.typography.titleSmall, color = colors.ink)
+                Text(
+                    "Split it, and only your part counts as your spending.",
+                    Modifier.padding(top = Spacing.xs),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.muted,
+                )
+                TextLink("Split with friends →", onClick = onSplit)
             }
         }
 
-        OutlinedTextField(
-            value = note,
-            onValueChange = { note = it.take(200) },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Note") },
-        )
-
-        Button(
-            onClick = { onSave(categoryId, note) },
-            enabled = changed,
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-        ) { Text("Save") }
-
-        HorizontalDivider()
-        InfoRows(txn)
+        PrimaryButton("Save changes", onClick = { onSave(categoryId, note) }, enabled = changed)
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            TextLink("Delete this entry", onClick = { confirmDelete = true }, color = colors.danger)
+        }
     }
 
+    if (picking) {
+        InklessBottomSheet(onDismiss = { picking = false }) {
+            Text("What was this for?", style = MaterialTheme.typography.titleLarge, color = colors.ink)
+            CategoryPicker(categories = state.categories, selectedId = categoryId, onSelect = { categoryId = it; picking = false })
+        }
+    }
     if (renaming && state.merchant != null) {
-        RenameDialog(
-            current = state.merchant.displayName,
-            onRename = { onRename(it); renaming = false },
-            onDismiss = { renaming = false },
+        RenameSheet(current = state.merchant.displayName, onRename = { onRename(it); renaming = false }, onDismiss = { renaming = false })
+    }
+    if (confirmDelete) {
+        ConfirmDialog(
+            title = "Delete this entry?",
+            body = "It disappears from your totals. Use this for anything that wasn't really a payment.",
+            confirmText = "Delete",
+            onConfirm = { confirmDelete = false; onDelete() },
+            onDismiss = { confirmDelete = false },
+            destructive = true,
         )
     }
 }
 
 @Composable
-private fun BreakdownList(state: TransactionScreenState, onEdit: () -> Unit, onRemove: () -> Unit) {
-    val categories = state.categories.associateBy { it.id }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Broken down into ${state.items.size} items", style = MaterialTheme.typography.titleSmall)
-        state.items.forEach { item ->
-            val category = categories[item.categoryId]
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(category?.name ?: "Other", style = MaterialTheme.typography.bodyLarge)
-                    item.note?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                Text(Money.format(item.amountPaise), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onEdit) { Text("Edit items") }
-            TextButton(onClick = onRemove) { Text("Back to one category") }
-        }
-    }
-}
-
-@Composable
-private fun SplitSummary(txn: TransactionEntity, split: SplitView, names: Map<String, String>, onEdit: () -> Unit) {
+private fun SplitCard(txn: TransactionEntity, split: SplitView, names: Map<String, String>, onEdit: () -> Unit) {
+    val colors = Inkless.colors
     val mine = txn.amountPaise - split.shares.sumOf { it.sharePaise }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Split with ${split.shares.size} ${if (split.shares.size == 1) "friend" else "friends"}", style = MaterialTheme.typography.titleSmall)
+    InklessCard {
+        Text(
+            "Split with ${split.shares.size} ${if (split.shares.size == 1) "friend" else "friends"}",
+            style = MaterialTheme.typography.titleSmall,
+            color = colors.ink,
+        )
         split.shares.forEach { share ->
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(names[share.friendId] ?: "Removed friend", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        if (share.settled) "paid you back" else "owes you",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (share.settled) LocalInklessColors.current.credit else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Text(Money.format(share.sharePaise), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-            }
+            InfoRow(
+                names[share.friendId] ?: "Removed friend",
+                Money.format(share.sharePaise) + if (share.settled) " · paid back" else " · owes you",
+            )
         }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Your part", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-            Text(Money.format(mine), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-        }
-        OutlinedButton(onClick = onEdit) { Text("Edit split") }
+        HorizontalDivider(Modifier.padding(vertical = Spacing.xs), color = colors.hairline)
+        InfoRow("Your part", Money.format(mine))
+        TextLink("Edit split →", onClick = onEdit)
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RenameDialog(current: String, onRename: (String) -> Unit, onDismiss: () -> Unit) {
+private fun RenameSheet(current: String, onRename: (String) -> Unit, onDismiss: () -> Unit) {
     var name by rememberSaveable { mutableStateOf(current) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Rename merchant") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "Changes the name on every payment to them, e.g. \"q8291…@ybl\" → \"Tapri near Block C\".",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it.take(40) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onRename(name) }, enabled = name.isNotBlank() && name.trim() != current) { Text("Rename") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
+    InklessBottomSheet(onDismiss = onDismiss) {
+        Text("Rename merchant", style = MaterialTheme.typography.titleLarge, color = Inkless.colors.ink)
+        InklessTextField(
+            value = name,
+            onValueChange = { name = it.take(40) },
+            label = "Name",
+            note = "Changes the name on every payment to them, e.g. \"q8291…@ybl\" → \"Tapri near Block C\".",
+        )
+        PrimaryButton("Rename", onClick = { onRename(name.trim()) }, enabled = name.isNotBlank() && name.trim() != current)
+    }
 }
 
-@Composable
-private fun InfoRows(txn: TransactionEntity) {
-    val rows = listOfNotNull(
-        txn.vpa?.let { "UPI ID" to it },
-        txn.accountLast4?.let { "Account" to "••$it" },
-        txn.bankCode?.let { "Bank" to it },
-        txn.upiRef?.let { "UPI ref" to it },
-        txn.balanceAfterPaise?.let { "Balance after" to Money.format(it, alwaysShowPaise = true) },
-        "Added from" to txn.sources.joinToString { sourceLabel(it) },
-    )
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        rows.forEach { (label, value) ->
-            Row(Modifier.fillMaxWidth()) {
-                Text(
-                    label,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(value, style = MaterialTheme.typography.bodyMedium)
-            }
-        }
+/** "Expense · 1 payment, 4 items", "Expense · to sort", "Refund", "Own-account transfer" */
+internal fun typeLine(txn: TransactionEntity, state: TransactionScreenState): String = when {
+    txn.type == TransactionType.SELF_TRANSFER -> "Own-account transfer · not spending"
+    txn.type == TransactionType.REFUND -> "Refund · counts against its category"
+    txn.direction == Direction.CREDIT -> "Money in · not spending"
+    state.items.isNotEmpty() -> "Expense · 1 payment, ${state.items.size} items"
+    state.split != null -> "Expense · split with ${state.split.shares.size}"
+    txn.status == TransactionStatus.NEEDS_REVIEW -> "Expense · to sort"
+    CaptureSource.MANUAL in txn.sources -> "Cash expense"
+    else -> "Expense"
+}
+
+/** The bank's facts, each only when it's known. Only the last four digits of a reference show. */
+internal fun facts(txn: TransactionEntity, zone: ZoneId = ZoneId.systemDefault()): List<Pair<String, String>> = listOfNotNull(
+    "Date" to Instant.ofEpochMilli(txn.timestamp).atZone(zone).format(WHEN),
+    "Source" to sourceLine(txn.sources),
+    (txn.bankCode ?: txn.accountLast4)?.let {
+        "Paid from" to listOfNotNull(txn.bankCode, txn.accountLast4?.let { "•• $it" }).joinToString(" ")
+    },
+    txn.vpa?.let { "UPI ID" to it },
+    txn.upiRef?.takeIf { it.length >= 4 }?.let { "UPI reference" to "•••• ${it.takeLast(4)}" },
+    txn.balanceAfterPaise?.let { "Balance after" to Money.format(it, alwaysShowPaise = true) },
+)
+
+private fun sourceLine(sources: Set<CaptureSource>): String = sources.sortedBy { it.ordinal }.joinToString(" + ") {
+    when (it) {
+        CaptureSource.SMS -> "Bank SMS"
+        CaptureSource.NOTIFICATION -> "UPI app"
+        CaptureSource.MANUAL -> "Added by hand"
+        CaptureSource.SCAN_PAY -> "Scan & pay"
     }
+}.ifEmpty { "Added by hand" }
+
+/** "Milk, bananas, snacks and a notebook." */
+internal fun itemsSentence(names: List<String>): String {
+    val tail = "Category totals use each item's amount."
+    if (names.isEmpty()) return tail
+    val lowered = names.mapIndexed { i, n -> if (i == 0) n else n.replaceFirstChar { c -> c.lowercase() } }
+    val list = if (lowered.size == 1) lowered.single() else lowered.dropLast(1).joinToString(", ") + " and " + lowered.last()
+    return "$list. $tail"
 }
 
 private fun screenTitle(txn: TransactionEntity) = when (txn.type) {
     TransactionType.INCOME -> "Money in"
     TransactionType.REFUND -> "Refund"
-    else -> if (CaptureSource.MANUAL in txn.sources) "Cash" else "Payment"
+    TransactionType.SELF_TRANSFER -> "Transfer"
+    else -> if (CaptureSource.MANUAL in txn.sources) "Cash payment" else "Payment details"
 }
 
-private fun sourceLabel(source: CaptureSource) = when (source) {
-    CaptureSource.SMS -> "Bank SMS"
-    CaptureSource.NOTIFICATION -> "App notification"
-    CaptureSource.MANUAL -> "Added by hand"
-    CaptureSource.SCAN_PAY -> "Scan & pay"
-}
+private val WHEN = DateTimeFormatter.ofPattern("d MMM yyyy · HH:mm")
 
-private val WHEN_FORMAT = DateTimeFormatter.ofPattern("EEE, d MMM yyyy · h:mm a")
