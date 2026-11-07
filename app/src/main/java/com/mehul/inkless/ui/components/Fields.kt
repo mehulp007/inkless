@@ -1,9 +1,15 @@
 package com.mehul.inkless.ui.components
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
@@ -11,21 +17,25 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
 import com.mehul.inkless.R
 import com.mehul.inkless.ui.theme.Inkless
 import com.mehul.inkless.ui.theme.Spacing
@@ -142,4 +152,39 @@ fun PasswordField(
         keyboardActions = KeyboardActions(onDone = { onDone() }),
         visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
     )
+}
+
+/**
+ * Looks like a field but opens a choice: "Groceries & Essentials ∨". [label] sits above it like
+ * every other field's; [note] under it.
+ */
+@Composable
+fun ChoiceField(
+    value: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    label: String? = null,
+    note: String? = null,
+    @DrawableRes icon: Int = R.drawable.icon_chevron_down,
+    enabled: Boolean = true,
+) {
+    val colors = Inkless.colors
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        if (label != null) Text(label, style = MaterialTheme.typography.labelMedium, color = colors.muted)
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = colors.surface,
+            border = BorderStroke(1.dp, colors.hairline),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .clickable(enabled = enabled, role = Role.Button, onClickLabel = label, onClick = onClick),
+        ) {
+            Row(Modifier.padding(Spacing.l), verticalAlignment = Alignment.CenterVertically) {
+                Text(value, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = if (enabled) colors.ink else colors.muted)
+                if (enabled) Icon(painterResource(icon), contentDescription = null, tint = colors.muted, modifier = Modifier.size(20.dp))
+            }
+        }
+        if (note != null) Text(note, style = MaterialTheme.typography.bodySmall, color = colors.muted)
+    }
 }
