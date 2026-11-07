@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,7 +13,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -34,7 +37,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,6 +65,7 @@ import com.mehul.inkless.ui.components.CategoryTile
 import com.mehul.inkless.ui.format.Money
 import com.mehul.inkless.ui.theme.Inkless
 import com.mehul.inkless.ui.theme.LocalInklessColors
+import com.mehul.inkless.ui.theme.Spacing
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -77,8 +81,7 @@ fun HomeScreen(
     onOpenReview: () -> Unit,
     onOpenBudget: () -> Unit,
     onOpenCategory: (String) -> Unit,
-    onOpenFriends: () -> Unit,
-    onOpenInsights: () -> Unit,
+    onOpenAsk: () -> Unit,
     onOpenOnboarding: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -124,8 +127,7 @@ fun HomeScreen(
         budget = budget,
         onOpenBudget = onOpenBudget,
         onOpenCategory = onOpenCategory,
-        onOpenFriends = onOpenFriends,
-        onOpenInsights = onOpenInsights,
+        onOpenAsk = onOpenAsk,
     )
 
     if (addingCash) {
@@ -157,43 +159,19 @@ private fun HomeContent(
     budget: HomeBudget,
     onOpenBudget: () -> Unit,
     onOpenCategory: (String) -> Unit,
-    onOpenFriends: () -> Unit,
-    onOpenInsights: () -> Unit,
+    onOpenAsk: () -> Unit,
 ) {
     Scaffold(
         floatingActionButton = {
             if (state is HomeUiState.Ready) {
                 ExtendedFloatingActionButton(
                     onClick = onAddCash,
-                    icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
+                    icon = { Icon(painterResource(R.drawable.icon_plus), contentDescription = null) },
                     text = { Text("Cash") },
                 )
             }
         },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Inkless", fontWeight = FontWeight.SemiBold)
-                        if (account.isDemo) {
-                            Spacer(Modifier.width(8.dp))
-                            DemoBadge()
-                        }
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onOpenInsights) {
-                        Icon(painterResource(R.drawable.ic_insights), contentDescription = "Insights")
-                    }
-                    IconButton(onClick = onOpenFriends) {
-                        Icon(painterResource(R.drawable.ic_people), contentDescription = "Friends")
-                    }
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings")
-                    }
-                },
-            )
-        },
+        topBar = { HomeTopBar(isDemo = account.isDemo, onOpenAsk = onOpenAsk, onOpenSettings = onOpenSettings) },
     ) { padding ->
         when (state) {
             HomeUiState.Loading -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) {
@@ -640,18 +618,32 @@ private fun SmsSetupCard(onClick: () -> Unit) {
     }
 }
 
+/** "inkless" with the ledger it shows under it, Ask on the left of the two icons and Settings on the right. */
 @Composable
-private fun DemoBadge() {
-    Surface(
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        shape = MaterialTheme.shapes.small,
+private fun HomeTopBar(isDemo: Boolean, onOpenAsk: () -> Unit, onOpenSettings: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.statusBars)
+            .padding(start = Spacing.gutter, end = Spacing.s, top = Spacing.m, bottom = Spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = "DEMO",
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
-        )
+        Column(Modifier.weight(1f)) {
+            Text("inkless", style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp), color = Inkless.colors.ink)
+            if (isDemo) {
+                Text(
+                    "DEMO LEDGER · Saved on this phone",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Inkless.colors.muted,
+                )
+            }
+        }
+        IconButton(onClick = onOpenAsk) {
+            Icon(painterResource(R.drawable.icon_search), contentDescription = "Ask Inkless", tint = Inkless.colors.ink)
+        }
+        IconButton(onClick = onOpenSettings) {
+            Icon(painterResource(R.drawable.icon_sliders), contentDescription = "Settings", tint = Inkless.colors.ink)
+        }
     }
 }
 

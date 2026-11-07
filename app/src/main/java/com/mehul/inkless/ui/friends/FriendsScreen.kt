@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -17,7 +16,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mehul.inkless.R
+import com.mehul.inkless.ui.components.InklessTopBar
 import com.mehul.inkless.splits.FriendBalance
 import com.mehul.inkless.ui.components.SectionHeader
 import com.mehul.inkless.ui.format.Money
@@ -42,7 +41,6 @@ import com.mehul.inkless.ui.theme.LocalInklessColors
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FriendsScreen(
-    onBack: () -> Unit,
     onOpenFriend: (String) -> Unit,
     viewModel: FriendsViewModel = hiltViewModel(),
 ) {
@@ -64,18 +62,11 @@ fun FriendsScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Friends") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back") }
-                },
-            )
-        },
+        topBar = { InklessTopBar("Friends", icon = R.drawable.icon_users) },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { adding = true },
-                icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
+                icon = { Icon(painterResource(R.drawable.icon_plus), contentDescription = null) },
                 text = { Text("Friend") },
             )
         },
