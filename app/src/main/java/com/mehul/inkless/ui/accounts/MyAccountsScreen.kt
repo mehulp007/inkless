@@ -1,35 +1,28 @@
 package com.mehul.inkless.ui.accounts
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -41,12 +34,25 @@ import com.mehul.inkless.data.db.entity.AccountRole
 import com.mehul.inkless.data.db.entity.MyAccountEntity
 import com.mehul.inkless.data.repo.LedgerRepository
 import com.mehul.inkless.session.SessionManager
+import com.mehul.inkless.ui.components.IconTile
+import com.mehul.inkless.ui.components.InklessBottomSheet
+import com.mehul.inkless.ui.components.InklessCard
+import com.mehul.inkless.ui.components.InklessTextField
+import com.mehul.inkless.ui.components.InklessTopBar
+import com.mehul.inkless.ui.components.PageHeadline
+import com.mehul.inkless.ui.components.PillChoice
+import com.mehul.inkless.ui.components.PrimaryButton
+import com.mehul.inkless.ui.components.PrivacyNote
+import com.mehul.inkless.ui.components.SectionHeader
+import com.mehul.inkless.ui.components.TextLink
+import com.mehul.inkless.ui.theme.Inkless
+import com.mehul.inkless.ui.theme.Spacing
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @HiltViewModel
 class MyAccountsViewModel @Inject constructor(
@@ -57,142 +63,192 @@ class MyAccountsViewModel @Inject constructor(
     val accounts: StateFlow<List<MyAccountEntity>> = repository.myAccounts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun add(match: AccountMatch, value: String, role: AccountRole, label: String) {
+    /** Adds an account, or changes [account] when editing one. */
+    fun save(account: MyAccountEntity?, match: AccountMatch, value: String, role: AccountRole, label: String) {
         val owner = sessions.currentOwnerUid() ?: return
-        viewModelScope.launch { repository.addMyAccount(match, value, role, label, owner) }
+        viewModelScope.launch {
+            if (account == null) {
+                repository.addMyAccount(match, value, role, label, owner)
+            } else {
+                repository.editMyAccount(account, match, value, role, label)
+            }
+        }
     }
 
     fun remove(account: MyAccountEntity) = viewModelScope.launch { repository.removeMyAccount(account) }
 }
 
 /** The user's own accounts (transfers between them aren't spending) and home's (money from them is allowance). */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyAccountsScreen(
     onBack: () -> Unit,
     viewModel: MyAccountsViewModel = hiltViewModel(),
 ) {
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
-    var adding by rememberSaveable { mutableStateOf(false) }
+    MyAccountsContent(
+        accounts = accounts,
+        onBack = onBack,
+        onSave = viewModel::save,
+        onRemove = { viewModel.remove(it) },
+    )
+}
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("My accounts") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
-                    }
-                },
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { adding = true },
-                icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
-                text = { Text("Add") },
-            )
-        },
-    ) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(bottom = 96.dp)) {
-            item {
-                Text(
-                    "Add your own UPI IDs (and your name as banks print it) so moving money between your accounts " +
-                        "isn't counted as spending. Add home's UPI ID so money from them shows as allowance.",
-                    modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+private const val NEW_ACCOUNT = ""
+
+@Composable
+fun MyAccountsContent(
+    accounts: List<MyAccountEntity>,
+    onBack: () -> Unit,
+    onSave: (account: MyAccountEntity?, match: AccountMatch, value: String, role: AccountRole, label: String) -> Unit,
+    onRemove: (MyAccountEntity) -> Unit,
+) {
+    val colors = Inkless.colors
+    var editing by rememberSaveable { mutableStateOf<String?>(null) }
+
+    Surface(Modifier.fillMaxSize(), color = colors.background) {
+        Column(Modifier.fillMaxSize()) {
+            InklessTopBar("My accounts", onBack = onBack)
+            Column(
+                Modifier
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.s, bottom = Spacing.xl),
+                verticalArrangement = Arrangement.spacedBy(Spacing.xl),
+            ) {
+                PageHeadline(
+                    "Money that's still yours.",
+                    lead = "Add your own UPI IDs, and your name as banks print it, so moving money between your accounts " +
+                        "isn't counted as spending. Add home's so money from them shows as allowance.",
                 )
-            }
-            for (role in AccountRole.entries) {
-                val ofRole = accounts.filter { it.role == role }
-                item(key = "title-$role") {
-                    Text(
-                        if (role == AccountRole.MINE) "Mine" else "Home",
-                        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                if (ofRole.isEmpty()) {
-                    item(key = "empty-$role") {
-                        Text(
-                            "None yet",
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                AccountRole.entries.forEach { role ->
+                    val ofRole = accounts.filter { it.role == role }
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+                        SectionHeader(AccountText.section(role))
+                        InklessCard(padding = PaddingValues(vertical = Spacing.xs)) {
+                            if (ofRole.isEmpty()) {
+                                Text(
+                                    AccountText.empty(role),
+                                    Modifier.padding(horizontal = Spacing.l, vertical = Spacing.l),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = colors.muted,
+                                )
+                            }
+                            ofRole.forEachIndexed { index, account ->
+                                if (index > 0) HorizontalDivider(Modifier.padding(horizontal = Spacing.l), color = colors.hairline)
+                                AccountRow(account, onClick = { editing = account.id })
+                            }
+                        }
                     }
                 }
-                items(ofRole, key = { it.id }) { account ->
-                    ListItem(
-                        headlineContent = { Text(account.label ?: account.value) },
-                        supportingContent = {
-                            Text((if (account.match == AccountMatch.UPI_ID) "UPI ID · " else "Name · ") + account.value)
-                        },
-                        trailingContent = {
-                            IconButton(onClick = { viewModel.remove(account) }) {
-                                Icon(painterResource(R.drawable.ic_delete), contentDescription = "Remove")
-                            }
-                        },
-                    )
-                }
+                PrimaryButton("Add an account", onClick = { editing = NEW_ACCOUNT }, icon = R.drawable.icon_plus)
+                PrivacyNote(
+                    "Past payments follow along.",
+                    body = "Whenever this list changes, Inkless re-checks your payments, so transfers and allowance are marked right away.",
+                    icon = R.drawable.icon_refresh_cw,
+                )
             }
         }
     }
 
-    if (adding) {
-        AddAccountDialog(
-            onAdd = { match, value, role, label ->
-                viewModel.add(match, value, role, label)
-                adding = false
+    editing?.let { id ->
+        val account = accounts.firstOrNull { it.id == id }
+        AccountSheet(
+            account = account,
+            onSave = { match, value, role, label ->
+                onSave(account, match, value, role, label)
+                editing = null
             },
-            onDismiss = { adding = false },
+            onRemove = account?.let { { onRemove(it); editing = null } },
+            onDismiss = { editing = null },
         )
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AddAccountDialog(
-    onAdd: (AccountMatch, String, AccountRole, String) -> Unit,
+private fun AccountRow(account: MyAccountEntity, onClick: () -> Unit) {
+    val colors = Inkless.colors
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = Spacing.l, vertical = Spacing.m),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.m),
+    ) {
+        IconTile(if (account.role == AccountRole.HOME) R.drawable.icon_house else R.drawable.icon_landmark)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(account.label ?: account.value, style = MaterialTheme.typography.bodyLarge, color = colors.ink)
+            Text(AccountText.meta(account), style = MaterialTheme.typography.bodySmall, color = colors.muted)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AccountSheet(
+    account: MyAccountEntity?,
+    onSave: (AccountMatch, String, AccountRole, String) -> Unit,
+    onRemove: (() -> Unit)?,
     onDismiss: () -> Unit,
 ) {
-    var role by rememberSaveable { mutableStateOf(AccountRole.MINE) }
-    var match by rememberSaveable { mutableStateOf(AccountMatch.UPI_ID) }
-    var value by rememberSaveable { mutableStateOf("") }
-    var label by rememberSaveable { mutableStateOf("") }
-    val valid = value.isNotBlank() && (match == AccountMatch.NAME || '@' in value)
+    val roles = listOf(AccountRole.MINE, AccountRole.HOME)
+    val matches = listOf(AccountMatch.UPI_ID, AccountMatch.NAME)
+    var role by rememberSaveable { mutableStateOf(account?.role ?: AccountRole.MINE) }
+    var match by rememberSaveable { mutableStateOf(account?.match ?: AccountMatch.UPI_ID) }
+    var value by rememberSaveable { mutableStateOf(account?.value ?: "") }
+    var label by rememberSaveable { mutableStateOf(account?.label ?: "") }
+    val problem = AccountText.problem(match, value)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add account") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = role == AccountRole.MINE, onClick = { role = AccountRole.MINE }, label = { Text("Mine") })
-                    FilterChip(selected = role == AccountRole.HOME, onClick = { role = AccountRole.HOME }, label = { Text("Home") })
-                }
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = match == AccountMatch.UPI_ID, onClick = { match = AccountMatch.UPI_ID }, label = { Text("UPI ID") })
-                    FilterChip(selected = match == AccountMatch.NAME, onClick = { match = AccountMatch.NAME }, label = { Text("Name") })
-                }
-                OutlinedTextField(
-                    value = value,
-                    onValueChange = { value = it.take(80) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text(if (match == AccountMatch.UPI_ID) "UPI ID, e.g. you@oksbi" else "Name as banks show it") },
-                )
-                OutlinedTextField(
-                    value = label,
-                    onValueChange = { label = it.take(30) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text("Label (optional), e.g. SBI savings") },
-                )
-            }
-        },
-        confirmButton = { TextButton(onClick = { onAdd(match, value, role, label) }, enabled = valid) { Text("Add") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
+    InklessBottomSheet(onDismiss) {
+        Text(if (account == null) "Add an account" else "Edit account", style = MaterialTheme.typography.headlineSmall, color = Inkless.colors.ink)
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            Text("Whose", style = MaterialTheme.typography.labelMedium, color = Inkless.colors.muted)
+            PillChoice(listOf("Mine", "Home"), roles.indexOf(role), { role = roles[it] })
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            Text("Match by", style = MaterialTheme.typography.labelMedium, color = Inkless.colors.muted)
+            PillChoice(listOf("UPI ID", "Name"), matches.indexOf(match), { match = matches[it] })
+        }
+        InklessTextField(
+            value = value,
+            onValueChange = { value = it.take(80) },
+            label = if (match == AccountMatch.UPI_ID) "UPI ID" else "Name as banks show it",
+            placeholder = if (match == AccountMatch.UPI_ID) "you@oksbi" else "RAHUL SHARMA",
+            note = problem ?: if (role == AccountRole.HOME) "Money from here counts as allowance" else "Transfers to and from here aren't spending",
+            noteKind = if (problem != null) com.mehul.inkless.ui.components.FieldNote.Problem else com.mehul.inkless.ui.components.FieldNote.Plain,
+        )
+        InklessTextField(
+            value = label,
+            onValueChange = { label = it.take(30) },
+            label = "Label (optional)",
+            placeholder = if (role == AccountRole.HOME) "Papa's SBI" else "SBI savings",
+        )
+        PrimaryButton(
+            if (account == null) "Add account" else "Save account",
+            onClick = { onSave(match, value, role, label) },
+            enabled = value.isNotBlank() && problem == null,
+        )
+        if (onRemove != null) {
+            TextLink("Remove account", onRemove, Modifier.align(Alignment.CenterHorizontally), color = Inkless.colors.danger)
+        }
+    }
+}
+
+object AccountText {
+    fun section(role: AccountRole) = when (role) {
+        AccountRole.MINE -> "Mine — transfers aren't spending"
+        AccountRole.HOME -> "Home — money in is allowance"
+    }
+
+    fun empty(role: AccountRole) = when (role) {
+        AccountRole.MINE -> "None yet. Add the UPI IDs of your own bank accounts."
+        AccountRole.HOME -> "None yet. Add the UPI ID your allowance comes from."
+    }
+
+    fun meta(account: MyAccountEntity) =
+        (if (account.match == AccountMatch.UPI_ID) "UPI ID" else "Name") + if (account.label != null) " · ${account.value}" else ""
+
+    /** Why [value] can't be saved yet; null when it can (or is still empty). */
+    fun problem(match: AccountMatch, value: String): String? =
+        if (match == AccountMatch.UPI_ID && value.isNotBlank() && '@' !in value) "A UPI ID has an @ in it, like you@oksbi" else null
 }
