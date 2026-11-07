@@ -187,7 +187,7 @@ private fun ItemCard(
             // The picked chip may be scrolled out of sight, so say it in words too.
             val picked = categories.firstOrNull { it.id == categoryId }
             Text(
-                picked?.let { "${it.emoji}  ${it.name}" } ?: "Pick a category",
+                picked?.name ?: "Pick a category",
                 style = MaterialTheme.typography.labelLarge,
                 color = if (picked != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -197,7 +197,7 @@ private fun ItemCard(
                     FilterChip(
                         selected = category.id == categoryId,
                         onClick = { onCategory(category.id) },
-                        label = { Text("${category.emoji}  ${category.name}") },
+                        label = { Text(category.name) },
                     )
                 }
             }

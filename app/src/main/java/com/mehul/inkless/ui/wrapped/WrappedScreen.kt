@@ -3,7 +3,6 @@ package com.mehul.inkless.ui.wrapped
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -33,6 +31,7 @@ import com.mehul.inkless.R
 import com.mehul.inkless.data.db.entity.CategoryEntity
 import com.mehul.inkless.insights.WrappedStats
 import com.mehul.inkless.ui.format.Money
+import com.mehul.inkless.ui.theme.Inkless
 import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
@@ -67,8 +66,7 @@ fun WrappedScreen(onBack: () -> Unit, viewModel: WrappedViewModel = hiltViewMode
                     Text(WrappedText.title(stats), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     Text(
                         Money.format(stats.totalPaise),
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.SemiBold,
+                        style = Inkless.type.moneyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                     Text(WrappedText.sub(stats), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
@@ -146,7 +144,7 @@ object WrappedText {
     fun lines(stats: WrappedStats, categories: Map<String, CategoryEntity>): List<Pair<String, String>> = listOfNotNull(
         stats.topCategoryId?.let { id ->
             val c = categories[id]
-            "Most went on" to "${c?.emoji ?: ""} ${c?.name ?: "Other"} · ${stats.topCategoryShare}%".trim()
+            "Most went on" to "${c?.name ?: "Other"} · ${stats.topCategoryShare}%"
         },
         stats.topPlace?.let { "Top place" to "$it · ${Money.format(stats.topPlacePaise)}" },
         stats.mostVisited?.takeIf { stats.mostVisitedTimes > 1 }?.let { "Most visits" to "$it · ${stats.mostVisitedTimes} times" },

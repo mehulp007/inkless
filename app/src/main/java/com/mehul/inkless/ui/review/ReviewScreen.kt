@@ -200,7 +200,7 @@ private fun ReviewCard(
                 }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     quick.forEach { category ->
-                        AssistChip(onClick = { onPick(category.id) }, label = { Text("${category.emoji} ${category.name}") })
+                        AssistChip(onClick = { onPick(category.id) }, label = { Text(category.name) })
                     }
                     AssistChip(onClick = onMore, label = { Text("More…") })
                 }

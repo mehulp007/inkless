@@ -1,6 +1,5 @@
 package com.mehul.inkless.ui.home
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,13 +45,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,14 +58,16 @@ import com.mehul.inkless.budget.BudgetSnapshot
 import com.mehul.inkless.budget.BudgetText
 import com.mehul.inkless.ui.budget.PaceChart
 import com.mehul.inkless.ui.budget.SpendRing
+import com.mehul.inkless.ui.components.CategoryTile
 import com.mehul.inkless.ui.format.Money
+import com.mehul.inkless.ui.theme.Inkless
 import com.mehul.inkless.ui.theme.LocalInklessColors
-import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
@@ -247,7 +246,7 @@ private fun ReadyContent(
                 Tab(
                     selected = pagerState.currentPage == index,
                     onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                    text = { Text("${tab.emoji}  ${tab.title}", maxLines = 1) },
+                    text = { Text(tab.title, maxLines = 1) },
                 )
             }
         }
@@ -292,8 +291,7 @@ private fun MonthHeader(
             )
             Text(
                 text = Money.format(spentPaise),
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.SemiBold,
+                style = Inkless.type.moneyMedium,
             )
             Text(
                 text = if (isCurrentMonth) "spent so far this month" else "spent that month",
@@ -362,7 +360,7 @@ private fun CategorySummary(tab: CategoryTab, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        EmojiBadge(tab.emoji, Color(tab.colorArgb), size = 48.dp)
+        CategoryTile(tab.key, size = 48.dp)
         Column(Modifier.weight(1f)) {
             Text(tab.title, style = MaterialTheme.typography.titleMedium)
             Text(
@@ -499,7 +497,7 @@ private fun TransactionItem(row: TransactionRow, onClick: () -> Unit) {
                 overflow = TextOverflow.Ellipsis,
             )
         },
-        leadingContent = { EmojiBadge(row.emoji, Color(row.colorArgb)) },
+        leadingContent = { CategoryTile(row.categoryId, isCredit = row.isCredit, isTransfer = row.isTransfer) },
         trailingContent = {
             Text(
                 text = (if (row.isCredit) "+" else "−") + Money.format(row.amountPaise),
@@ -528,15 +526,6 @@ private fun MoreItemsBadge(count: Int) {
     }
 }
 
-@Composable
-private fun EmojiBadge(emoji: String, color: Color, size: Dp = 40.dp) {
-    Box(
-        modifier = Modifier.size(size).background(color.copy(alpha = 0.18f), CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(emoji, fontSize = (size.value * 0.48f).sp)
-    }
-}
 
 @Composable
 private fun VerifyEmailBanner(email: String, sent: Boolean, onResend: () -> Unit) {

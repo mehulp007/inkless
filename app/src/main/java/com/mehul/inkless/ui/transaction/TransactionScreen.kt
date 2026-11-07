@@ -49,6 +49,7 @@ import com.mehul.inkless.splits.SplitView
 import com.mehul.inkless.ui.components.CategoryPicker
 import com.mehul.inkless.ui.format.Money
 import com.mehul.inkless.ui.format.Titles
+import com.mehul.inkless.ui.theme.Inkless
 import com.mehul.inkless.ui.theme.LocalInklessColors
 import java.time.Instant
 import java.time.ZoneId
@@ -158,8 +159,7 @@ private fun Details(
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = (if (isCredit) "+" else "−") + Money.format(txn.amountPaise, alwaysShowPaise = true),
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.SemiBold,
+                style = Inkless.type.moneyMedium,
                 color = if (isCredit) LocalInklessColors.current.credit else MaterialTheme.colorScheme.onSurface,
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -188,7 +188,7 @@ private fun Details(
                 Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = MaterialTheme.shapes.small) {
                     val guessed = state.guess?.let { g -> state.categories.firstOrNull { it.id == g.categoryId } }
                     Text(
-                        guessed?.let { "Captured automatically. Looks like ${it.emoji} ${it.name} — tap Save if that's right, or pick another." }
+                        guessed?.let { "Captured automatically. Looks like ${it.name} — tap Save if that's right, or pick another." }
                             ?: "Captured automatically — pick what this was.",
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         style = MaterialTheme.typography.bodyMedium,
@@ -248,7 +248,7 @@ private fun BreakdownList(state: TransactionScreenState, onEdit: () -> Unit, onR
             val category = categories[item.categoryId]
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("${category?.emoji.orEmpty()}  ${category?.name ?: "Other"}", style = MaterialTheme.typography.bodyLarge)
+                    Text(category?.name ?: "Other", style = MaterialTheme.typography.bodyLarge)
                     item.note?.let {
                         Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }

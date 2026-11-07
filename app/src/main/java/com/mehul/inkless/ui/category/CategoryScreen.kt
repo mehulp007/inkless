@@ -31,7 +31,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -43,6 +42,7 @@ import com.mehul.inkless.R
 import com.mehul.inkless.parsing.Amounts
 import com.mehul.inkless.ui.budget.MonthBars
 import com.mehul.inkless.ui.format.Money
+import com.mehul.inkless.ui.theme.Inkless
 import java.time.format.DateTimeFormatter
 
 /** One category: this month against its budget, the last six months, and where the money went. */
@@ -59,7 +59,7 @@ fun CategoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(category?.let { "${it.emoji}  ${it.name}" } ?: "") },
+                title = { Text(category?.name.orEmpty()) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
@@ -72,7 +72,6 @@ fun CategoryScreen(
             Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) { CircularProgressIndicator() }
             return@Scaffold
         }
-        val color = Color(category.colorArgb)
         val budget = category.monthlyBudgetPaise
         Column(
             Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
@@ -80,7 +79,7 @@ fun CategoryScreen(
         ) {
             Column {
                 Text("This month", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(Money.format(state.thisMonthPaise.coerceAtLeast(0)), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold)
+                Text(Money.format(state.thisMonthPaise.coerceAtLeast(0)), style = Inkless.type.moneyMedium)
             }
 
             if (budget != null) {
@@ -88,7 +87,7 @@ fun CategoryScreen(
                 LinearProgressIndicator(
                     progress = { fraction.coerceAtMost(1f) },
                     modifier = Modifier.fillMaxWidth().height(10.dp),
-                    color = if (fraction > 1f) MaterialTheme.colorScheme.error else color,
+                    color = if (fraction > 1f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 )
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -107,7 +106,7 @@ fun CategoryScreen(
 
             HorizontalDivider()
             Text("Last 6 months", style = MaterialTheme.typography.titleSmall)
-            MonthBars(state.months.map { it.second }, budget, color, Modifier.fillMaxWidth().height(120.dp))
+            MonthBars(state.months.map { it.second }, budget, Modifier.fillMaxWidth().height(120.dp))
             Row(Modifier.fillMaxWidth()) {
                 state.months.forEach { (month, paise) ->
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {

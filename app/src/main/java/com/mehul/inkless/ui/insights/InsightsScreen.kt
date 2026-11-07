@@ -43,6 +43,8 @@ import com.mehul.inkless.data.db.entity.RecurringEntity
 import com.mehul.inkless.insights.AccuracyReport
 import com.mehul.inkless.insights.AlertText
 import com.mehul.inkless.ml.WeekAccuracy
+import com.mehul.inkless.ui.components.CategoryTile
+import com.mehul.inkless.ui.theme.Inkless
 import com.mehul.inkless.ui.format.Money
 import java.time.Instant
 import java.time.YearMonth
@@ -94,7 +96,7 @@ fun InsightsScreen(
                 Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = MaterialTheme.shapes.medium) {
                     Column(Modifier.fillMaxWidth().padding(16.dp)) {
                         Text(
-                            AlertText.title(alert, category?.let { "${it.emoji} ${it.name}" } ?: "Spending"),
+                            AlertText.title(alert, category?.name ?: "Spending"),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onTertiaryContainer,
                         )
@@ -160,9 +162,9 @@ private fun AccuracySection(report: AccuracyReport) {
 /** Each week's share of right guesses; weeks without any are a faint stub. */
 @Composable
 private fun AccuracyChart(weeks: List<WeekAccuracy>, modifier: Modifier) {
-    val color = MaterialTheme.colorScheme.primary
-    val empty = MaterialTheme.colorScheme.outlineVariant
-    val guide = MaterialTheme.colorScheme.outline
+    val color = Inkless.colors.primary
+    val empty = Inkless.colors.tintStrong
+    val guide = Inkless.colors.hairline
     Canvas(modifier) {
         val slot = size.width / weeks.size
         val barWidth = slot * 0.6f
@@ -194,7 +196,7 @@ private fun RecurringRow(item: RecurringEntity, category: CategoryEntity?) {
     val next = Instant.ofEpochMilli(item.nextExpectedAt).atZone(ZoneId.systemDefault()).toLocalDate()
     val due = if (item.nextExpectedAt < System.currentTimeMillis()) "due now" else "next around ${next.format(DateTimeFormatter.ofPattern("d MMM"))}"
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(category?.emoji ?: "🔁", Modifier.padding(end = 12.dp), style = MaterialTheme.typography.titleMedium)
+        CategoryTile(item.categoryId, Modifier.padding(end = 12.dp), size = 36.dp)
         Column(Modifier.weight(1f)) {
             Text(item.name, style = MaterialTheme.typography.bodyLarge)
             Text("$every · $due", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -165,7 +165,7 @@ fun RulesScreen(
                 val category = byId[rule.categoryId]
                 ListItem(
                     headlineContent = { Text(describe(rule)) },
-                    supportingContent = { Text("→ ${category?.emoji.orEmpty()} ${category?.name ?: rule.categoryId}") },
+                    supportingContent = { Text("→ ${category?.name ?: rule.categoryId}") },
                     trailingContent = {
                         Row {
                             IconButton(onClick = { viewModel.move(rule, up = true) }, enabled = index > 0) {
