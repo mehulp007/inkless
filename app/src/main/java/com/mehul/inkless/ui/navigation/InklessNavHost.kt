@@ -1,5 +1,6 @@
 package com.mehul.inkless.ui.navigation
 
+import com.mehul.inkless.ui.theme.Motion
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
@@ -173,6 +174,10 @@ fun InklessShell(
             startDestination = HomeTab,
             // Consumed, so screens above the bar don't pad for the navigation bar a second time.
             modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+            enterTransition = Motion.enter,
+            exitTransition = Motion.exit,
+            popEnterTransition = Motion.popEnter,
+            popExitTransition = Motion.popExit,
             builder = graph,
         )
     }
