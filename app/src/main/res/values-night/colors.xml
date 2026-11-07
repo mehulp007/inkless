@@ -1,3 +1,11 @@
 <resources>
     <color name="window_background">#FF141E1A</color>
+    <!-- The home-screen widget, in the app's palette (the launcher picks light or dark). -->
+    <color name="widget_surface">#FF1F2C25</color>
+    <color name="widget_primary">#FF9CD7B5</color>
+    <color name="widget_on_primary">#FF141E1A</color>
+    <color name="widget_ink">#FFEDF0E7</color>
+    <color name="widget_muted">#FFA7B5AA</color>
+    <color name="widget_danger">#FFF0A49B</color>
+    <color name="widget_hairline">#FF35453B</color>
 </resources>

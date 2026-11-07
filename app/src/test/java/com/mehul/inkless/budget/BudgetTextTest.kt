@@ -41,6 +41,9 @@ class BudgetTextTest {
         assertThat(BudgetText.usedPercent(s)).isEqualTo("22.5%")
         assertThat(BudgetText.usedPercent(snapshot(spent = 480_000))).isEqualTo("40%")
         assertThat(BudgetText.leftLine(snapshot(spent = 1_250_000))).isEqualTo("₹500 over · 11 days including today")
+        assertThat(BudgetText.widgetLine(s)).isEqualTo("₹9,300 left · 11 days")
+        assertThat(BudgetText.widgetLine(snapshot(spent = 1_250_000))).isEqualTo("₹500 over · 11 days")
+        assertThat(BudgetText.widgetLine(snapshot(spent = 270_050))).isEqualTo("₹9,299 left · 11 days")
     }
 
     @Test

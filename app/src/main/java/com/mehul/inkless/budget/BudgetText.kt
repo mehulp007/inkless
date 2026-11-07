@@ -36,6 +36,19 @@ object BudgetText {
         return if (remaining >= 0) "${Money.format(remaining)} left · $days" else "${Money.format(-remaining)} over · $days"
     }
 
+    /** The widget's short version in whole rupees: "₹9,300 left · 25 days", "₹500 over · last day". */
+    fun widgetLine(snapshot: BudgetSnapshot): String {
+        val daysLeft = snapshot.cycle.daysLeft(snapshot.today)
+        val days = if (daysLeft == 1) "last day" else "$daysLeft days"
+        val remaining = snapshot.remainingPaise
+        // Rounded the careful way, like the safe-to-spend amount: never more left than there is.
+        return if (remaining >= 0) {
+            "${Money.format(remaining / 100 * 100)} left · $days"
+        } else {
+            "${Money.format((-remaining + 99) / 100 * 100)} over · $days"
+        }
+    }
+
     /** "22.5%", or "40%" when there's nothing after the point. */
     fun usedPercent(snapshot: BudgetSnapshot): String {
         val tenths = kotlin.math.round(snapshot.usedFraction * 1000).toInt()

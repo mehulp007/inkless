@@ -2,4 +2,8 @@
     <string name="app_name">Inkless</string>
     <string name="share_label">Break down in Inkless</string>
     <string name="widget_description">What you can spend today, and a button to add cash</string>
+    <string name="widget_preview_label">Safe today</string>
+    <string name="widget_preview_amount">₹452</string>
+    <string name="widget_preview_line">₹9,300 left · 25 days</string>
+    <string name="widget_preview_cash">+ Cash</string>
 </resources>

@@ -1,4 +1,12 @@
 <resources>
     <color name="window_background">#FFF7F6F0</color>
-    <color name="ic_launcher_background">#FF3452C7</color>
+    <color name="ic_launcher_background">#FF236B53</color>
+    <!-- The home-screen widget, in the app's palette (the launcher picks light or dark). -->
+    <color name="widget_surface">#FFFFFEFA</color>
+    <color name="widget_primary">#FF236B53</color>
+    <color name="widget_on_primary">#FFFFFEFA</color>
+    <color name="widget_ink">#FF202B27</color>
+    <color name="widget_muted">#FF5F6C66</color>
+    <color name="widget_danger">#FFA23D3D</color>
+    <color name="widget_hairline">#FFDEDFD6</color>
 </resources>
