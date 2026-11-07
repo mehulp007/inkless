@@ -17,15 +17,16 @@ import com.mehul.inkless.data.db.entity.Direction
 import com.mehul.inkless.data.db.entity.TransactionEntity
 import com.mehul.inkless.di.ApplicationScope
 import com.mehul.inkless.ui.format.Money
+import com.mehul.inkless.ui.theme.NotificationStyle
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * When money arrives from a friend who owes the user, asks whether it settles what they owe:
@@ -61,6 +62,7 @@ class SettleSuggester @Inject constructor(
         val what = targets.singleOrNull()?.let { describe(name, it) } ?: "Everything $name owes you?"
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_inkless)
+            .setColor(NotificationStyle.ACCENT)
             .setContentTitle("${Money.format(credit.amountPaise)} from $name")
             .setContentText(what)
             .addAction(0, "Mark paid back", SettleReceiver.intent(context, credit.id, targets))

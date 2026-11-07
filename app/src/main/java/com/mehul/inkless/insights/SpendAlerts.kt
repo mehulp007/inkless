@@ -15,6 +15,7 @@ import com.mehul.inkless.data.db.InklessDatabase
 import com.mehul.inkless.data.db.entity.Direction
 import com.mehul.inkless.data.db.entity.TransactionEntity
 import com.mehul.inkless.ui.format.Money
+import com.mehul.inkless.ui.theme.NotificationStyle
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Clock
 import java.time.LocalDate
@@ -64,7 +65,7 @@ class SpendAlerts @Inject constructor(
         val alerts = current(db)
         val fresh = alerts.firstOrNull { it.key !in sent } ?: return
 
-        val category = db.categoryDao().getAll().firstOrNull { it.id == fresh.categoryId }?.let { "${it.emoji} ${it.name}" } ?: "Spending"
+        val category = db.categoryDao().getAll().firstOrNull { it.id == fresh.categoryId }?.name ?: "Spending"
         manager.createNotificationChannel(
             NotificationChannelCompat.Builder(CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_LOW)
                 .setName("Spending alerts")
@@ -80,6 +81,7 @@ class SpendAlerts @Inject constructor(
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_inkless)
+            .setColor(NotificationStyle.ACCENT)
             .setContentTitle(AlertText.title(fresh, category))
             .setContentText(AlertText.body(fresh))
             .setContentIntent(open)

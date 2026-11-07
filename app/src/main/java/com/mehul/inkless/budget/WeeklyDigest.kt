@@ -20,7 +20,7 @@ object WeeklyDigest {
             .filterValues { it > 0 }
             .entries.sortedByDescending { it.value }
             .take(TOP_CATEGORIES)
-            .joinToString(" · ") { (id, paise) -> "${names[id]?.let { "${it.emoji} ${it.name}" } ?: "Other"} ${Money.format(paise)}" }
+            .joinToString(" · ") { (id, paise) -> "${names[id]?.name ?: "Other"} ${Money.format(paise)}" }
         val left = budget?.let {
             if (it.remainingPaise > 0) {
                 "${Money.format(it.remainingPaise)} left until your allowance on the ${BudgetText.ordinal(it.cycle.endExclusive)}."

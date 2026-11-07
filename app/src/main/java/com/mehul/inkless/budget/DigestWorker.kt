@@ -15,6 +15,7 @@ import androidx.work.WorkerParameters
 import com.mehul.inkless.MainActivity
 import com.mehul.inkless.R
 import com.mehul.inkless.capture.CaptureRunner
+import com.mehul.inkless.ui.theme.NotificationStyle
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -63,6 +64,7 @@ class DigestWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         )
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_inkless)
+            .setColor(NotificationStyle.ACCENT)
             .setContentTitle(message.title)
             .setContentText(message.text.lineSequence().first())
             .setStyle(NotificationCompat.BigTextStyle().bigText(message.text))

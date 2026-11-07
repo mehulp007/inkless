@@ -102,7 +102,7 @@ class BudgetTextTest {
         val message = WeeklyDigest.compose(week, categories, snapshot())!!
         assertThat(message.title).isEqualTo("This week: ₹2,099 spent")
         assertThat(message.text).isEqualTo(
-            "🍔 Food & Canteen ₹900 · 🚕 Travel ₹600 · 🍜 Food Delivery ₹400\n₹6,000 left until your allowance on the 1st.",
+            "Food & Canteen ₹900 · Travel ₹600 · Food Delivery ₹400\n₹6,000 left until your allowance on the 1st.",
         )
         assertThat(WeeklyDigest.compose(emptyList(), categories, null)).isNull()
     }

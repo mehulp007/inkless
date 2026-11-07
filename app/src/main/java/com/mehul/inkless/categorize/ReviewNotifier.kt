@@ -21,6 +21,7 @@ import com.mehul.inkless.data.db.entity.TransactionEntity
 import com.mehul.inkless.data.repo.LedgerRepository
 import com.mehul.inkless.ml.CategoryModel
 import com.mehul.inkless.ui.format.Money
+import com.mehul.inkless.ui.theme.NotificationStyle
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,7 +31,7 @@ import javax.inject.Singleton
  * - "₹45 to SHARMA CANTEEN: what was this?" with the model's best guesses (then the user's most
  *   used categories) as buttons, and a
  *   Break down button for payments over the user's limit;
- * - "₹450 → 🍜 Food Delivery" for payments over the limit that were filed on their own, with
+ * - "₹450 → Food Delivery" for payments over the limit that were filed on their own, with
  *   Looks right / Break down / Change.
  * Category and Looks right buttons are handled by [CategorizeReceiver] without opening the app;
  * Break down and Change open it.
@@ -73,6 +74,7 @@ class ReviewNotifier @Inject constructor(
             }
             builder
                 .setSmallIcon(R.drawable.ic_stat_inkless)
+                .setColor(NotificationStyle.ACCENT)
                 .setContentIntent(open("inkless://transaction/${txn.id}", txn.id, OPEN))
                 .setAutoCancel(true)
                 .setOnlyAlertOnce(true)
@@ -89,14 +91,14 @@ class ReviewNotifier @Inject constructor(
             .apply {
                 // Android shows three buttons at most, so Break down takes the place of one category.
                 picks.take(if (withBreakDown) MAX_BUTTONS - 1 else MAX_BUTTONS).forEach { category ->
-                    addAction(0, "${category.emoji} ${category.name}", CategorizeReceiver.intent(context, txn.id, category.id))
+                    addAction(0, category.name, CategorizeReceiver.intent(context, txn.id, category.id))
                 }
                 if (withBreakDown) addAction(0, "Break down", open("inkless://breakdown/${txn.id}", txn.id, BREAK_DOWN))
             }
 
     private fun checkIn(txn: TransactionEntity, category: CategoryEntity?) =
         NotificationCompat.Builder(context, CHECK_IN_CHANNEL_ID)
-            .setContentTitle("${Money.format(txn.amountPaise)} → ${category?.let { "${it.emoji} ${it.name}" } ?: "Other"}")
+            .setContentTitle("${Money.format(txn.amountPaise)} → ${category?.name ?: "Other"}")
             .setContentText(who(txn))
             .addAction(0, "Looks right", CategorizeReceiver.confirmIntent(context, txn.id))
             .addAction(0, "Break down", open("inkless://breakdown/${txn.id}", txn.id, BREAK_DOWN))
