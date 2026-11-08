@@ -1,20 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Status bar icon: the open book from the app's mark. Android draws it white, so only the shape matters. -->
+<!-- Status bar icon: the ledger drop. Android draws it white, so only the shape matters. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:pathData="M12 5 v16"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <path
-        android:pathData="M20.001 19 A2 2 0 0 0 22 17 V5 a2 2 0 0 0 -1.999 -2 L16 3.002 A5 5 0 0 0 12 5 a5 5 0 0 0 -4 -2 H4 a2 2 0 0 0 -2 2 v12 a2 2 0 0 0 1.999 2 H8 a5 5 0 0 1 4 2 5 5 0 0 1 4 -2 z"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+    android:viewportWidth="84"
+    android:viewportHeight="84">
+    <group android:translateX="-18" android:translateY="-17">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M60,20 C60,20 34,52 34,72 A26,26 0 0,0 86,72 C86,52 60,20 60,20 Z M47.5,58 H72.5 A2.5,2.5 0 0,1 72.5,63 H47.5 A2.5,2.5 0 0,1 47.5,58 Z M47.5,69 H72.5 A2.5,2.5 0 0,1 72.5,74 H47.5 A2.5,2.5 0 0,1 47.5,69 Z M47.5,80 H60.5 A2.5,2.5 0 0,1 60.5,85 H47.5 A2.5,2.5 0 0,1 47.5,80 Z" />
+    </group>
 </vector>

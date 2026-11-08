@@ -23,7 +23,7 @@ class DrawablesTest {
     @Test
     fun `every drawable and the launcher icon load`() {
         val context = ApplicationProvider.getApplicationContext<Application>()
-        val ids = R.drawable::class.java.fields.filter { it.name.startsWith("icon_") || it.name.startsWith("ic_") || it.name.startsWith("widget_") }
+        val ids = R.drawable::class.java.fields.filter { it.name.startsWith("icon_") || it.name.startsWith("ic_") || it.name.startsWith("widget_") || it.name.startsWith("logo_") }
         assertThat(ids).isNotEmpty()
         val broken = ids.filter { field -> runCatching { context.getDrawable(field.getInt(null)) }.isFailure }.map { it.name }
         assertThat(broken).isEmpty()

@@ -1,26 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The open book from the app's mark, centred in the adaptive-icon safe zone. Also the themed (monochrome) icon. -->
+<!-- The ledger drop, centred in the adaptive-icon safe zone. Also the themed (monochrome) icon and the splash icon. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group
-        android:scaleX="1.6"
-        android:scaleY="1.6"
-        android:translateX="34.8"
-        android:translateY="34.8">
+    <group android:scaleX="0.6" android:scaleY="0.6" android:translateX="18" android:translateY="18.6">
         <path
-            android:pathData="M12 5 v16"
-            android:strokeColor="#FFFFFEFA"
-            android:strokeWidth="1.75"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round" />
-        <path
-            android:pathData="M20.001 19 A2 2 0 0 0 22 17 V5 a2 2 0 0 0 -1.999 -2 L16 3.002 A5 5 0 0 0 12 5 a5 5 0 0 0 -4 -2 H4 a2 2 0 0 0 -2 2 v12 a2 2 0 0 0 1.999 2 H8 a5 5 0 0 1 4 2 5 5 0 0 1 4 -2 z"
-            android:strokeColor="#FFFFFEFA"
-            android:strokeWidth="1.75"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round" />
+            android:fillColor="#FFFFFEFA"
+            android:fillType="evenOdd"
+            android:pathData="M60,20 C60,20 34,52 34,72 A26,26 0 0,0 86,72 C86,52 60,20 60,20 Z M47.5,58 H72.5 A2.5,2.5 0 0,1 72.5,63 H47.5 A2.5,2.5 0 0,1 47.5,58 Z M47.5,69 H72.5 A2.5,2.5 0 0,1 72.5,74 H47.5 A2.5,2.5 0 0,1 47.5,69 Z M47.5,80 H60.5 A2.5,2.5 0 0,1 60.5,85 H47.5 A2.5,2.5 0 0,1 47.5,80 Z" />
     </group>
 </vector>

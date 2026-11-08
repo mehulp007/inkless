@@ -19,16 +19,16 @@ import com.mehul.inkless.R
 import com.mehul.inkless.ui.theme.Inkless
 import com.mehul.inkless.ui.theme.Spacing
 
-/** The open book on a green rounded square: the app's mark. */
+/** The ledger drop on a green rounded square: the app's mark, as on the launcher icon. */
 @Composable
 fun BrandTile(modifier: Modifier = Modifier, size: Dp = 40.dp) {
     Surface(modifier.size(size), shape = MaterialTheme.shapes.small, color = Inkless.colors.primary) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
-                painterResource(R.drawable.icon_book_open),
+                painterResource(R.drawable.logo_mark),
                 contentDescription = null,
                 tint = Inkless.colors.onPrimary,
-                modifier = Modifier.size(size * 0.5f),
+                modifier = Modifier.size(size),
             )
         }
     }

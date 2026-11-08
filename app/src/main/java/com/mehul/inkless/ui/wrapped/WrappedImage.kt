@@ -67,8 +67,13 @@ object WrappedImage {
         }
         val left = 90f
 
-        // The mark: a green rounded square and the name.
+        // The mark: the ledger drop on a green rounded square, and the name.
         canvas.drawRoundRect(RectF(left, 90f, left + 64f, 154f), 18f, 18f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = PRIMARY })
+        ResourcesCompat.getDrawable(context.resources, R.drawable.logo_mark, null)?.mutate()?.let { mark ->
+            mark.setTint(SURFACE)
+            mark.setBounds(left.toInt() + 6, 96, left.toInt() + 58, 148)
+            mark.draw(canvas)
+        }
         canvas.drawText("inkless", left + 88f, 138f, paint(interBold, 44f, INK))
 
         canvas.drawText(title, left, 290f, paint(lora, 76f, INK))

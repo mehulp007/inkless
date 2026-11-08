@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app's mark: an ink drop ruled like a ledger. Tinted where it's used. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M60,20 C60,20 34,52 34,72 A26,26 0 0,0 86,72 C86,52 60,20 60,20 Z M47.5,58 H72.5 A2.5,2.5 0 0,1 72.5,63 H47.5 A2.5,2.5 0 0,1 47.5,58 Z M47.5,69 H72.5 A2.5,2.5 0 0,1 72.5,74 H47.5 A2.5,2.5 0 0,1 47.5,69 Z M47.5,80 H60.5 A2.5,2.5 0 0,1 60.5,85 H47.5 A2.5,2.5 0 0,1 47.5,80 Z" />
+</vector>
