@@ -5,7 +5,7 @@ from an APK file. It takes about five minutes.
 
 ## 1. Get the file
 
-Download **`inkless-1.1.0.apk`** (about 35 MB) from the
+Download **`inkless-1.2.0.apk`** (about 35 MB) from the
 [latest release](https://github.com/mehulp007/inkless/releases/latest). It's one file for every
 phone on Android 8.0 or newer, old or new, cheap or not.
 
@@ -15,7 +15,7 @@ phone on Android 8.0 or newer, old or new, cheap or not.
 in, then:
 
 ```bash
-adb install inkless-1.1.0.apk
+adb install inkless-1.2.0.apk
 ```
 
 **From the phone.** Open the APK from Files, Drive or wherever it was sent, and allow *Install unknown

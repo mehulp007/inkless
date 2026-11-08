@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.svg" width="96" alt="Inkless logo: an ink drop ruled like a ledger" /></p>
+
 # Inkless
 
 **The ledger that writes itself.**
@@ -18,7 +20,7 @@ It's local-first: your ledger lives in a database on your phone, and the SMS tex
 
 <sub>Screenshots use the built-in demo data — none of it is real.</sub>
 
-**Want to try it?** Download `inkless-1.1.0.apk` from the [latest release](https://github.com/mehulp007/inkless/releases/latest); [docs/INSTALL.md](docs/INSTALL.md) explains how to install it (it's not on the Play Store, since apps that read SMS need Google's approval).
+**Want to try it?** Download `inkless-1.2.0.apk` from the [latest release](https://github.com/mehulp007/inkless/releases/latest); [docs/INSTALL.md](docs/INSTALL.md) explains how to install it (it's not on the Play Store, since apps that read SMS need Google's approval).
 
 ## What it does
 
@@ -240,9 +242,9 @@ The phone's own database is always the real copy; the app reads nothing else, so
 
 ## Design
 
-A quiet ledger: warm off-white paper and deep green in light mode, dark green and mint in dark mode, the same on every phone rather than following the wallpaper. Headlines are set in Lora, everything else in Inter, both bundled in the app; categories get Lucide line icons on soft green tiles instead of emoji. The app icon is the open book from the wordmark on a green tile, with a themed (monochrome) version for launchers that tint icons, and the same mark on the Android 12+ splash screen.
+A quiet ledger: warm off-white paper and deep green in light mode, dark green and mint in dark mode, the same on every phone rather than following the wallpaper. Headlines are set in Lora, everything else in Inter, both bundled in the app; categories get Lucide line icons on soft green tiles instead of emoji. The logo is an ink drop ruled like a ledger, white on a green tile: ink that's already become a ledger. It's the app icon (with a themed, one-colour version for launchers that tint icons), the notification icon, and the mark on Welcome, the lock screen and the Wrapped picture.
 
-Movement is small and quick: a page slides in a little as it opens and back out as you leave, switching tabs only cross-fades, bars and the spending ring grow in when they first show, and the safe-to-spend number rolls over when a payment lands. Turning animations off in Android's settings turns them off here too.
+Opening the app, the ledger drop takes over from Android's launch screen without a seam, takes a small breath, and its green spreads out to fill the screen before the app fades in through it, in about a second. It plays only when the app starts (not when you come back to it), follows the Light, Dark or System choice (Android 13+ draws its own launch screen in that choice too), and holds the app lock's prompt until it's done. After that, movement is small and quick: a page slides in a little as it opens, going back slides the page away to the right while the screen underneath slides in from the left, so there's never a blank moment, tapping another tab only cross-fades, bars and the spending ring grow in when they first show, and the safe-to-spend number rolls over when a payment lands. Turning animations off in Android's settings turns them off here too; the opening then just shows the logo for a moment.
 
 It's built to be read by everyone: every text colour passes WCAG AA contrast (4.5:1) against what it sits on, in both themes, and a unit test checks it. Charts carry a spoken summary for TalkBack ("₹2,700 spent by day 6 of 30, of ₹12,000…"), progress bars report their value, touch targets are at least 48dp, and the busiest screens are checked at 200% text size.
 
