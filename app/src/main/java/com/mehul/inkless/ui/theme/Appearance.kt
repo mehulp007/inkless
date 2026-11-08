@@ -1,7 +1,9 @@
 package com.mehul.inkless.ui.theme
 
+import android.app.UiModeManager
 import android.content.Context
 import android.graphics.Color
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
@@ -26,13 +28,34 @@ class AppearancePrefs @Inject constructor(
     @ApplicationContext context: Context,
 ) {
     private val prefs = context.getSharedPreferences("appearance", Context.MODE_PRIVATE)
+    private val uiModes = context.getSystemService(UiModeManager::class.java)
 
     private val _mode = MutableStateFlow(read())
     val mode: StateFlow<Appearance> = _mode.asStateFlow()
 
+    init {
+        tellSystem(_mode.value)
+    }
+
     fun set(mode: Appearance) {
         prefs.edit { putString(KEY, mode.name) }
         _mode.value = mode
+        tellSystem(mode)
+    }
+
+    /**
+     * Android 13+ draws its launch screen (before any of the app runs) in the app's own night mode
+     * when told it, so the opening matches Light or Dark even when the phone is set the other way.
+     * Older versions only follow the phone.
+     */
+    private fun tellSystem(mode: Appearance) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val night = when (mode) {
+            Appearance.LIGHT -> UiModeManager.MODE_NIGHT_NO
+            Appearance.DARK -> UiModeManager.MODE_NIGHT_YES
+            Appearance.SYSTEM -> UiModeManager.MODE_NIGHT_AUTO
+        }
+        runCatching { uiModes?.setApplicationNightMode(night) }
     }
 
     private fun read(): Appearance =

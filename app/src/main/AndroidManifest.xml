@@ -34,6 +34,7 @@
 
         <activity
             android:name=".MainActivity"
+            android:configChanges="uiMode"
             android:exported="true"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -45,6 +46,7 @@
         <!-- Share to Inkless: an order's text or screenshot, to break a payment down into items. -->
         <activity
             android:name=".share.ShareActivity"
+            android:configChanges="uiMode"
             android:exported="true"
             android:label="@string/share_label"
             android:windowSoftInputMode="adjustResize">

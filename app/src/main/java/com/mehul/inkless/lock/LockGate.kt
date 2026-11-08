@@ -31,11 +31,12 @@ import com.mehul.inkless.ui.theme.Inkless
 import com.mehul.inkless.ui.theme.Spacing
 
 /**
- * Shows [content] only while the app is unlocked. With the lock on, the app's screen is also left
+ * Shows [content] only while the app is unlocked; [askNow] holds the unlock prompt back while
+ * something (the opening) is still on screen. With the lock on, the app's screen is also left
  * out of the recent-apps preview (Android 13+), so spending doesn't show in the app switcher.
  */
 @Composable
-fun LockGate(lock: AppLock, content: @Composable () -> Unit) {
+fun LockGate(lock: AppLock, askNow: Boolean = true, content: @Composable () -> Unit) {
     val activity = LocalActivity.current as FragmentActivity
     val enabled by lock.enabled.collectAsStateWithLifecycle()
     val locked by lock.locked.collectAsStateWithLifecycle()
@@ -57,8 +58,8 @@ fun LockGate(lock: AppLock, content: @Composable () -> Unit) {
         problem = null
         lock.unlock(activity) { problem = it.toString() }
     }
-    // Ask straight away; the button is for after a cancel.
-    LaunchedEffect(Unit) { unlock() }
+    // Ask straight away (once the opening has played); the button is for after a cancel.
+    LaunchedEffect(askNow) { if (askNow) unlock() }
     LockedScreen(problem = problem, onUnlock = unlock)
 }
 
